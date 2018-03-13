@@ -93,6 +93,9 @@ ENV/
 # mypy
 .mypy_cache/
 
+# python cache
+vrpc/__pycache__/
+
 # C++ dev-depenedencies
 /third_party/bin
 /third_party/include
