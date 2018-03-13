@@ -1,7 +1,7 @@
 # VRPC - Variadic Remote Procedure Calls
 [![Build Status](https://travis-ci.org/bheisen/vrpc.svg?branch=master)](https://travis-ci.org/bheisen/vrpc)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/bheisen/vrpc/master/LICENSE)
-[![GitHub Releases](https://img.shields.io/github/release/bheisen/vrpc.svg)](https://github.com/bheisen/vrpc/releases)
+[![GitHub Releases](https://img.shields.io/github/tag/bheisen/vrpc.svg)](https://github.com/bheisen/vrpc/tag)
 [![GitHub Issues](https://img.shields.io/github/issues/bheisen/vrpc.svg)](http://github.com/bheisen/vrpc/issues)
 * Need to bridge programming languages?
 * Tired of writing bindings?
