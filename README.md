@@ -14,9 +14,9 @@ If your answer is **yes**, then read further.
 
 ## Design Goals
 
-**Integration Speed** vrpc's most important goal is to provide C/C++ code
-to other languages (currently *Node.js*) without having to write any bindings
-or having to touch any of the existing code.
+**Integration Speed** vrpc's most important goal is to provide C/C++ code to
+other languages (currently *Node.js* and *Python*) without having to write any
+bindings or having to touch any of the existing code.
 
 **Completeness** Any C++ function with any signature, including callbacks and
 custom data-types can be bound. Return values and exceptions are properly
