@@ -7,7 +7,7 @@
     "example": "examples"
   },
   "scripts": {
-    "test": "npm run test:cpp && npm run test:js && npm run test:python",
+    "test": "npm run test:cpp && npm run test:js",
     "test:cpp": "third_party/install.sh && BUILD_TESTS=1 node-gyp rebuild && build/Release/vrpc-test",
     "test:js": "./node_modules/.bin/mocha test/js",
     "test:python": "python3 test/python/vrpc_local_test.py"
