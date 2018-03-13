@@ -14,8 +14,11 @@
   },
   "keywords": [
     "language bindings",
-    "C++ to NodeJs",
-    "header only",
+    "RPC",
+    "Remote Procedural Calls",
+    "C++ to Node.js",
+    "C++ to Python",
+    "header-only",
     "C++14"
   ],
   "repository": {
