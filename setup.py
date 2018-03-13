@@ -1,4 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 
 module = Extension(
     'vrpc_test',
@@ -22,5 +22,6 @@ setup(
     package_data={
         'cpp': ['module.cpp'],
     },
+    packages=find_packages(),
     ext_modules=[module]
 )

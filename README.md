@@ -1,4 +1,5 @@
 # VRPC - Variadic Remote Procedure Calls
+[![Build Status](https://travis-ci.org/bheisen/vrpc.svg?branch=master)](https://travis-ci.org/bheisen/vrpc)
 
 * Need to bridge programming languages?
 * Tired of writing bindings?
