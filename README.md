@@ -491,6 +491,13 @@ and run like so:
 node examples/Bar.js
 ```
 
+### Existing project example - Node.js
+
+The npm project **vrpc-nodejs-example** is a real-life example of another
+node-js project using vrpc as dependency (github is
+[here](https://github.com/bheisen/vrpc-nodejs-example)).
+
+
 ### The thing with the callbacks
 
 There are two very different categories of callbacks:
