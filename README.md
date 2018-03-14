@@ -68,7 +68,7 @@ VRPC_CTOR(Foo, int);
 VRPC_MEMBER_FUNCTION(Foo, int, getValue);
 ```
 
-During project installation, vprc will compile the existing C++ code
+During project installation, vrpc will compile the existing C++ code
 together with your binding file into a native language addon. Afterwards, in
 **Node.js** you can call the C++ code like:
 
@@ -173,7 +173,7 @@ In the binding file you have to mention:
 
 ### Bind classes and functions
 
-vprc basically provides four different macros for:
+vrpc basically provides four different macros for:
 
   1. **Constructors**
       ```cpp
@@ -389,6 +389,7 @@ namespace vrpc_example {
   VRPC_VOID_MEMBER_FUNCTION(Bar, onEmptyDrink, VRPC_CALLBACK(const std::string&))
   VRPC_VOID_MEMBER_FUNCTION_CONST(Bar, prepareDrink, VRPC_CALLBACK(int))
   VRPC_MEMBER_FUNCTION_CONST(Bar, Bar::Assortment, getAssortment)
+}
 ```
 
 Once compiled into an addon you can run
