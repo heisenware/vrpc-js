@@ -28,10 +28,10 @@ if used remotely. Node.js' `async/await` can be used to
 have synchronous API feeling running a highly-performing non-blocking code
 under the hood.
 
-**Ease of Use** vrpc is a header only library having no dependencies besides
-the amazing *json* library of Niels Lohmann (http://nlohmann.me) which is
-shipped with vrpc and is already integrated.
-Building addons follows Node.js` regular workflow using the *node-gyp* tool.
+**Ease of Use** vrpc is a header only library having no dependencies besides the
+amazing [JSON for Modern C++](https://github.com/nlohmann/json) library of Niels
+Lohmann which is shipped with vrpc and is already integrated. Building addons
+follows Node.js` regular workflow using the *node-gyp* tool.
 
 ## Appetizer
 
