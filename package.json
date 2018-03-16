@@ -34,8 +34,5 @@
   "devDependencies": {
     "mocha": "^3.4.2",
     "chai": "~4.1.0"
-  },
-  "dependencies": {
-    "shortid": "^2.2.8"
   }
 }
