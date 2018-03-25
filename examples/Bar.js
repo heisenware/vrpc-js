@@ -1,7 +1,7 @@
 'use strict'
 
 const EventEmitter = require('events')
-const VrpcLocal = require('../js/VrpcLocal')
+const VrpcLocal = require('../vrpc/VrpcLocal')
 const addon = require('../build/Release/vrpc_example')
 
 // Create an event emitter

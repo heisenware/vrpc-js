@@ -4,7 +4,7 @@
 
 const { assert } = require('chai')
 const EventEmitter = require('events')
-const VrpcLocal = require('../../js/VrpcLocal')
+const VrpcLocal = require('../../vrpc/VrpcLocal')
 const addon = require('../../build/Release/vrpc_test')
 
 const emitter = new EventEmitter()

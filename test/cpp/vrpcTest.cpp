@@ -1,8 +1,8 @@
 #include <catch.hpp>
 #include <tuple>
 #include <set>
-#include "../cpp/json.hpp"
-#include "../cpp/vrpc.hpp"
+#include "../vrpc/json.hpp"
+#include "../vrpc/vrpc.hpp"
 
 using namespace vrpc;
 

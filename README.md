@@ -121,7 +121,7 @@ print(foo.getValue()) # prints 42
     ```python
     {
       'variables': {
-        'vrpc_path': '<!(if [ -e ../vrpc ]; then echo ../vrpc; else echo node_modules/vrpc; fi)'
+        'vrpc_path': '<!(if [ -e ../vrpc ]; then echo ../vrpc/vrpc; else echo node_modules/vrpc/vrpc; fi)'
       },
       'targets': [
         {
@@ -130,10 +130,10 @@ print(foo.getValue()) # prints 42
           'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
           'cflags_cc': ['-std=c++14', '-fPIC'],
           'include_dirs': [  # Include dirs needing to be found
-            '<(vrpc_path)/cpp'
+            '<(vrpc_path)'
           ],
           'sources': [  # Sources needing to be compiled
-            '<(vrpc_path)/cpp/addon.cpp'
+            '<(vrpc_path)/addon.cpp'
           ],
           'link_settings': {
             'libraries': [  # System library dependencies, e.g.
@@ -401,7 +401,7 @@ this pure Node.js code:
 'use strict'
 
 const EventEmitter = require('events')
-const VrpcLocal = require('../js/VrpcLocal')
+const VrpcLocal = require('../vrpc/VrpcLocal')
 const addon = require('../build/Release/vrpc_example')
 
 // Create an event emitter

@@ -16,12 +16,12 @@ module = Extension(
 setup(
     name='vrpc',
     version='1.0',
-    description='Python bindings for VRPC',
+    description='Python bindings for vrpc',
     author='Burkhard C. Heisen',
     author_email='burkhard.heisen@xsmail.com',
-    package_data={
-        'cpp': ['module.cpp'],
-    },
     packages=find_packages(),
+    package_data={
+        'vrpc': ['module.cpp', 'vrpc.hpp', 'json.hpp'],
+    },
     ext_modules=[module]
 )

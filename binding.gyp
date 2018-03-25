@@ -5,14 +5,14 @@
       'target_conditions': [
         ['"<!(echo $VRPC_DEBUG)"=="1"', {'defines': ['VRPC_DEBUG']}],
       ],
-      'sources': [ 'cpp/addon.cpp' ],
+      'sources': [ 'vrpc/addon.cpp' ],
       'include_dirs': [ 'cpp' ],
       'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
       'cflags_cc': ['-std=c++14', '-fPIC']
     }
   ],
   'conditions': [
-    ['"<!(echo $BUILD_TESTS)"=="1"', {
+    ['"<!(echo $BUILD_TEST)"=="1"', {
       'targets': [
         {
           'target_name': 'vrpc_test',
@@ -22,8 +22,8 @@
           'defines': ['VRPC_COMPILE_AS_ADDON=<binding.cpp>'],
           'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
           'cflags_cc': ['-std=c++14'],
-          'sources': [ 'cpp/addon.cpp' ],
-          'include_dirs': [ 'cpp', 'test/fixtures' ]
+          'sources': [ 'vrpc/addon.cpp' ],
+          'include_dirs': [ 'vrpc', 'test/fixtures' ]
         },
         {
           'target_name': 'vrpc-test',
@@ -35,7 +35,7 @@
             'test/cpp/main.cpp',
             'test/cpp/vrpcTest.cpp'
           ],
-          'include_dirs': [ 'third_party/include', 'cpp' ],
+          'include_dirs': [ 'third_party/include', 'vrpc' ],
           'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
           'cflags_cc': ['-std=c++14']
         }
@@ -51,8 +51,8 @@
           'defines': ['VRPC_COMPILE_AS_ADDON=<binding.cpp>'],
           'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
           'cflags_cc': ['-std=c++14'],
-          'sources': [ 'cpp/addon.cpp' ],
-          'include_dirs': [ 'cpp', 'examples' ]
+          'sources': [ 'vrpc/addon.cpp' ],
+          'include_dirs': [ 'vrpc', 'examples' ]
         }
       ]
     }]
