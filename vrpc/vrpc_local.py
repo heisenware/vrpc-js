@@ -88,7 +88,7 @@ class VrpcLocal(object):
         functions = json.loads(
             self._vrpc.getMemberFunctions(class_name)
         )['functions']
-        functions = self._removeOverloads(functions)
+        functions = self._remove_overloads(functions)
         proxy = {
             # Python lambdas are broken, I can't simply make this a multi-line
             # statement. Sorry PEP8!
@@ -99,7 +99,22 @@ class VrpcLocal(object):
         instance = type(class_name, (Proxy,), proxy)(self._vrpc, self._caller)
         return instance
 
-    def _removeOverloads(self, functions):
+    def call_static(self, class_name, function_name, *args):
+        json_string = {
+            'targetId': class_name,
+            'function': function_name,
+            'data': {}
+        }
+        # TODO Support callbacks!
+        data = json_string['data']
+        for index, a in enumerate(args):
+            data["a{}".format(index + 1)] = a
+        ret = json.loads(self._vrpc.callCpp(json.dumps(json_string)))
+        if (ret['data'].get('e')):
+            raise RuntimeError(ret['data']['e'])
+        return ret['data']['r']
+
+    def _remove_overloads(self, functions):
         uniqueFunctions = set()
         for function in functions:
             # Strip off overload signature

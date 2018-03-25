@@ -27,17 +27,17 @@ class VrpcLocalTest(unittest.TestCase):
         self.assertTrue(hasattr(self._testClass.callMeBack, '__call__'))
         self.assertFalse(hasattr(self._testClass, 'crazy'))
 
-    def test_b_getRegistry(self):
+    def test_b_get_registry(self):
         self.assertEqual(self._testClass.getRegistry(), {})
 
-    def test_c_hasCategory(self):
+    def test_c_has_category(self):
         self.assertFalse(self._testClass.hasCategory('test'))
 
     def test_d_notify(self):
         self._testClass.notifyOnNew((self._onEvent, 'new'))
         self._testClass.notifyOnRemoved((self._onEvent, 'removed'))
 
-    def test_e_addEntry(self):
+    def test_e_add_entry(self):
         entry = {
             'member1': 'first entry',
             'member2': 42,
@@ -53,7 +53,7 @@ class VrpcLocalTest(unittest.TestCase):
         self.assertAlmostEqual(entry['member3'], ret['member3'], places=2)
         self.assertEqual(entry['member4'], ret['member4'])
 
-    def test_f_removeEntry(self):
+    def test_f_remove_entry(self):
         entry = self._testClass.removeEntry('test')
         self.assertEqual(entry['member1'], 'first entry')
         self.assertFalse(self._testClass.hasCategory('test'))
@@ -64,7 +64,7 @@ class VrpcLocalTest(unittest.TestCase):
         except RuntimeError as err:
             self.assertEqual(str(err), 'Can not remove non-existing category')
 
-    def test_g_callMeBack(self):
+    def test_g_call_me_back(self):
         was_called = False
 
         def callback(sleep_time):
@@ -77,6 +77,16 @@ class VrpcLocalTest(unittest.TestCase):
         was_called = False
         self._testClass.callMeBack(callback)
         self.assertTrue(was_called)
+
+    def test_h_call_static_function(self):
+        self.assertEqual(
+            self._vrpcLocal.call_static('TestClass', 'crazy'),
+            'who is crazy?'
+        )
+        self.assertEqual(
+            self._vrpcLocal.call_static('TestClass', 'crazy', 'vrpc'),
+            'vrpc is crazy!'
+        )
 
 
 if __name__ == '__main__':
