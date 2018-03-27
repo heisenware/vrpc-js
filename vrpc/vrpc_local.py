@@ -124,7 +124,7 @@ class VrpcLocal(object):
             uniqueFunctions.add(function)
         return uniqueFunctions
 
-    def _make_function(self, instance_id, function):
+    def _make_function(self, instance_id, function, *args):
         def f(self, *args):
             json_string = {
                 'targetId': instance_id,
