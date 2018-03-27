@@ -18,6 +18,9 @@ This CHANGELOG.md file
   - Adapted the `binding.gyp` template in `README.md`
 - Renamed environmental BUILD_TESTS to BUILD_TESTS (has no external effect)
 
+### Fixed
+
+- Python proxy constructor to be callable with variadic arguments
 
 
 ## [1.0.2] - 16 Mar 2018
