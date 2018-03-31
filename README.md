@@ -105,6 +105,20 @@ print(foo.getValue()) # prints 42
     specified in the bindings file into that proxy, providing a native "Call &
     Feel" to the underlying C++ code.
 
+## Real Life Examples
+
+### C++ to Node.js
+
+The npm project
+[vrpc-nodejs-example](https://www.npmjs.com/package/vrpc-nodejs-example) is an
+example of another node-js project using vrpc as dependency (github is
+[here](https://github.com/bheisen/vrpc-nodejs-example)).
+
+### C++ to Python
+The PyPi project
+[vrpc-python-example]() binds the same example code as in the Node.js example,
+but makes it available to Python 3 (github is [here]()).
+
 ## Setup and Compilation - Node.js
 
 1.  In your project, add vrpc as dependency
@@ -129,23 +143,23 @@ print(foo.getValue()) # prints 42
           'defines': ['VRPC_COMPILE_AS_ADDON=<binding.cpp>'],  # Name of the binding file
           'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
           'cflags_cc': ['-std=c++14', '-fPIC'],
-          'include_dirs': [  # Include dirs needing to be found
-            '<(vrpc_path)'
+          'include_dirs': [  # Include dirs to be found
+            '<(vrpc_path)',
+            # <your/include/dir>
           ],
-          'sources': [  # Sources needing to be compiled
-            '<(vrpc_path)/addon.cpp'
+          'sources': [  # Sources to be compiled
+            '<(vrpc_path)/addon.cpp',
+             # <your/src/to_be_compiled.cpp>
           ],
           'link_settings': {
             'libraries': [  # System library dependencies, e.g.
               # '-lpthread'
             ],
-            'ldflags': [  # Linker flags
-              '-Wl,-rpath,\$$ORIGIN' #  Makes us relocatable
-              # '-Wl,-rpath,\$$ORIGIN/runtime/path/to/local/lib',
-              # '-L<!(pwd)/compiletime/path/to/local/lib'
+            'ldflags': [  # Use e.g. for extern lib in a non-standard location:
+              # '-Wl,-rpath,\$$ORIGIN<runtime/path/to/extern/lib>',
+              # '-L<!(pwd)</compiletime/path/to/extern/lib>'
             ]
           },
-          'libraries': ['-Wl,-rpath,\$$ORIGIN'] #  Makes us relocatable
         }
       ]
     }
@@ -160,6 +174,66 @@ print(foo.getValue()) # prints 42
 
     **HINT**: Use `node-gyp rebuild --verbose` to see what's going on.
 
+## Setup and Compilation - Python 3
+
+1. Install vrpc, needed as dependency
+
+```python
+pip install vrpc
+```
+
+2. In your project's `setup.py` define the following extension
+
+*setup.py*
+
+```python
+from distutils.sysconfig import get_python_lib
+from setuptools import setup, Extension, find_packages
+import os
+
+
+vrpc_path = os.path.join(get_python_lib(), 'vrpc')
+vrpc_module_cpp = os.path.join(vrpc_path, 'module.cpp')
+
+module = Extension(
+    'vrpc_foo_ext',  # Name of the extension
+    define_macros=[
+        ('VRPC_COMPILE_AS_ADDON', '<binding.cpp>'),  # Name of binding file
+        ('VRPC_MODULE_NAME', '"vrpc_foo_ext"'),  # Module name
+        ('VRPC_MODULE_FUNC', 'PyInit_vrpc_foo_ext')  # Init function name
+    ],
+    include_dirs=[  # Include dirs to be found
+      vrpc_path,
+      # <your/include/dir>
+    ],
+    sources=[  # Sources to be compiled
+        vrpc_module_cpp,
+        # <your/src/to_be_compiled.cpp>
+    ],
+    extra_compile_args=['-std=c++14', '-fPIC'],
+    language='c++'
+)
+
+setup(
+    name='vrpc_foo',
+    # [...]  Whatever needs to be set up for your package
+    install_requires=[  # Mention vrpc as dependency
+        'vrpc'
+    ],
+    ext_modules=[module]  # Add the extension module as defined above
+)
+```
+
+**NOTE**: As you can see from the `Extension`, it is important that the path to
+the prior installed vrpc dependency is found. Depending on your pip installation
+the generic solution above may not always work and may need manual
+tweaking.
+
+3. Build your package, e.g. while developing run:
+
+```python
+pip install -e .
+```
 
 ## Binding File Details
 
@@ -267,7 +341,7 @@ namespace ns {
 arguments in the binding macros (see above). They automatically also work within
 all STL containers and even as arguments of callback functions!
 
-### More Elaborate Example
+## More Elaborate Example
 
 Say your existing C++ code looks like that:
 
@@ -457,7 +531,73 @@ const neighborsBar = vrpc.create(
 console.log('How is your neighbor sorted?')
 console.log(' - Very well:\n', neighborsBar.getAssortment())
 ```
-which will output something like this:
+
+or if you prefer Python you can write:
+
+*bar.py*
+
+```python
+from vrpc import VrpcLocal
+import vrpc_example_ext  # Imports the extension
+
+
+def _onEvent(event, *args):
+    if event == 'empty':
+        print(" - Oh no! The {} is empty!".format(args[0]))
+
+
+def main():
+    # Create an instance of a local (native-extension) vrpc factory
+    vrpc = VrpcLocal(vrpc_example_ext)
+    print("Why an example at the Bar?")
+    print(" - Because {}".format(vrpc.call_static('Bar', 'philosophy')))
+
+    # Create a Bar instance (using default constructor)
+    bar = vrpc.create('Bar')
+
+    print("Do you have rum")
+    print(" - Yes" if bar.hasDrink('rum') else " - No")
+
+    print("Well, then let's get a bottle out of the cellar.")
+    bar.addBottle(
+        'rum',
+        {'brand': 'Don Papa', 'country': 'Philippines', 'age': 7}
+    )
+
+    print("Now, can I have a drink?")
+    print(" - Yes" if bar.hasDrink('rum') else " - No")
+
+    print("I would go for a \"Dark and Stormy\", please")
+    msg = " - Here's your drink, took only {}s"
+    bar.prepareDrink(lambda seconds: print(msg.format(seconds)))
+
+    print("Nice! I take another one. Please tell me, once the rum is empty.")
+    bar.onEmptyDrink((_onEvent, 'empty'))
+    bar.prepareDrink(lambda seconds: print(msg.format(seconds) + " this time"))
+    bar.removeBottle('rum')
+
+    # Create another bar - already equipped - using second constructor
+    neighborsBar = vrpc.create(
+        'Bar',
+        {
+            'rum': [
+                {'brand': 'Botucal', 'country': 'Venezula', 'age': 8},
+                {'brand': 'Plantation XO', 'country': 'Barbados', 'age': 20}
+            ],
+            'brandy': [
+                {'brand': 'Lustau Solera', 'country': 'Spain', 'age': 15}
+            ]
+        }
+    )
+    print("How is your neighbor sorted?")
+    print(" - Very well:\n{}".format(neighborsBar.getAssortment()))
+
+
+if __name__ == '__main__':
+    main()
+```
+
+The output will look something like this:
 
 *stdout*
 
@@ -483,23 +623,25 @@ How is your neighbor sorted?
 ```
 
 Hopefully, this example is more or less self-explanatory. It is shipped within
-this repository (see `examples` directory) and can be build using:
+this repository (see `examples` directory) and can be build and run using
 ```
 BUILD_EXAMPLE=1 npm install
-```
-and run like so:
-```
 node examples/Bar.js
 ```
 
-### Existing project example - Node.js
+for Node.js and in Python like so:
 
-The npm project **vrpc-nodejs-example** is a real-life example of another
-node-js project using vrpc as dependency (github is
-[here](https://github.com/bheisen/vrpc-nodejs-example)).
+```
+pip install -e . --user
+python examples/bar.py
+```
 
 
-### The thing with the callbacks
+**HINT**: This example is also available as stand-alone Node.js or Python
+project, see [above](#real-life-examples)
+
+
+## The thing with the callbacks
 
 There are two very different categories of callbacks:
 
