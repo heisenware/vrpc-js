@@ -29,11 +29,12 @@ def main():
     print(" - Yes" if bar.hasDrink('rum') else " - No")
 
     print("I would go for a \"Dark and Stormy\", please")
-    bar.prepareDrink(lambda seconds: print(" - Here's your drink, took only {}s.".format(seconds)))
+    msg = " - Here's your drink, took only {}s"
+    bar.prepareDrink(lambda seconds: print(msg.format(seconds)))
 
     print("Nice! I take another one. Please tell me, once the rum is empty.")
     bar.onEmptyDrink((_onEvent, 'empty'))
-    bar.prepareDrink(lambda seconds: print(" - Here's your drink, took {}s this time.".format(seconds)))
+    bar.prepareDrink(lambda seconds: print(msg.format(seconds) + " this time"))
     bar.removeBottle('rum')
 
     # Create another bar - already equipped - using second constructor
