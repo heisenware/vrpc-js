@@ -3,6 +3,7 @@
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/bheisen/vrpc/master/LICENSE)
 [![GitHub Releases](https://img.shields.io/github/tag/bheisen/vrpc.svg)](https://github.com/bheisen/vrpc/tag)
 [![GitHub Issues](https://img.shields.io/github/issues/bheisen/vrpc.svg)](http://github.com/bheisen/vrpc/issues)
+
 * Need to bridge programming languages?
 * Tired of writing bindings?
 * Want to have Node.js or Python classes and objects that call corresponding C++
@@ -20,7 +21,7 @@ bindings or having to touch any of the existing code.
 
 **Completeness** Any C++ function with any signature, including callbacks and
 custom data-types can be bound. Return values and exceptions are properly
-forwarded. Memory allocation is transparently mapped to the remote-object`s
+forwarded. Memory allocation is transparently mapped to the remote-object's
 lifetime.
 
 **Asynchronicity** vrpc is completely asynchronous which is especially important
@@ -31,7 +32,7 @@ under the hood.
 **Ease of Use** vrpc is a header only library having no dependencies besides the
 amazing [JSON for Modern C++](https://github.com/nlohmann/json) library of Niels
 Lohmann which is shipped with vrpc and is already integrated. Building addons
-follows Node.js` regular workflow using the *node-gyp* tool.
+follows Node.js' regular workflow using the *node-gyp* tool.
 
 ## Appetizer
 
@@ -115,9 +116,8 @@ example of another node-js project using vrpc as dependency (github is
 [here](https://github.com/bheisen/vrpc-nodejs-example)).
 
 ### C++ to Python
-The PyPi project
-[vrpc-python-example]() binds the same example code as in the Node.js example,
-but makes it available to Python 3 (github is [here]()).
+The PyPi project vrpc-python-example] binds the same example code as in the Node.js example,
+but makes it available to Python 3.
 
 ## Setup and Compilation - Node.js
 
@@ -632,7 +632,7 @@ node examples/Bar.js
 for Node.js and in Python like so:
 
 ```
-pip install -e . --user
+BUILD_EXAMPLE=1 pip install -e . --user
 python examples/bar.py
 ```
 
