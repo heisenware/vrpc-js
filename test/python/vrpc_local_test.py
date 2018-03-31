@@ -1,13 +1,13 @@
 import unittest
 from vrpc import VrpcLocal
-import vrpc_test
+import vrpc_test_ext  # imports the extension
 
 
 class VrpcLocalTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls._vrpcLocal = VrpcLocal(vrpc_test)
+        cls._vrpcLocal = VrpcLocal(vrpc_test_ext)
         cls._testClass = cls._vrpcLocal.create('TestClass')
         cls._events = []
 
