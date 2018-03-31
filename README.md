@@ -178,62 +178,62 @@ but makes it available to Python 3 (github is [here]()).
 
 1. Install vrpc, needed as dependency
 
-```python
-pip install vrpc
-```
+    ```python
+    pip install vrpc
+    ```
 
 2. In your project's `setup.py` define the following extension
 
-*setup.py*
+    *setup.py*
 
-```python
-from distutils.sysconfig import get_python_lib
-from setuptools import setup, Extension, find_packages
-import os
+    ```python
+    from distutils.sysconfig import get_python_lib
+    from setuptools import setup, Extension, find_packages
+    import os
 
 
-vrpc_path = os.path.join(get_python_lib(), 'vrpc')
-vrpc_module_cpp = os.path.join(vrpc_path, 'module.cpp')
+    vrpc_path = os.path.join(get_python_lib(), 'vrpc')
+    vrpc_module_cpp = os.path.join(vrpc_path, 'module.cpp')
 
-module = Extension(
-    'vrpc_foo_ext',  # Name of the extension
-    define_macros=[
-        ('VRPC_COMPILE_AS_ADDON', '<binding.cpp>'),  # Name of binding file
-        ('VRPC_MODULE_NAME', '"vrpc_foo_ext"'),  # Module name
-        ('VRPC_MODULE_FUNC', 'PyInit_vrpc_foo_ext')  # Init function name
-    ],
-    include_dirs=[  # Include dirs to be found
-      vrpc_path,
-      # <your/include/dir>
-    ],
-    sources=[  # Sources to be compiled
-        vrpc_module_cpp,
-        # <your/src/to_be_compiled.cpp>
-    ],
-    extra_compile_args=['-std=c++14', '-fPIC'],
-    language='c++'
-)
+    module = Extension(
+        'vrpc_foo_ext',  # Name of the extension
+        define_macros=[
+            ('VRPC_COMPILE_AS_ADDON', '<binding.cpp>'),  # Name of binding file
+            ('VRPC_MODULE_NAME', '"vrpc_foo_ext"'),  # Module name
+            ('VRPC_MODULE_FUNC', 'PyInit_vrpc_foo_ext')  # Init function name
+        ],
+        include_dirs=[  # Include dirs to be found
+          vrpc_path,
+          # <your/include/dir>
+        ],
+        sources=[  # Sources to be compiled
+            vrpc_module_cpp,
+            # <your/src/to_be_compiled.cpp>
+        ],
+        extra_compile_args=['-std=c++14', '-fPIC'],
+        language='c++'
+    )
 
-setup(
-    name='vrpc_foo',
-    # [...]  Whatever needs to be set up for your package
-    install_requires=[  # Mention vrpc as dependency
-        'vrpc'
-    ],
-    ext_modules=[module]  # Add the extension module as defined above
-)
-```
+    setup(
+        name='vrpc_foo',
+        # [...]  Whatever needs to be set up for your package
+        install_requires=[  # Mention vrpc as dependency
+            'vrpc'
+        ],
+        ext_modules=[module]  # Add the extension module as defined above
+    )
+    ```
 
-**NOTE**: As you can see from the `Extension`, it is important that the path to
-the prior installed vrpc dependency is found. Depending on your pip installation
-the generic solution above may not always work and may need manual
-tweaking.
+    **NOTE**: As you can see from the `Extension`, it is important that the path to
+    the prior installed vrpc dependency is found. Depending on your pip installation
+    the generic solution above may not always work and may need manual
+    tweaking.
 
 3. Build your package, e.g. while developing run:
 
-```python
-pip install -e .
-```
+    ```python
+    pip install -e .
+    ```
 
 ## Binding File Details
 
