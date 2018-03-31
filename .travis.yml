@@ -16,7 +16,7 @@ matrix:
         - sudo apt-get install -y gcc-5 g++-5
         - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
       install:
-        - pip install .
+        - BUILD_TEST=1 pip install .
       script:
         - python test/python/vrpc_local_test.py
 
