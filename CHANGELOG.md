@@ -16,7 +16,8 @@ This CHANGELOG.md file
   - Moved all non-test code into the new `vrpc` folder
   - Adapted all paths involving the old `cpp` folder
   - Adapted the `binding.gyp` template in `README.md`
-- Renamed environmental BUILD_TESTS to BUILD_TESTS (has no external effect)
+  - Keeping backwards compatibility by generating `cpp` symbolic link
+- Renamed environmental BUILD_TESTS to BUILD_TEST (has no external effect)
 
 ### Fixed
 
