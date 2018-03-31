@@ -7,6 +7,7 @@
     "example": "examples"
   },
   "scripts": {
+    "postinstall": "ln -s vrpc cpp",
     "test": "npm run test:cpp && npm run test:js",
     "test:cpp": "third_party/install.sh && BUILD_TEST=1 node-gyp rebuild && build/Release/vrpc-test",
     "test:js": "./node_modules/.bin/mocha test/js",

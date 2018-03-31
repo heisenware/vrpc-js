@@ -101,3 +101,6 @@ vrpc/__pycache__/
 /third_party/include
 /third_party/lib
 /third_party/build
+
+# To be deprecated cpp dir symlink
+/cpp
