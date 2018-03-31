@@ -260,48 +260,76 @@ In the binding file you have to mention:
 1. All classes and functions you want to bind
 2. All custom C++ data-types you want to expose
 
-Bind classes and functions
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Basically, vrpc uses only four different macros types to express all
+bindings.
 
-vrpc basically provides four different macros for:
+1. Constructors
+~~~~~~~~~~~~~~~
 
-1. **Constructors** ``cpp   VRPC_CTOR(<className>, <args>)``
+.. code:: cpp
 
-   Use this macro to register constructors with arguments. Repeat this
-   macro for all overloads you need.
+    VRPC_CTOR(<className>, <args>)
 
-   For constructors without arguments use:
-   ``cpp   VRPC_VOID_CTOR(<className>)``
+Use this macro to register constructors with arguments. Repeat this
+macro for all overloads you need.
 
-2. **Member functions**
-   ``cpp   VRPC_MEMBER_FUNCTION(<className>, <returnValue>, <functionName>[, <args>])``
+For constructors without arguments use:
 
-   Use this macro to register class member functions. Repeat this macro
-   for all overloads you need.
+.. code:: cpp
 
-   For member functions with **void return value** use:
-   ``cpp   VRPC_VOID_MEMBER_FUNCTION(<className>, <functionName>[, <args>])``
+    VRPC_VOID_CTOR(<className>)
 
-   For **const**\ ant member functions use:
-   ``cpp   VRPC_MEMBER_FUNCTION_CONST(<className>, <functionName>[, <args>])``
+2. Member functions
+~~~~~~~~~~~~~~~~~~~
 
-3. **Static functions**
-   ``cpp   VRPC_STATIC_FUNCTION(<className>, <returnValue>, <functionName>, <args>)``
+.. code:: cpp
 
-   Use this macro to register static functions. Repeat this macro for
-   all overloads you need.
+    VRPC_MEMBER_FUNCTION(<className>, <returnValue>, <functionName>[, <args>])
 
-   For static functions with **void return value** use:
-   ``cpp   VRPC_VOID_STATIC_FUNCTION(<className>, <functionName>[, <args>])``
+Use this macro to register class member functions. Repeat this macro for
+all overloads you need.
 
-4. **Callbacks** ``cpp   VRPC_CALLBACK(<args>)``
+For member functions with **void return value** use:
 
-   Use this macro if an argument of a function you bind reflects a
-   callback. The provided arguments must match the expected signature of
-   the callback.
+.. code:: cpp
 
-Bind custom data types
-~~~~~~~~~~~~~~~~~~~~~~
+    VRPC_VOID_MEMBER_FUNCTION(<className>, <functionName>[, <args>])
+
+For **const**\ ant member functions use:
+
+.. code:: cpp
+
+    VRPC_MEMBER_FUNCTION_CONST(<className>, <functionName>[, <args>])
+
+3. Static functions
+~~~~~~~~~~~~~~~~~~~
+
+.. code:: cpp
+
+    VRPC_STATIC_FUNCTION(<className>, <returnValue>, <functionName>, <args>)
+
+Use this macro to register static functions. Repeat this macro for all
+overloads you need.
+
+For static functions with **void return value** use:
+
+.. code:: cpp
+
+    VRPC_VOID_STATIC_FUNCTION(<className>, <functionName>[, <args>])
+
+4. Callbacks
+~~~~~~~~~~~~
+
+.. code:: cpp
+
+    VRPC_CALLBACK(<args>)
+
+Use this macro if an argument of a function you bind reflects a
+callback. The provided arguments must match the expected signature of
+the callback.
+
+Binding of custom data types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This feature is brought in by the *json* library (http://nlohmann.me)
 which is shipped with vrpc (see documentation there for full details).
