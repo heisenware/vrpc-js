@@ -1,2 +1,2 @@
 'use strict'
-module.exports = require('./js/VrpcLocal')
+module.exports = require('./vrpc/VrpcLocal')
