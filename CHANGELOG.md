@@ -6,9 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.1.2]
+
 ### Fixed
 
 - Link to python example project in `README.md`
+- Wrong path in `index.js`
 
 ## [1.1.1]
 
