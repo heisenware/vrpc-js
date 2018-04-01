@@ -116,8 +116,9 @@ example of another node-js project using vrpc as dependency (github is
 [here](https://github.com/bheisen/vrpc-nodejs-example)).
 
 ### C++ to Python
-The PyPi project vrpc-python-example] binds the same example code as in the Node.js example,
-but makes it available to Python 3.
+The github project
+[vrpc-python-example](https://github.com/bheisen/vrpc-python-example) binds the
+same example code as in the Node.js example, but makes it available to Python 3.
 
 ## Setup and Compilation - Node.js
 

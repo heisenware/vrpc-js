@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Link to python example project in `README.md`
+
 ## [1.1.1]
 
 ### Fixed
@@ -33,14 +39,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Python proxy constructor to be callable with variadic arguments
-- Syntactic problems in REAMDE.md leading to mistakes in auto rst translation
+- Syntactic problems in `REAMDE.md` leading to mistakes in auto rst translation
 
 
 ## [1.0.2] - 16 Mar 2018
 
 ### Changed
 
-- Link address to the C++ json library in README.md
+- Link address to the C++ json library in `README.md`
 
 ### Removed
 
@@ -52,11 +58,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- Link to nodejs project example in README.md
+- Link to nodejs project example in `README.md`
 
 ### Fixed
 
-- Typo and missing brace in README.md
+- Typo and missing brace in `README.md`
 
 
 
