@@ -1,6 +1,6 @@
 {
   "name": "vrpc",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Variadic Remote Procedure Calls",
   "main": "index.js",
   "directories": {
