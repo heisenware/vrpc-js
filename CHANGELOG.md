@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.1]
+
+### Fixed
+
+- Forgotten CHANGELOG.md file
+
+## [1.1.0]
 
 ### Added
 
-This CHANGELOG.md file
+- This CHANGELOG.md file
+- pandoc generated REAMDE.rst file
+
 
 ### Changed
 
@@ -17,11 +25,15 @@ This CHANGELOG.md file
   - Adapted all paths involving the old `cpp` folder
   - Adapted the `binding.gyp` template in `README.md`
   - Keeping backwards compatibility by generating `cpp` symbolic link
-- Renamed environmental BUILD_TESTS to BUILD_TEST (has no external effect)
+- Renamed environmental `BUILD_TESTS` to `BUILD_TEST` (has no external effect)
+- Made building of python native extension conditional
+  using `BUILD_TEST` and `BUILD_EXAMPLE`. This was needed to provide vrpc as
+  pure python wheel.
 
 ### Fixed
 
 - Python proxy constructor to be callable with variadic arguments
+- Syntactic problems in REAMDE.md leading to mistakes in auto rst translation
 
 
 ## [1.0.2] - 16 Mar 2018
