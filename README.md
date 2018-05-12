@@ -1,6 +1,7 @@
 # VRPC - Variadic Remote Procedure Calls
 [![Build Status](https://travis-ci.org/bheisen/vrpc.svg?branch=master)](https://travis-ci.org/bheisen/vrpc)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/bheisen/vrpc/master/LICENSE)
+[![Semver](https://img.shields.io/SemVer/2.0.0.png)](https://semver.org/spec/v2.0.0.html)
 [![GitHub Releases](https://img.shields.io/github/tag/bheisen/vrpc.svg)](https://github.com/bheisen/vrpc/tag)
 [![GitHub Issues](https://img.shields.io/github/issues/bheisen/vrpc.svg)](http://github.com/bheisen/vrpc/issues)
 
@@ -122,119 +123,123 @@ same example code as in the Node.js example, but makes it available to Python 3.
 
 ## Setup and Compilation - Node.js
 
-1.  In your project, add vrpc as dependency
-    ```
-    npm install vrpc
-    ```
+### In your project, add vrpc as dependency
 
-2.  Add a `binding.gyp` file (use the one below as template) to the root of your
-    project. Modify it as needed to e.g. express additional include directories
-    or dependent libraries.
+```
+npm install vrpc
+```
 
-    *binding.gyp*
+### Add a `binding.gyp` file
 
-    ```python
+Add the file (see below for a template) to the root of your
+project. Modify it as needed to e.g. express additional include directories
+or dependent libraries.
+
+*binding.gyp*
+
+```python
+{
+  'variables': {
+    'vrpc_path': '<!(if [ -e ../vrpc ]; then echo ../vrpc/vrpc; else echo node_modules/vrpc/vrpc; fi)'
+  },
+  'targets': [
     {
-      'variables': {
-        'vrpc_path': '<!(if [ -e ../vrpc ]; then echo ../vrpc/vrpc; else echo node_modules/vrpc/vrpc; fi)'
+      'target_name': 'vrpc_foo',  # Name of the extension
+      'defines': ['VRPC_COMPILE_AS_ADDON=<binding.cpp>'],  # Name of the binding file
+      'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
+      'cflags_cc': ['-std=c++14', '-fPIC'],
+      'include_dirs': [  # Include dirs to be found
+        '<(vrpc_path)',
+        # <your/include/dir>
+      ],
+      'sources': [  # Sources to be compiled
+        '<(vrpc_path)/addon.cpp',
+          # <your/src/to_be_compiled.cpp>
+      ],
+      'link_settings': {
+        'libraries': [  # System library dependencies, e.g.
+          # '-lpthread'
+        ],
+        'ldflags': [  # Use e.g. for extern lib in a non-standard location:
+          # '-Wl,-rpath,\$$ORIGIN<runtime/path/to/extern/lib>',
+          # '-L<!(pwd)</compiletime/path/to/extern/lib>'
+        ]
       },
-      'targets': [
-        {
-          'target_name': 'vrpc_foo',  # Name of the extension
-          'defines': ['VRPC_COMPILE_AS_ADDON=<binding.cpp>'],  # Name of the binding file
-          'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
-          'cflags_cc': ['-std=c++14', '-fPIC'],
-          'include_dirs': [  # Include dirs to be found
-            '<(vrpc_path)',
-            # <your/include/dir>
-          ],
-          'sources': [  # Sources to be compiled
-            '<(vrpc_path)/addon.cpp',
-             # <your/src/to_be_compiled.cpp>
-          ],
-          'link_settings': {
-            'libraries': [  # System library dependencies, e.g.
-              # '-lpthread'
-            ],
-            'ldflags': [  # Use e.g. for extern lib in a non-standard location:
-              # '-Wl,-rpath,\$$ORIGIN<runtime/path/to/extern/lib>',
-              # '-L<!(pwd)</compiletime/path/to/extern/lib>'
-            ]
-          },
-        }
-      ]
     }
-    ```
+  ]
+}
+```
 
-    **NOTE**: Mention include directories and source files using a relative
-    path with respect to your project's root.
+**NOTE**: Mention include directories and source files using a relative
+path with respect to your project's root.
 
-2.  Run `npm install` (or `node-gyp rebuild`).
+### Run `npm install`
 
-    This will build the native addon: `build/Release/<target_name>.node`.
+This will build the native addon: `build/Release/<target_name>.node`.
 
-    **HINT**: Use `node-gyp rebuild --verbose` to see what's going on.
+**HINT**: You can also use `node-gyp rebuild` to (re-)build the addon
+and add the flag `--verbose` to see details of build step.
 
 ## Setup and Compilation - Python 3
 
-1. Install vrpc, needed as dependency
+### Install vrpc, needed as dependency
 
-    ```python
-    pip install vrpc
-    ```
+```python
+pip install vrpc
+```
 
-2. In your project's `setup.py` define the following extension
+### In your project's `setup.py` define the following extension
 
-    *setup.py*
+*setup.py*
 
-    ```python
-    from distutils.sysconfig import get_python_lib
-    from setuptools import setup, Extension, find_packages
-    import os
+```python
+from distutils.sysconfig import get_python_lib
+from setuptools import setup, Extension, find_packages
+import os
 
 
-    vrpc_path = os.path.join(get_python_lib(), 'vrpc')
-    vrpc_module_cpp = os.path.join(vrpc_path, 'module.cpp')
+vrpc_path = os.path.join(get_python_lib(), 'vrpc')
+vrpc_module_cpp = os.path.join(vrpc_path, 'module.cpp')
 
-    module = Extension(
-        'vrpc_foo_ext',  # Name of the extension
-        define_macros=[
-            ('VRPC_COMPILE_AS_ADDON', '<binding.cpp>'),  # Name of binding file
-            ('VRPC_MODULE_NAME', '"vrpc_foo_ext"'),  # Module name
-            ('VRPC_MODULE_FUNC', 'PyInit_vrpc_foo_ext')  # Init function name
-        ],
-        include_dirs=[  # Include dirs to be found
-          vrpc_path,
-          # <your/include/dir>
-        ],
-        sources=[  # Sources to be compiled
-            vrpc_module_cpp,
-            # <your/src/to_be_compiled.cpp>
-        ],
-        extra_compile_args=['-std=c++14', '-fPIC'],
-        language='c++'
-    )
+module = Extension(
+    'vrpc_foo_ext',  # Name of the extension
+    define_macros=[
+        ('VRPC_COMPILE_AS_ADDON', '<binding.cpp>'),  # Name of binding file
+        ('VRPC_MODULE_NAME', '"vrpc_foo_ext"'),  # Module name
+        ('VRPC_MODULE_FUNC', 'PyInit_vrpc_foo_ext')  # Init function name
+    ],
+    include_dirs=[  # Include dirs to be found
+      vrpc_path,
+      # <your/include/dir>
+    ],
+    sources=[  # Sources to be compiled
+        vrpc_module_cpp,
+        # <your/src/to_be_compiled.cpp>
+    ],
+    extra_compile_args=['-std=c++14', '-fPIC'],
+    language='c++'
+)
 
-    setup(
-        name='vrpc_foo',
-        # [...]  Whatever needs to be set up for your package
-        install_requires=[  # Mention vrpc as dependency
-            'vrpc'
-        ],
-        ext_modules=[module]  # Add the extension module as defined above
-    )
-    ```
+setup(
+    name='vrpc_foo',
+    # [...]  Whatever needs to be set up for your package
+    install_requires=[  # Mention vrpc as dependency
+        'vrpc'
+    ],
+    ext_modules=[module]  # Add the extension module as defined above
+)
+```
 
-    **NOTE**: As you can see from the `Extension`, it is important that the path to
-    the prior installed vrpc dependency is found. Depending on your pip installation
-    the generic solution above may not always work and may need manual
-    tweaking.
+**NOTE**: As you can see from the `Extension`, it is important that the path to
+the prior installed vrpc dependency is found. Depending on your pip installation
+the generic solution above may not always work and may need manual
+tweaking.
 
-3. Build your package, e.g. while developing run:
+### Build your package, e.g. while developing run:
 
-    ```python
-    pip install -e .
-    ```
+```python
+pip install -e .
+```
 
 ## Binding File Details
 
