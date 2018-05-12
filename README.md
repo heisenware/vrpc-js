@@ -123,7 +123,9 @@ same example code as in the Node.js example, but makes it available to Python 3.
 
 ## Setup and Compilation - Node.js
 
-### In your project, add vrpc as dependency
+### Install vrpc
+
+In your project run:
 
 ```
 npm install vrpc
@@ -173,22 +175,30 @@ or dependent libraries.
 **NOTE**: Mention include directories and source files using a relative
 path with respect to your project's root.
 
-### Run `npm install`
+### Build your project
 
-This will build the native addon: `build/Release/<target_name>.node`.
+After running
+
+```
+npm install
+```
+
+you will find the native addon: `build/Release/<target_name>.node`.
 
 **HINT**: You can also use `node-gyp rebuild` to (re-)build the addon
 and add the flag `--verbose` to see details of build step.
 
 ## Setup and Compilation - Python 3
 
-### Install vrpc, needed as dependency
+### Install vrpc
 
 ```python
 pip install vrpc
 ```
 
-### In your project's `setup.py` define the following extension
+### Prepare your project's `setup.py`
+
+You have to modify your project's `setup.py` to define the native extension:
 
 *setup.py*
 
@@ -235,7 +245,9 @@ the prior installed vrpc dependency is found. Depending on your pip installation
 the generic solution above may not always work and may need manual
 tweaking.
 
-### Build your package, e.g. while developing run:
+### Build your package
+
+While you are developing run e.g.:
 
 ```python
 pip install -e .
