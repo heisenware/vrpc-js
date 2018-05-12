@@ -418,13 +418,13 @@ namespace vrpc {
   inline std::string get_signature() {
     std::string signature;
     detail::get_signature(
-        signature,
-        std::tuple<typename std::remove_reference<Args>::type...>()
-        );
+      signature,
+      std::tuple<typename std::remove_reference<Args>::type...>()
+    );
     return signature.empty() ? signature : "-" + signature;
   }
 
-  std::string get_signature(const nlohmann::json& json) {
+  inline std::string get_signature(const nlohmann::json& json) {
     std::string signature;
     for (const auto& it : json) {
       signature += it.type_name();
