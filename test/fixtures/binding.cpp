@@ -36,3 +36,15 @@ namespace vrpc_test {
   VRPC_STATIC_FUNCTION(TestClass, std::string, crazy, const std::string&)
 
 }
+
+/**** VRPC_BUILD ****
+
+  'defines': [],
+  'sources': [],
+  'include_dirs': [],
+  'link_settings' : {
+    'libraries': [],
+     'ldflags': []
+  }
+
+********************/
