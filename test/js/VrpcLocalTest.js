@@ -18,7 +18,7 @@ emitter.on('removed', entry => removedEntries.push(entry))
 describe('VrpcLocal', () => {
   let vrpc
   it('should be able to load the native addon', () => {
-    vrpc = VrpcLocal(addon)
+    vrpc = new VrpcLocal(addon)
     assert.ok(vrpc)
   })
   describe('The vrpc instance', () => {
