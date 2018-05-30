@@ -5,6 +5,7 @@
       'target_conditions': [
         ['"<!(echo $VRPC_DEBUG)"=="1"', {'defines': ['VRPC_DEBUG']}],
       ],
+      'defines': ['VRPC_WITH_DL'],
       'sources': [ 'vrpc/addon.cpp' ],
       'include_dirs': [ 'cpp' ],
       'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
@@ -19,7 +20,7 @@
           'target_conditions': [
             ['"<!(echo $VRPC_DEBUG)"=="1"', {'defines': ['VRPC_DEBUG']}],
           ],
-          'defines': ['VRPC_COMPILE_AS_ADDON=<binding.cpp>'],
+          'defines': [],
           'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
           'cflags_cc': ['-std=c++14'],
           'sources': [ 'vrpc/addon.cpp' ],
@@ -48,7 +49,7 @@
           'target_conditions': [
             ['"<!(echo $VRPC_DEBUG)"=="1"', {'defines': ['VRPC_DEBUG']}],
           ],
-          'defines': ['VRPC_COMPILE_AS_ADDON=<binding.cpp>'],
+          'defines': [],
           'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
           'cflags_cc': ['-std=c++14'],
           'sources': [ 'vrpc/addon.cpp' ],

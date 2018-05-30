@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Rewrote `VrpcLocal.js` using classes
 - Adapted tests to instantiate VrpcLocal with `new` keyword
-- VRPC_COMPILE_AS_ADDON will disable dynamic loading if defined
+- Removed VRPC_COMPILE_AS_ADDON and introduced VRPC_WITH_DL
 - Removed previously deprecated `cpp` symbolic link
 
 ## [Unreleased]

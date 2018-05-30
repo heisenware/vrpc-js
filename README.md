@@ -147,12 +147,13 @@ or dependent libraries.
   'targets': [
     {
       'target_name': 'vrpc_foo',  # Name of the extension
-      'defines': ['VRPC_COMPILE_AS_ADDON=<binding.cpp>'],  # Name of the binding file
+      'defines': [],  # Any pre-processor defines you need
       'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
       'cflags_cc': ['-std=c++14', '-fPIC'],
       'include_dirs': [  # Include dirs to be found
         '<(vrpc_path)',
-        # <your/include/dir>
+        # '<path/to/binding-file>' # Make sure your binding.cpp file is found
+        # '<other/include/dir>'
       ],
       'sources': [  # Sources to be compiled
         '<(vrpc_path)/addon.cpp',
@@ -214,13 +215,12 @@ vrpc_module_cpp = os.path.join(vrpc_path, 'module.cpp')
 module = Extension(
     'vrpc_foo_ext',  # Name of the extension
     define_macros=[
-        ('VRPC_COMPILE_AS_ADDON', '<binding.cpp>'),  # Name of binding file
         ('VRPC_MODULE_NAME', '"vrpc_foo_ext"'),  # Module name
         ('VRPC_MODULE_FUNC', 'PyInit_vrpc_foo_ext')  # Init function name
     ],
     include_dirs=[  # Include dirs to be found
       vrpc_path,
-      # <your/include/dir>
+      # '<path/to/binding-file>'  # Make sure your binding.cpp file is found
     ],
     sources=[  # Sources to be compiled
         vrpc_module_cpp,

@@ -40,8 +40,8 @@ SOFTWARE.
 #include "vrpc.hpp"
 #include "json.hpp"
 
-#ifdef VRPC_COMPILE_AS_ADDON
-  #include VRPC_COMPILE_AS_ADDON
+#ifndef VRPC_WITH_DL
+  #include <binding.cpp>
 #endif
 
 namespace vrpc_bindings {
