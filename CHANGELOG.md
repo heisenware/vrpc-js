@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## 2.0.0
+
+### Changed
+
+- Rewrote `VrpcLocal.js` using classes
+- Adapted tests to instantiate VrpcLocal with `new` keyword
+- VRPC_COMPILE_AS_ADDON will disable dynamic loading if defined
+- Removed previously deprecated `cpp` symbolic link
+
 ## [Unreleased]
 
 - Fixed missing `inline` keyword on `get_signature` overload
