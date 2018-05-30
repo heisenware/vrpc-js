@@ -53,7 +53,9 @@ SOFTWARE.
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <dlfcn.h>
+#ifndef VRPC_COMPILE_AS_ADDON
+  #include <dlfcn.h>
+#endif
 #include "json.hpp"
 
 #ifdef VRPC_DEBUG
@@ -1028,11 +1030,15 @@ namespace vrpc {
     }
 
     static void load_bindings(const std::string& path) {
-      void* libHandle = dlopen(path.c_str(), RTLD_LAZY);
-      if (libHandle == 0) {
-        throw std::runtime_error("Problem loading bindings: " +
-            std::string(dlerror()));
-      }
+      #ifdef VRPC_COMPILE_AS_ADDON
+        _VRPC_DEBUG << "Ignored call, dynamic loading is disabled" << std::endl;
+      #else
+        void* libHandle = dlopen(path.c_str(), RTLD_LAZY);
+        if (libHandle == 0) {
+          throw std::runtime_error("Problem loading bindings: " +
+              std::string(dlerror()));
+        }
+      #endif
     }
 
   private:
