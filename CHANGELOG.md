@@ -6,8 +6,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-- Fixed missing `inline` keyword on `get_signature` overload
+### Changed
+
 - Improved documentation
+
+### Fixed
+
+- Potential memory corruption if provided with non-null terminated strings
+- Missing `inline` keyword on `get_signature` overload
 
 ## [1.1.2]
 

@@ -82,17 +82,15 @@ namespace vrpc_bindings {
 
     // Perform the operation
     Local<String> v8String = args[0]->ToString();
-    char* utf8Buffer = new char[v8String->Utf8Length()]();
-    args[0]->ToString()->WriteUtf8(utf8Buffer);
+    std::vector<char> utf8Buffer(v8String->Utf8Length() + 1, '0');
+    args[0]->ToString()->WriteUtf8(&utf8Buffer[0]);
     std::string value;
     try {
-      value = vrpc::LocalFactory::call(std::string(utf8Buffer));
-      delete[] utf8Buffer;
+      value = vrpc::LocalFactory::call(std::string(&utf8Buffer[0]));
     } catch (const std::exception& e) {
       isolate->ThrowException(Exception::Error(
         String::NewFromUtf8(isolate, e.what()))
       );
-      delete[] utf8Buffer;
       return;
     }
     Local<String> localString = String::NewFromUtf8(isolate, value.c_str());
@@ -127,15 +125,13 @@ namespace vrpc_bindings {
 
     // Perform the operation
     Local<String> v8String = args[0]->ToString();
-    char* utf8Buffer = new char[v8String->Utf8Length()]();
-    args[0]->ToString()->WriteUtf8(utf8Buffer);
+    std::vector<char> utf8Buffer(v8String->Utf8Length() + 1, '0');
+    args[0]->ToString()->WriteUtf8(&utf8Buffer[0]);
     try {
-      vrpc::LocalFactory::load_bindings(std::string(utf8Buffer));
-      delete[] utf8Buffer;
+      vrpc::LocalFactory::load_bindings(std::string(&utf8Buffer[0]));
     } catch (const std::exception& e) {
       isolate->ThrowException(Exception::Error(
         String::NewFromUtf8(isolate, e.what())));
-      delete[] utf8Buffer;
       return;
     }
   }
@@ -165,21 +161,19 @@ namespace vrpc_bindings {
 
     // Perform the operation
     Local<String> v8String = args[0]->ToString();
-    char* utf8Buffer = new char[v8String->Utf8Length()]();
-    args[0]->ToString()->WriteUtf8(utf8Buffer);
+    std::vector<char> utf8Buffer(v8String->Utf8Length() + 1, '0');
+    args[0]->ToString()->WriteUtf8(&utf8Buffer[0]);
     std::string value;
     try {
       auto functions = vrpc::LocalFactory::get_member_functions(
-        std::string(utf8Buffer)
+        std::string(&utf8Buffer[0])
       );
       nlohmann::json j;
       j["functions"] = functions;
       value = j.dump();
-      delete[] utf8Buffer;
     } catch (const std::exception& e) {
       isolate->ThrowException(Exception::Error(
         String::NewFromUtf8(isolate, e.what())));
-      delete[] utf8Buffer;
       return;
     }
     Local<String> localString = String::NewFromUtf8(isolate, value.c_str());
@@ -211,22 +205,20 @@ namespace vrpc_bindings {
 
     // Perform the operation
     Local<String> v8String = args[0]->ToString();
-    char* utf8Buffer = new char[v8String->Utf8Length()]();
-    args[0]->ToString()->WriteUtf8(utf8Buffer);
+    std::vector<char> utf8Buffer(v8String->Utf8Length() + 1, '0');
+    args[0]->ToString()->WriteUtf8(&utf8Buffer[0]);
     std::string value;
     try {
       auto functions = vrpc::LocalFactory::get_static_functions(
-        std::string(utf8Buffer)
+        std::string(&utf8Buffer[0])
       );
       nlohmann::json j;
       j["functions"] = functions;
       value = j.dump();
-      delete[] utf8Buffer;
     } catch (const std::exception& e) {
         isolate->ThrowException(Exception::Error(
           String::NewFromUtf8(isolate, e.what()))
         );
-        delete[] utf8Buffer;
         return;
     }
     Local<String> localString = String::NewFromUtf8(isolate, value.c_str());
