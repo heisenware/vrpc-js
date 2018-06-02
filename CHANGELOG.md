@@ -6,9 +6,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [unreleased]
 
+### Added
+
+  - Low-level addon tests
+
 ### Changed
 
+  - vrpc's callCpp function to throw runtime exception in case of issues
   - DRYed addon.cpp, improved string conversions and exception text
+
+### Fixed
+
+  - Dev-Ops issue if installing twice (`cpp` soft-link is now forced)
 
 ## [1.1.3]
 
