@@ -57,7 +57,7 @@ namespace vrpc_bindings {
   using v8::String;
   using v8::Value;
 
-  void callCpp(const FunctionCallbackInfo<Value>& args) {
+  std::string singleArgToString(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
     // Check the number of arguments passed
@@ -69,7 +69,7 @@ namespace vrpc_bindings {
             "Wrong number of arguments, expecting exactly one")
           )
       );
-      return;
+      return std::string();
     }
 
     // Check the argument type
@@ -77,23 +77,39 @@ namespace vrpc_bindings {
       isolate->ThrowException(Exception::TypeError(
         String::NewFromUtf8(isolate, "Wrong argument type, expecting string"))
       );
-      return;
+      return std::string();
     }
 
-    // Perform the operation
-    Local<String> v8String = args[0]->ToString();
-    std::vector<char> utf8Buffer(v8String->Utf8Length() + 1, '0');
-    args[0]->ToString()->WriteUtf8(&utf8Buffer[0]);
-    std::string value;
+    String::Utf8Value utf8Buffer(args[0]);
+    if (utf8Buffer.length() == 0) {
+       isolate->ThrowException(Exception::TypeError(
+        String::NewFromUtf8(
+          isolate,
+          "Failed converting argument to valid and non-empty string")
+        )
+      );
+      return std::string();
+    }
+    return *utf8Buffer;
+  }
+
+  void callCpp(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+
+    // Expect one argument and parse it to std::string
+    std::string arg = singleArgToString(args);
+    if (arg.empty()) return;
+
+    std::string ret;
     try {
-      value = vrpc::LocalFactory::call(std::string(&utf8Buffer[0]));
+      ret = vrpc::LocalFactory::call(arg);
     } catch (const std::exception& e) {
       isolate->ThrowException(Exception::Error(
         String::NewFromUtf8(isolate, e.what()))
       );
       return;
     }
-    Local<String> localString = String::NewFromUtf8(isolate, value.c_str());
+    Local<String> localString = String::NewFromUtf8(isolate, ret.c_str());
 
     // Set the return value (using the passed in
     // FunctionCallbackInfo<Value>&)
@@ -103,32 +119,13 @@ namespace vrpc_bindings {
   void loadBindings(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
-    // Check the number of arguments passed
-    if (args.Length() < 1) {
-      // Throw an Error that is passed back to JavaScript
-      isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(
-          isolate,
-          "Wrong number of arguments, expecting exactly one")
-        )
-      );
-      return;
-    }
-
-    // Check the argument type
-    if (!args[0]->IsString()) {
-      isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(isolate, "Wrong argument type, expecting string"))
-      );
-      return;
-    }
+    // Expect one argument and parse it to std::string
+    std::string arg = singleArgToString(args);
+    if (arg.empty()) return;
 
     // Perform the operation
-    Local<String> v8String = args[0]->ToString();
-    std::vector<char> utf8Buffer(v8String->Utf8Length() + 1, '0');
-    args[0]->ToString()->WriteUtf8(&utf8Buffer[0]);
     try {
-      vrpc::LocalFactory::load_bindings(std::string(&utf8Buffer[0]));
+      vrpc::LocalFactory::load_bindings(arg);
     } catch (const std::exception& e) {
       isolate->ThrowException(Exception::Error(
         String::NewFromUtf8(isolate, e.what())));
@@ -139,89 +136,45 @@ namespace vrpc_bindings {
   void getMemberFunctions(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
-    // Check the number of arguments passed
-    if (args.Length() < 1) {
-      // Throw an Error that is passed back to JavaScript
-      isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(
-          isolate,
-          "Wrong number of arguments, expecting exactly one")
-        )
-      );
-      return;
-    }
+    // Expect one argument and parse it to std::string
+    std::string arg = singleArgToString(args);
+    if (arg.empty()) return;
 
-    // Check the argument type
-    if (!args[0]->IsString()) {
-      isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(isolate, "Wrong argument type, expecting string"))
-      );
-      return;
-    }
-
-    // Perform the operation
-    Local<String> v8String = args[0]->ToString();
-    std::vector<char> utf8Buffer(v8String->Utf8Length() + 1, '0');
-    args[0]->ToString()->WriteUtf8(&utf8Buffer[0]);
-    std::string value;
+    std::string ret;
     try {
-      auto functions = vrpc::LocalFactory::get_member_functions(
-        std::string(&utf8Buffer[0])
-      );
+      auto functions = vrpc::LocalFactory::get_member_functions(arg);
       nlohmann::json j;
       j["functions"] = functions;
-      value = j.dump();
+      ret = j.dump();
     } catch (const std::exception& e) {
       isolate->ThrowException(Exception::Error(
         String::NewFromUtf8(isolate, e.what())));
       return;
     }
-    Local<String> localString = String::NewFromUtf8(isolate, value.c_str());
+    Local<String> localString = String::NewFromUtf8(isolate, ret.c_str());
     args.GetReturnValue().Set(localString);
   }
 
   void getStaticFunctions(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
-    // Check the number of arguments passed
-    if (args.Length() < 1) {
-      // Throw an Error that is passed back to JavaScript
-      isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(
-          isolate,
-          "Wrong number of arguments, expecting exactly one")
-        )
-      );
-      return;
-    }
+    // Expect one argument and parse it to std::string
+    std::string arg = singleArgToString(args);
+    if (arg.empty()) return;
 
-    // Check the argument type
-    if (!args[0]->IsString()) {
-      isolate->ThrowException(Exception::TypeError(
-        String::NewFromUtf8(isolate, "Wrong argument type, expecting string"))
-      );
-      return;
-    }
-
-    // Perform the operation
-    Local<String> v8String = args[0]->ToString();
-    std::vector<char> utf8Buffer(v8String->Utf8Length() + 1, '0');
-    args[0]->ToString()->WriteUtf8(&utf8Buffer[0]);
-    std::string value;
+    std::string ret;
     try {
-      auto functions = vrpc::LocalFactory::get_static_functions(
-        std::string(&utf8Buffer[0])
-      );
+      auto functions = vrpc::LocalFactory::get_static_functions(arg);
       nlohmann::json j;
       j["functions"] = functions;
-      value = j.dump();
+      ret = j.dump();
     } catch (const std::exception& e) {
         isolate->ThrowException(Exception::Error(
           String::NewFromUtf8(isolate, e.what()))
         );
         return;
     }
-    Local<String> localString = String::NewFromUtf8(isolate, value.c_str());
+    Local<String> localString = String::NewFromUtf8(isolate, ret.c_str());
     args.GetReturnValue().Set(localString);
   }
 
