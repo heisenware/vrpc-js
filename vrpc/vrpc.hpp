@@ -1006,26 +1006,22 @@ namespace vrpc {
     }
 
     static void call(nlohmann::json& json) {
-      try {
-        const std::string& target_id = json["targetId"];
-        std::string function = json["function"];
-        nlohmann::json& args = json["data"];
-        function += vrpc::get_signature(args);
-        _VRPC_DEBUG << "Calling function: " << function
-            << " with payload: " << args << std::endl;
-        auto it_t = detail::init<LocalFactory>().m_function_registry.find(target_id);
-        if (it_t != detail::init<LocalFactory>().m_class_function_registry.end()) {
-          auto it_f = it_t->second.find(function);
-          if (it_f != it_t->second.end()) {
-            it_f->second->call_function(json);
-          } else {
-            std::cerr << "Could not find function: " << function << std::endl;
-          }
+      const std::string& target_id = json["targetId"];
+      std::string function = json["function"];
+      nlohmann::json& args = json["data"];
+      function += vrpc::get_signature(args);
+      _VRPC_DEBUG << "Calling function: " << function
+          << " with payload: " << args << std::endl;
+      auto it_t = detail::init<LocalFactory>().m_function_registry.find(target_id);
+      if (it_t != detail::init<LocalFactory>().m_class_function_registry.end()) {
+        auto it_f = it_t->second.find(function);
+        if (it_f != it_t->second.end()) {
+          it_f->second->call_function(json);
         } else {
-          std::cerr << "Could not find target_id: " << target_id << std::endl;
+          throw std::runtime_error("Could not find function: " + function);
         }
-      } catch (const std::exception& e) {
-        std::cerr << "Exception during call: " << e.what() << std::endl;
+      } else {
+        throw std::runtime_error("Could not find targetId: " + target_id);
       }
     }
 

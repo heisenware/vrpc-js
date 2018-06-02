@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## 2.0.0
+## [2.0.0]
 
 ### Changed
 
@@ -15,8 +15,30 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-- Fixed missing `inline` keyword on `get_signature` overload
+### Added
+
+  - Low-level addon tests
+
+### Changed
+
+  - vrpc's callCpp function to throw runtime exception in case of issues
+  - DRYed addon.cpp, improved string conversions and exception text
+
+### Fixed
+
+  - Dev-Ops issue if installing twice (`cpp` soft-link is now forced)
+
+## [1.1.3]
+
+### Changed
+
+- Updated dependencies
 - Improved documentation
+
+### Fixed
+
+- Potential memory corruption if provided with non-null terminated strings
+- Missing `inline` keyword on `get_signature` overload
 
 ## [1.1.2]
 
