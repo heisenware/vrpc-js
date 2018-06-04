@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [1.1.4] - 04 Jun 2018
 
 ### Added
 
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
   - Dev-Ops issue if installing twice (`cpp` soft-link is now forced)
 
-## [1.1.3]
+## [1.1.3] - 01 Jun 2018
 
 ### Changed
 
@@ -31,20 +31,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Potential memory corruption if provided with non-null terminated strings
 - Missing `inline` keyword on `get_signature` overload
 
-## [1.1.2]
+## [1.1.2] - 01 Apr 2018
 
 ### Fixed
 
 - Link to python example project in `README.md`
 - Wrong path in `index.js`
 
-## [1.1.1]
+## [1.1.1] - 01 Apr 2018
 
 ### Fixed
 
 - Forgotten CHANGELOG.md file
 
-## [1.1.0]
+## [1.1.0] - 01 Apr 2018
 
 ### Added
 
