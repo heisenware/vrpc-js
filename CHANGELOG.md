@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+  - Increased maximum number of inflight ("open") callbacks
   - Updated dependent packages
 
 ## [1.1.4] - 04 Jun 2018

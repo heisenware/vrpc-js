@@ -66,7 +66,7 @@ function VrpcLocal (addon = null) {
     args.forEach((value, index) => {
       // Check whether provided argument is a function
       if (isFunction(value)) {
-        const id = `${functionName}-${index}-${invokeId++ % 512}`
+        const id = `${functionName}-${index}-${invokeId++ % Number.MAX_SAFE_INTEGER}`
         data[`a${index + 1}`] = id
         _eventEmitter.once(id, data => {
           const args = Object.keys(data).sort()

@@ -1,4 +1,5 @@
 import json
+import sys
 
 
 class Proxy(object):
@@ -54,7 +55,7 @@ class Caller(object):
 
     def register_callback(self, function, index, callback):
         id = "{}-{}-{}".format(function, index, self._invoke_id)
-        self._invoke_id = (self._invoke_id + 1) % 512
+        self._invoke_id = (self._invoke_id + 1) % sys.maxsize
         if id in self._callbacks:
             return -1
         self._callbacks[id] = callback
