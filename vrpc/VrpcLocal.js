@@ -65,7 +65,7 @@ class VrpcLocal {
     args.forEach((value, index) => {
       // Check whether provided argument is a function
       if (this._isFunction(value)) {
-        const id = `${functionName}-${index}-${this._invokeId++ % 512}`
+        const id = `__f__${functionName}-${index}-${this._invokeId++ % 512}`
         data[`a${index + 1}`] = id
         this._eventEmitter.once(id, data => {
           const args = Object.keys(data).sort()
@@ -74,7 +74,7 @@ class VrpcLocal {
           value.apply(null, args) // This is the actual function call
         })
       } else if (this._isEmitter(value)) {
-        const id = `${functionName}-${index}`
+        const id = `__f__${functionName}-${index}`
         data[`a${index + 1}`] = id
         this._eventEmitter.on(id, data => {
           const args = Object.keys(data).sort()
