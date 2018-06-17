@@ -1007,7 +1007,7 @@ namespace vrpc {
 
     static void call(nlohmann::json& json) {
       const std::string& target_id = json["targetId"];
-      std::string function = json["function"];
+      std::string function = json["method"];
       nlohmann::json& args = json["data"];
       function += vrpc::get_signature(args);
       _VRPC_DEBUG << "Calling function: " << function

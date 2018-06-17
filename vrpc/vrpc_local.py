@@ -75,7 +75,7 @@ class VrpcLocal(object):
     def create(self, class_name, *args):
         json_string = {
             'targetId': class_name,
-            'function': '__create__',
+            'method': '__create__',
             'data': {}
         }
         data = json_string['data']
@@ -102,7 +102,7 @@ class VrpcLocal(object):
     def call_static(self, class_name, function_name, *args):
         json_string = {
             'targetId': class_name,
-            'function': function_name,
+            'method': function_name,
             'data': {}
         }
         # TODO Support callbacks!
@@ -128,7 +128,7 @@ class VrpcLocal(object):
         def f(self, *args):
             json_string = {
                 'targetId': instance_id,
-                'function': function,
+                'method': function,
                 'data': self._packData(function, *args)
             }
             ret = json.loads(self._vrpc.callCpp(json.dumps(json_string)))
