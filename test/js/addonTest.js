@@ -23,10 +23,10 @@ describe('The native addon', () => {
     addon.onCallback(handleCallback)
   })
 
-  describe('should properly handle illegal arguments to callCpp', () => {
+  describe('should properly handle illegal arguments to callRemote', () => {
     it('no argument', () => {
       assert.throws(
-        () => addon.callCpp(),
+        () => addon.callRemote(),
         Error,
         'Wrong number of arguments, expecting exactly one'
       )
@@ -34,7 +34,7 @@ describe('The native addon', () => {
 
     it('wrong type', () => {
       assert.throws(
-        () => addon.callCpp(15),
+        () => addon.callRemote(15),
         Error,
         'Wrong argument type, expecting string'
       )
@@ -42,7 +42,7 @@ describe('The native addon', () => {
 
     it('correct string type, but empty', () => {
       assert.throws(
-        () => addon.callCpp(''),
+        () => addon.callRemote(''),
         Error,
         'Failed converting argument to valid and non-empty string'
       )
@@ -50,7 +50,7 @@ describe('The native addon', () => {
 
     it('correct string type, but not JSON parsable', () => {
       assert.throws(
-        () => addon.callCpp('bad;'),
+        () => addon.callRemote('bad;'),
         Error,
         '[json.exception.parse_error.101] parse error at 1: syntax error - invalid literal; last read: \'b\''
       )
@@ -60,39 +60,39 @@ describe('The native addon', () => {
   it('should be able to instantiate a TestClass using plain json', () => {
     const json = {
       targetId: 'TestClass',
-      function: '__create__',
+      method: '__create__',
       data: {} // No data => default ctor
     }
-    const ret = JSON.parse(addon.callCpp(JSON.stringify(json)))
+    const ret = JSON.parse(addon.callRemote(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isString(ret.data.r)
     assert.property(ret, 'targetId')
-    assert.property(ret, 'function')
+    assert.property(ret, 'method')
     instanceId = ret.data.r
   })
 
   it('should be able to call member function given valid instanceId', () => {
     const json = {
       targetId: instanceId,
-      function: 'hasCategory',
+      method: 'hasCategory',
       data: { a1: 'test' }
     }
-    const ret = JSON.parse(addon.callCpp(JSON.stringify(json)))
+    const ret = JSON.parse(addon.callRemote(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isBoolean(ret.data.r)
     assert.isFalse(ret.data.r)
     assert.property(ret, 'targetId')
-    assert.property(ret, 'function')
+    assert.property(ret, 'method')
   })
 
   it('should correctly handle call to non-existing function', () => {
     const json = {
       targetId: instanceId,
-      function: 'not_there',
+      method: 'not_there',
       data: {}
     }
     assert.throws(
-      () => addon.callCpp(JSON.stringify(json)),
+      () => addon.callRemote(JSON.stringify(json)),
       Error,
       'Could not find function: not_there'
     )
@@ -101,11 +101,11 @@ describe('The native addon', () => {
   it('should correctly handle call to non-existing targetId', () => {
     const json = {
       targetId: 'wrong',
-      function: 'not_there',
+      method: 'not_there',
       data: {}
     }
     assert.throws(
-      () => addon.callCpp(JSON.stringify(json)),
+      () => addon.callRemote(JSON.stringify(json)),
       Error,
       'Could not find targetId: wrong'
     )
@@ -114,11 +114,11 @@ describe('The native addon', () => {
   it('should properly trigger callbacks', () => {
     const json = {
       targetId: instanceId,
-      function: 'callMeBack',
+      method: 'callMeBack',
       data: { a1: 'callback-1' }
     }
     callback = sinon.spy()
-    addon.callCpp(JSON.stringify(json))
+    addon.callRemote(JSON.stringify(json))
     assert(callback.calledOnce)
   })
 })

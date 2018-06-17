@@ -160,18 +160,18 @@ class ConcreteFactory {
     )
   }
 
-  call (jsonString) {
+  callRemote (jsonString) {
     const json = JSON.parse(jsonString)
     const { targetId, method, data } = json
-    let args = this._extractDataToArray(data)
-    args = this._wrapCallbacks(args)
+    const args = this._extractDataToArray(data)
+    const wrappedArgs = this._wrapCallbacks(args)
 
     this._log.debug(`Calling function: ${method} with payload: ${data}`)
     switch (method) {
       // Special case: ctor
       case '__create__':
         try {
-          const instance = this.create(targetId, args)
+          const instance = this.create(targetId, wrappedArgs)
           const instanceId = this._generateId(instance)
           this._instances.set(
             instanceId,
@@ -190,8 +190,8 @@ class ConcreteFactory {
       // Special case: named construction
       case '__create_named__':
         try {
-          this.createNamed(targetId, args)
-          data.r = args[0] // First argument is instanceId
+          this.createNamed(targetId, wrappedArgs)
+          data.r = wrappedArgs[0] // First argument is instanceId
         } catch (err) {
           data.e = err.message
         }
@@ -210,7 +210,7 @@ class ConcreteFactory {
           // rather sticking to those functions registered before...
           if (this._isFunction(Klass[method])) {
             try {
-              data.r = Klass[method].apply(null, args)
+              data.r = Klass[method].apply(null, wrappedArgs)
             } catch (err) {
               data.e = err.message
             }
@@ -222,7 +222,7 @@ class ConcreteFactory {
           }
           if (this._isFunction(instance[method])) {
             try {
-              data.r = instance[method].apply(instance, args)
+              data.r = instance[method].apply(instance, wrappedArgs)
             } catch (err) {
               data.e = err.message
             }
@@ -280,13 +280,24 @@ class ConcreteFactory {
     .map(key => data[key])
   }
 
-  // Mutates args, deliberately
   _wrapCallbacks (args) {
+    let wrappedArgs = []
     args.forEach(arg => {
+      // Find those args that actually need to be function callbacks
       if (typeof arg === 'string' && arg.substr(0, 5) === '__f__') {
-        arg = () =>
+        wrappedArgs.push((...innerArgs) => {
+          let data = {}
+          innerArgs.forEach((value, index) => {
+            data[`a${index + 1}`] = value
+          })
+          this._functionCallback({ data, id: arg }).bind(this)
+        })
+      // Leave the others untouched
+      } else {
+        wrappedArgs.push(arg)
       }
     })
+    return wrappedArgs
   }
 
   _generateId (object) {

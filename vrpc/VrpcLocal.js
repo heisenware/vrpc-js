@@ -30,11 +30,11 @@ class VrpcLocal {
     })
     const json = {
       targetId: className,
-      function: '__create__',
+      method: '__create__',
       data
     }
     // Create instance
-    const ret = JSON.parse(this._vrpc.callCpp(JSON.stringify(json)))
+    const ret = JSON.parse(this._vrpc.callRemote(JSON.stringify(json)))
     const instanceId = ret.data.r
 
     let proxy = {}
@@ -49,10 +49,10 @@ class VrpcLocal {
       proxy[name] = (...args) => {
         const json = {
           targetId: instanceId,
-          function: name,
+          method: name,
           data: this._packData(name, ...args)
         }
-        const { data } = JSON.parse(this._vrpc.callCpp(JSON.stringify(json)))
+        const { data } = JSON.parse(this._vrpc.callRemote(JSON.stringify(json)))
         if (data.e) throw new Error(data.e)
         return data.r
       }
@@ -108,10 +108,10 @@ class VrpcLocal {
   callStatic (className, functionName, ...args) {
     const json = {
       targetId: className,
-      function: functionName,
+      method: functionName,
       data: this._packData(functionName, ...args)
     }
-    return JSON.parse(this._vrpc.callCpp(JSON.stringify(json))).data.r
+    return JSON.parse(this._vrpc.callRemote(JSON.stringify(json))).data.r
   }
 }
 

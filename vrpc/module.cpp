@@ -47,7 +47,7 @@ SOFTWARE.
 
 namespace vrpc_python_bindings {
 
-  static PyObject* callCpp(PyObject* self, PyObject* args) {
+  static PyObject* callRemote(PyObject* self, PyObject* args) {
     const char* json_string;
     // Check whether we got a string as single argument
     if (!PyArg_ParseTuple(args, "s", &json_string)) {
@@ -139,8 +139,8 @@ namespace vrpc_python_bindings {
   // Define functions in module
   static PyMethodDef VrpcMethods[] = {
     {
-      "callCpp",
-      callCpp,
+      "callRemote",
+      callRemote,
       METH_VARARGS,
       "Call bound C++ function"
     },
