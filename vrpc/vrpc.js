@@ -185,16 +185,13 @@ class VrpcFactory {
       const id = `__p__${method}-${cid}`
       data.r = id
       promise
-      .then((...innerArgs) => {
-        let data = {}
-        innerArgs.forEach((value, index) => {
-          data[`a${index + 1}`] = value
-        })
+      .then(value => {
+        let data = { r: value }
         const jsonString = JSON.stringify({ data, id })
         VrpcFactory._callback(jsonString)
       })
       .catch(reason => {
-        const data = { a1: reason }
+        const data = { e: reason }
         const jsonString = JSON.stringify({ data, id })
         VrpcFactory._callback(jsonString)
       })

@@ -6,21 +6,13 @@ class VrpcLocal {
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
     if (addon) this._vrpc = addon
-    else this._vrpc = require('../build/Release/vrpc')
+    else this._vrpc = require('./vrpc')
 
     // Register callback handler
     this._vrpc.onCallback(json => {
       const { id, data } = JSON.parse(json)
       this._eventEmitter.emit(id, data)
     })
-  }
-
-  loadBindings (sharedLibraryFile) {
-    try {
-      this._vrpc.loadBindings(sharedLibraryFile)
-    } catch (err) {
-      console.log('Problem while loading bindings', err)
-    }
   }
 
   create (className, ...args) {
@@ -54,6 +46,15 @@ class VrpcLocal {
         }
         const { data } = JSON.parse(this._vrpc.callRemote(JSON.stringify(json)))
         if (data.e) throw new Error(data.e)
+        // Handle functions returning a promise
+        if (typeof data.r === 'string' && data.r.substr(0, 5) === '__p__') {
+          return new Promise((resolve, reject) => {
+            this._eventEmitter.once(data.r, promiseData => {
+              if (promiseData.e) reject(new Error(promiseData.e))
+              else resolve(promiseData.r)
+            })
+          })
+        }
         return data.r
       }
     })

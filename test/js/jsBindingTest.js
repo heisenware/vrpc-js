@@ -124,7 +124,7 @@ describe('The nodejs VrpcFactory', () => {
     const { data } = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
     if (data.r.substr(0, 5) === '__p__') {
       eventEmitter.once(data.r, promiseData => {
-        assert.equal(promiseData.a1, 101)
+        assert.equal(promiseData.r, 101)
         done()
       })
     }

@@ -44,9 +44,14 @@ class TestClass {
     return entry
   }
 
-  async callMeBack (callback) {
-    await new Promise(resolve => setTimeout(resolve, 100))
-    callback(100)
+  async waitForMe (ms = 100) {
+    await new Promise(resolve => setTimeout(resolve, ms))
+    return ms
+  }
+
+  async callMeBackLater (callback, ms = 100) {
+    await new Promise(resolve => setTimeout(resolve, ms))
+    callback(ms)
   }
 
   static crazy (who = undefined) {
