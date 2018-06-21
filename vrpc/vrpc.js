@@ -43,143 +43,67 @@ const fs = require('fs')
 const Ajv = require('ajv')
 const caller = require('caller')
 
-function Factory (namespace = '__global__') {
-  if (!Factory._instances) {
-    Factory._instances = new Map()
-  }
-  let concreteFactory = Factory._instances.get(namespace)
-  if (concreteFactory !== undefined) {
-    return concreteFactory
-  }
-  concreteFactory = new ConcreteFactory()
-  Factory._instances.set(namespace, concreteFactory)
-  return concreteFactory
-}
+class VrpcFactory {
 
-Factory.addPluginPath = (dirPath) => {
-  let absDirPath
-  let relDirPath
-  if (path.isAbsolute(dirPath)) {
-    absDirPath = dirPath
-    relDirPath = path.relative(__dirname, dirPath)
-  } else {
-    absDirPath = path.join(caller(), '../', dirPath)
-    relDirPath = path.relative(__dirname, absDirPath)
-  }
-  fs.readdirSync(absDirPath).forEach(node => {
-    const absNodePath = path.join(absDirPath, node)
-    const type = fs.lstatSync(absNodePath)
-    if (type.isDirectory()) {
-      Factory.addPluginPath(absNodePath)
-    } else if (type.isFile() && absNodePath.slice(-3) === '.js') {
-      require('./' + path.join(relDirPath, node))
-    }
-  })
-}
-
-Factory.setLogger = (log) => {
-  Factory._log = log.child({ className: 'Factory' })
-}
-
-class ConcreteFactory {
-
-  constructor () {
-    // className => { Klass, functions, withNew, schema, label }
-    this._functionRegistry = new Map()
-
-    // instanceId => { className, instance, refCount, label }
-    this._instances = new Map()
-
-    if (Factory._log === undefined) {
-      Factory._log = console
-    }
-  }
-
-  create (className, ...args) {
-    const { Klass, withNew, schema } = this._getClassEntry(className)
-    if (schema !== null) {
-      this.validate(schema, ...args)
-    }
-    let instance
-    if (withNew) {
-      instance = new Klass(...args)
+  static addPluginPath (dirPath) {
+    let absDirPath
+    let relDirPath
+    if (path.isAbsolute(dirPath)) {
+      absDirPath = dirPath
+      relDirPath = path.relative(__dirname, dirPath)
     } else {
-      instance = Klass(...args)
+      absDirPath = path.join(caller(), '../', dirPath)
+      relDirPath = path.relative(__dirname, absDirPath)
     }
-    // Inject log
-    instance['log'] = Factory._log.child({ className })
-    return instance
-  }
-
-  createNamed (className, instanceId, ...args) {
-    let instance = this.getNamed(instanceId)
-    if (instance !== undefined) {
-      return instance
-    }
-    instance = this.create(className, ...args)
-    instance.log = instance.log.child({ instanceId })
-    this._instances.set(
-      instanceId,
-      { className, instance, refCount: 1, label: this.getLabel(className) }
-    )
-    return instance
-  }
-
-  getNamed (instanceId) {
-    const entry = this._instances.get(instanceId)
-    if (entry !== undefined) {
-      entry.refCount += 1
-      return entry.instance
-    }
-  }
-
-  deleteNamed (instanceId) {
-    const entry = this._instances.get(instanceId)
-    if (entry !== undefined) {
-      entry.refCount -= 1
-      if (entry.refCount === 0) {
-        this._instances.delete(instanceId)
+    fs.readdirSync(absDirPath).forEach(node => {
+      const absNodePath = path.join(absDirPath, node)
+      const type = fs.lstatSync(absNodePath)
+      if (type.isDirectory()) {
+        VrpcFactory.addPluginPath(absNodePath)
+      } else if (type.isFile() && absNodePath.slice(-3) === '.js') {
+        require('./' + path.join(relDirPath, node))
       }
-    } else {
-      // This should not happen
-    }
+    })
   }
 
   // TODO add white- and black-list based filtering
-  register (Klass, { withNew = true, schema = null, label = [] } = {}) {
+  // TODO add namespaces
+  static register (Klass, { withNew = true, schema = null } = {}) {
     // Get all static static functions
-    const staticFunctions = this._getStaticFunctions(Klass)
+    const staticFunctions = VrpcFactory._getStaticFunctions(Klass)
     // Inject constructor and destructor
     staticFunctions.push('__create__')
     // staticFunctions.push('__create_named__')
     staticFunctions.push('__delete__')
-    const memberFunctions = this._getMemberFunctions(Klass)
-    this._functionRegistry.set(
+    const memberFunctions = VrpcFactory._getMemberFunctions(Klass)
+    VrpcFactory._functionRegistry.set(
       Klass.name,
-      { Klass, withNew, schema, label, staticFunctions, memberFunctions }
+      { Klass, withNew, staticFunctions, memberFunctions, schema }
     )
   }
 
-  callRemote (jsonString) {
+  static onCallback (callback) {
+    VrpcFactory._callback = callback
+  }
+
+  static callRemote (jsonString) {
     const json = JSON.parse(jsonString)
     const { targetId, method, data } = json
-    const args = this._extractDataToArray(data)
-    const wrappedArgs = this._wrapCallbacks(args)
-
-    this._log.debug(`Calling function: ${method} with payload: ${data}`)
+    const args = VrpcFactory._extractDataToArray(data)
+    const wrappedArgs = VrpcFactory._wrapCallbacks(args)
+    // VrpcFactory._log.debug(`Calling function: ${method} with payload: ${data}`)
     switch (method) {
       // Special case: ctor
       case '__create__':
         try {
-          const instance = this.create(targetId, wrappedArgs)
-          const instanceId = this._generateId(instance)
-          this._instances.set(
+          const instance = VrpcFactory['_create'].apply(null, [targetId, ...wrappedArgs])
+          const instanceId = VrpcFactory._generateId(instance)
+          VrpcFactory._instances.set(
             instanceId,
             {
               targetId,
               instance,
-              refCount: 1,
-              label: this.getLabel(targetId)
+              refCount: 1
             }
           )
           data.r = instanceId
@@ -190,7 +114,7 @@ class ConcreteFactory {
       // Special case: named construction
       case '__create_named__':
         try {
-          this.createNamed(targetId, wrappedArgs)
+          VrpcFactory._createNamed(targetId, wrappedArgs)
           data.r = wrappedArgs[0] // First argument is instanceId
         } catch (err) {
           data.e = err.message
@@ -203,12 +127,12 @@ class ConcreteFactory {
       // Regular function call
       default:
         // Check whether targetId is a registered class
-        const entry = this._functionRegistry.get(targetId)
+        const entry = VrpcFactory._functionRegistry.get(targetId)
         if (entry !== undefined) { // entry is class -> function is static
           const { Klass } = entry
           // TODO Think about whether to do live checking (like here) or
           // rather sticking to those functions registered before...
-          if (this._isFunction(Klass[method])) {
+          if (VrpcFactory._isFunction(Klass[method])) {
             try {
               data.r = Klass[method].apply(null, wrappedArgs)
             } catch (err) {
@@ -216,13 +140,36 @@ class ConcreteFactory {
             }
           } else throw new Error(`Could not find function: ${method}`)
         } else { // is not static
-          const { instance } = this._instances.get(targetId)
-          if (instance === undefined) {
+          const entry = VrpcFactory._instances.get(targetId)
+          if (entry === undefined) {
             throw new Error(`Could not find targetId: ${targetId}`)
           }
-          if (this._isFunction(instance[method])) {
+          const { instance } = entry
+          if (VrpcFactory._isFunction(instance[method])) {
             try {
               data.r = instance[method].apply(instance, wrappedArgs)
+            } catch (err) {
+              data.e = err.message
+            }
+          } else if (VrpcFactory._isAsyncFunction(instance[method])) {
+            try {
+              const cid = VrpcFactory._correlationId++ % Number.MAX_SAFE_INTEGER
+              const id = `__p__${method}-${cid}`
+              data.r = id
+              instance[method].apply(instance, wrappedArgs)
+              .then((...innerArgs) => {
+                let data = {}
+                innerArgs.forEach((value, index) => {
+                  data[`a${index + 1}`] = value
+                })
+                const jsonString = JSON.stringify({ data, id })
+                VrpcFactory._callback(jsonString)
+              })
+              .catch(reason => {
+                const data = { a1: reason }
+                const jsonString = JSON.stringify({ data, id })
+                VrpcFactory._callback(jsonString)
+              })
             } catch (err) {
               data.e = err.message
             }
@@ -232,55 +179,78 @@ class ConcreteFactory {
     return JSON.stringify(json)
   }
 
-  getClasses () {
-    return Array.from(this._functionRegistry.keys())
-  }
-
-  getMemberFunctions (className) {
+  static getMemberFunctions (className) {
     let functions = []
-    const entry = this._functionRegistry(className)
+    const entry = VrpcFactory._functionRegistry(className)
     if (entry) functions = entry.memberFunctions
     return JSON.stringify({ functions })
   }
 
-  getStaticFunctions (className) {
+  static getStaticFunctions (className) {
     let functions = []
-    const entry = this._functionRegistry(className)
+    const entry = VrpcFactory._functionRegistry(className)
     if (entry) functions = entry.staticFunctions
     return JSON.stringify({ functions })
   }
 
-  getClass (className) {
-    return this._getClassEntry(className).Klass
-  }
-
-  getSchema (className) {
-    const entry = this._getClassEntry(className)
-    if (entry.schema === null) {
-      throw new Error(`No schema registered for ${className}`)
+  static _create (className, ...args) {
+    const { Klass, withNew, schema } = VrpcFactory._getClassEntry(className)
+    if (schema !== null) {
+      VrpcFactory._validate(schema, ...args)
     }
-    return entry.schema
+    if (withNew) return new Klass(...args)
+    return Klass(...args)
   }
 
-  getLabel (className) {
-    return this._getClassEntry(className).label
-  }
-
-  validate (schema, params) {
-    if (!this._ajv) {
-      this._ajv = new Ajv()
+  static _validate (schema, params) {
+    if (!VrpcFactory._ajv) {
+      VrpcFactory._ajv = new Ajv()
     }
-    const valid = this._ajv.validate(schema, params)
-    if (!valid) throw new Error(this._ajv.errorsText())
+    const valid = VrpcFactory._ajv.validate(schema, params)
+    if (!valid) throw new Error(VrpcFactory._ajv.errorsText())
   }
 
-  _extractDataToArray (data) {
+  static _createNamed (className, instanceId, ...args) {
+    let instance = VrpcFactory._getNamed(instanceId)
+    if (instance !== undefined) {
+      return instance
+    }
+    instance = VrpcFactory.create(className, ...args)
+    instance.log = instance.log.child({ instanceId })
+    VrpcFactory._instances.set(
+      instanceId,
+      { className, instance, refCount: 1 }
+    )
+    return instance
+  }
+
+  static _getNamed (instanceId) {
+    const entry = VrpcFactory._instances.get(instanceId)
+    if (entry !== undefined) {
+      entry.refCount += 1
+      return entry.instance
+    }
+  }
+
+  static _deleteNamed (instanceId) {
+    const entry = VrpcFactory._instances.get(instanceId)
+    if (entry !== undefined) {
+      entry.refCount -= 1
+      if (entry.refCount === 0) {
+        VrpcFactory._instances.delete(instanceId)
+      }
+    } else {
+      // VrpcFactory should not happen
+    }
+  }
+
+  static _extractDataToArray (data) {
     return Object.keys(data).sort()
     .filter(value => value[0] === 'a')
     .map(key => data[key])
   }
 
-  _wrapCallbacks (args) {
+  static _wrapCallbacks (args) {
     let wrappedArgs = []
     args.forEach(arg => {
       // Find those args that actually need to be function callbacks
@@ -290,7 +260,8 @@ class ConcreteFactory {
           innerArgs.forEach((value, index) => {
             data[`a${index + 1}`] = value
           })
-          this._functionCallback({ data, id: arg }).bind(this)
+          const jsonString = JSON.stringify({ data, id: arg })
+          VrpcFactory._callback(jsonString)
         })
       // Leave the others untouched
       } else {
@@ -300,23 +271,27 @@ class ConcreteFactory {
     return wrappedArgs
   }
 
-  _generateId (object) {
+  static _generateId (object) {
     return crypto.createHash('md5').update(JSON.stringify(object)).digest('hex')
   }
 
-  _getClassEntry (className) {
-    const entry = this._functionRegistry.get(className)
+  static _getClassEntry (className) {
+    const entry = VrpcFactory._functionRegistry.get(className)
     if (!entry) {
       throw new Error(`"${className}" is not a registered class`)
     }
     return entry
   }
 
-  _isFunction (variable) {
+  static _isFunction (variable) {
     return variable && {}.toString.call(variable) === '[object Function]'
   }
 
-  _getMemberFunctions (klass) {
+  static _isAsyncFunction (variable) {
+    return variable && {}.toString.call(variable) === '[object AsyncFunction]'
+  }
+
+  static _getMemberFunctions (klass) {
     let klass_ = klass
     let fs = []
     do {
@@ -331,7 +306,7 @@ class ConcreteFactory {
     return Array.from(new Set(fs))
   }
 
-  _getStaticFunctions (klass) {
+  static _getStaticFunctions (klass) {
     let klass_ = klass
     let fs = []
     do {
@@ -346,4 +321,9 @@ class ConcreteFactory {
   }
 }
 
-module.exports = Factory
+// Initialize static members
+VrpcFactory._functionRegistry = new Map()
+VrpcFactory._instances = new Map()
+VrpcFactory._correlationId = 0
+
+module.exports = VrpcFactory
