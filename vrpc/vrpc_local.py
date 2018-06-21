@@ -54,7 +54,7 @@ class Caller(object):
             emitter[0](emitter[1], *args)
 
     def register_callback(self, function, index, callback):
-        id = "{}-{}-{}".format(function, index, self._invoke_id)
+        id = "__f__{}-{}-{}".format(function, index, self._invoke_id)
         self._invoke_id = (self._invoke_id + 1) % sys.maxsize
         if id in self._callbacks:
             return -1
@@ -62,7 +62,7 @@ class Caller(object):
         return id
 
     def register_emitter(self, function, index, emitter):
-        id = "{}-{}".format(function, index)
+        id = "__f__{}-{}".format(function, index)
         self._emitters[id] = emitter
         return id
 
@@ -84,7 +84,7 @@ class VrpcLocal(object):
             data["a{}".format(index + 1)] = a
 
         # Create instance
-        ret = json.loads(self._vrpc.callCpp(json.dumps(json_string)))
+        ret = json.loads(self._vrpc.callRemote(json.dumps(json_string)))
         instanceId = ret['data']['r']
         functions = json.loads(
             self._vrpc.getMemberFunctions(class_name)
@@ -110,7 +110,7 @@ class VrpcLocal(object):
         data = json_string['data']
         for index, a in enumerate(args):
             data["a{}".format(index + 1)] = a
-        ret = json.loads(self._vrpc.callCpp(json.dumps(json_string)))
+        ret = json.loads(self._vrpc.callRemote(json.dumps(json_string)))
         if (ret['data'].get('e')):
             raise RuntimeError(ret['data']['e'])
         return ret['data']['r']
@@ -132,7 +132,7 @@ class VrpcLocal(object):
                 'method': function,
                 'data': self._packData(function, *args)
             }
-            ret = json.loads(self._vrpc.callCpp(json.dumps(json_string)))
+            ret = json.loads(self._vrpc.callRemote(json.dumps(json_string)))
             if (ret['data'].get('e')):
                 raise RuntimeError(ret['data']['e'])
             return ret['data']['r']
