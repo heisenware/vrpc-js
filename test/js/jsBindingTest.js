@@ -115,17 +115,31 @@ describe('The nodejs VrpcFactory', () => {
     )
   })
 
+  it('should properly work with functions returning a promise', (done) => {
+    const json = {
+      targetId: instanceId,
+      method: 'waitForMe',
+      data: { a1: 101 }
+    }
+    const { data } = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
+    if (data.r.substr(0, 5) === '__p__') {
+      eventEmitter.once(data.r, promiseData => {
+        assert.equal(promiseData.a1, 101)
+        done()
+      })
+    }
+  })
+
   it('should properly trigger callbacks', (done) => {
     const callbackId = '__f__callback-1'
     const json = {
       targetId: instanceId,
-      method: 'callMeBack',
+      method: 'callMeBackLater',
       data: { a1: callbackId }
     }
     let count = 0
     const { data } = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
     const promiseId = data.r
-    console.log('promiseId', promiseId)
     if (data.r.substr(0, 5) === '__p__') {
       eventEmitter.once(promiseId, data => {
         count++
