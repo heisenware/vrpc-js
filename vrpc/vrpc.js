@@ -134,7 +134,11 @@ class VrpcFactory {
           // rather sticking to those functions registered before...
           if (VrpcFactory._isFunction(Klass[method])) {
             try {
-              data.r = Klass[method].apply(null, wrappedArgs)
+              const ret = Klass[method].apply(null, wrappedArgs)
+              // check if function returns promise
+              if (this._isFunction(ret.then)) {
+                this._handlePromise(data, method, ret)
+              } else data.r = ret
             } catch (err) {
               data.e = err.message
             }
@@ -147,29 +151,11 @@ class VrpcFactory {
           const { instance } = entry
           if (VrpcFactory._isFunction(instance[method])) {
             try {
-              data.r = instance[method].apply(instance, wrappedArgs)
-            } catch (err) {
-              data.e = err.message
-            }
-          } else if (VrpcFactory._isAsyncFunction(instance[method])) {
-            try {
-              const cid = VrpcFactory._correlationId++ % Number.MAX_SAFE_INTEGER
-              const id = `__p__${method}-${cid}`
-              data.r = id
-              instance[method].apply(instance, wrappedArgs)
-              .then((...innerArgs) => {
-                let data = {}
-                innerArgs.forEach((value, index) => {
-                  data[`a${index + 1}`] = value
-                })
-                const jsonString = JSON.stringify({ data, id })
-                VrpcFactory._callback(jsonString)
-              })
-              .catch(reason => {
-                const data = { a1: reason }
-                const jsonString = JSON.stringify({ data, id })
-                VrpcFactory._callback(jsonString)
-              })
+              const ret = instance[method].apply(instance, wrappedArgs)
+              // check if function returns promise
+              if (this._isFunction(ret.then)) {
+                this._handlePromise(data, method, ret)
+              } else data.r = ret
             } catch (err) {
               data.e = err.message
             }
@@ -191,6 +177,30 @@ class VrpcFactory {
     const entry = VrpcFactory._functionRegistry(className)
     if (entry) functions = entry.staticFunctions
     return JSON.stringify({ functions })
+  }
+
+  static _handlePromise (data, method, promise) {
+    try {
+      const cid = VrpcFactory._correlationId++ % Number.MAX_SAFE_INTEGER
+      const id = `__p__${method}-${cid}`
+      data.r = id
+      promise
+      .then((...innerArgs) => {
+        let data = {}
+        innerArgs.forEach((value, index) => {
+          data[`a${index + 1}`] = value
+        })
+        const jsonString = JSON.stringify({ data, id })
+        VrpcFactory._callback(jsonString)
+      })
+      .catch(reason => {
+        const data = { a1: reason }
+        const jsonString = JSON.stringify({ data, id })
+        VrpcFactory._callback(jsonString)
+      })
+    } catch (err) {
+      data.e = err.message
+    }
   }
 
   static _create (className, ...args) {
@@ -284,11 +294,11 @@ class VrpcFactory {
   }
 
   static _isFunction (variable) {
-    return variable && {}.toString.call(variable) === '[object Function]'
-  }
-
-  static _isAsyncFunction (variable) {
-    return variable && {}.toString.call(variable) === '[object AsyncFunction]'
+    if (variable) {
+      const ident = {}.toString.call(variable)
+      return ident === '[object Function]' || ident === '[object AsyncFunction]'
+    }
+    return false
   }
 
   static _getMemberFunctions (klass) {
