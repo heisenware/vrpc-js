@@ -3,7 +3,7 @@
 const EventEmitter = require('events')
 const { assert } = require('chai')
 const TestClass = require('../fixtures/TestClass')
-const VrpcFactory = require('../../vrpc/vrpc')
+const VrpcFactory = require('../../vrpc/VrpcFactory')
 
 /* global describe, it */
 

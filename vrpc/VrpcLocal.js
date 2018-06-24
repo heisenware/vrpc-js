@@ -2,14 +2,13 @@ const EventEmitter = require('events')
 
 class VrpcLocal {
 
-  constructor (addon = null) {
+  constructor (binding) {
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
-    if (addon) this._vrpc = addon
-    else this._vrpc = require('./vrpc')
+    this._binding = binding
 
     // Register callback handler
-    this._vrpc.onCallback(json => {
+    this._binding.onCallback(json => {
       const { id, data } = JSON.parse(json)
       this._eventEmitter.emit(id, data)
     })
@@ -26,11 +25,11 @@ class VrpcLocal {
       data
     }
     // Create instance
-    const ret = JSON.parse(this._vrpc.callRemote(JSON.stringify(json)))
+    const ret = JSON.parse(this._binding.callRemote(JSON.stringify(json)))
     const instanceId = ret.data.r
 
     let proxy = {}
-    let functions = JSON.parse(this._vrpc.getMemberFunctions(className)).functions
+    let functions = JSON.parse(this._binding.getMemberFunctions(className)).functions
     functions = functions.map(name => {
       const pos = name.indexOf('-')
       if (pos > 0) return name.substring(0, pos)
@@ -44,7 +43,7 @@ class VrpcLocal {
           method: name,
           data: this._packData(name, ...args)
         }
-        const { data } = JSON.parse(this._vrpc.callRemote(JSON.stringify(json)))
+        const { data } = JSON.parse(this._binding.callRemote(JSON.stringify(json)))
         if (data.e) throw new Error(data.e)
         // Handle functions returning a promise
         if (typeof data.r === 'string' && data.r.substr(0, 5) === '__p__') {
@@ -112,7 +111,7 @@ class VrpcLocal {
       method: functionName,
       data: this._packData(functionName, ...args)
     }
-    return JSON.parse(this._vrpc.callRemote(JSON.stringify(json))).data.r
+    return JSON.parse(this._binding.callRemote(JSON.stringify(json))).data.r
   }
 }
 

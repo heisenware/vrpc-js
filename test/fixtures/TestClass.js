@@ -1,5 +1,5 @@
 class TestClass {
-  constructor (registry = new Map()) {
+  constructor (registry = {}) {
     this._registry = registry
     this._callbacks = new Map()
   }
@@ -9,7 +9,7 @@ class TestClass {
   }
 
   hasCategory (category) {
-    return this._registry.has(category)
+    return this._registry[category] !== undefined
   }
 
   notifyOnNew (callback) {
@@ -21,10 +21,10 @@ class TestClass {
   }
 
   addEntry (category, entry) {
-    const entries = this._registry.get(category)
+    const entries = this._registry[category]
     if (entries) entries.push(entry)
     else {
-      this._registry.set(category, [entry])
+      this._registry[category] = [entry]
       const callback = this._callbacks.get('new')
       if (callback) callback(entry)
     }
@@ -34,12 +34,12 @@ class TestClass {
     if (!this.hasCategory(category)) {
       throw new Error('Can not remove non-existing category')
     }
-    const entries = this._registry.get(category)
+    const entries = this._registry[category]
     const entry = entries.pop()
-    if (entries.size() === 0) {
+    if (entries.length === 0) {
       const callback = this._callbacks.get('removed')
       if (callback) callback(entry)
-      this._registry.delete(category)
+      delete this._registry[category]
     }
     return entry
   }
@@ -56,7 +56,7 @@ class TestClass {
 
   static crazy (who = undefined) {
     if (who === undefined) {
-      return 'who is crazy'
+      return 'who is crazy?'
     }
     return `${who} is crazy!`
   }

@@ -136,7 +136,7 @@ class VrpcFactory {
             try {
               const ret = Klass[method].apply(null, wrappedArgs)
               // check if function returns promise
-              if (this._isFunction(ret.then)) {
+              if (ret && this._isFunction(ret.then)) {
                 this._handlePromise(data, method, ret)
               } else data.r = ret
             } catch (err) {
@@ -153,7 +153,7 @@ class VrpcFactory {
             try {
               const ret = instance[method].apply(instance, wrappedArgs)
               // check if function returns promise
-              if (this._isFunction(ret.then)) {
+              if (ret && this._isFunction(ret.then)) {
                 this._handlePromise(data, method, ret)
               } else data.r = ret
             } catch (err) {
@@ -167,7 +167,7 @@ class VrpcFactory {
 
   static getMemberFunctions (className) {
     let functions = []
-    const entry = VrpcFactory._functionRegistry(className)
+    const entry = VrpcFactory._functionRegistry.get(className)
     if (entry) functions = entry.memberFunctions
     return JSON.stringify({ functions })
   }
