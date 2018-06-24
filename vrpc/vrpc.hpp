@@ -105,7 +105,7 @@ namespace vrpc {
       const Tfirst& first,
       const Trest&... rest
     ) {
-      char name[4] = "a ";
+      char name[] = {'_', '\0', '\0', '\0'};
       name[1] = i;
       json[name] = first;
       detail::pack_r(json, i + 1, rest...);
@@ -114,7 +114,7 @@ namespace vrpc {
 
   /**
    * Pack the parameters into a json object.
-   * @param json Will be filled with keys a1, a2, etc. and associated values
+   * @param json Will be filled with keys _1, _2, etc. and associated values
    * @param args Any type and number of arguments forming the values
    */
   template <class ... Ts>
@@ -316,7 +316,7 @@ namespace vrpc {
         )
       ) {
         // length 4 for better assembly alignment
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         typedef typename std::remove_const<
           typename std::remove_reference<T>::type
         >::type T_no_ref_no_const;
@@ -335,7 +335,7 @@ namespace vrpc {
         std::make_tuple(std::declval<T>()),
         unpack_impl<C + 1, Args...>::unpack(j))
       ) {
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         return std::tuple_cat(
           std::make_tuple(j["data"][key].get<T>()),
           unpack_impl < C + 1, Args...>::unpack(j)
@@ -352,7 +352,7 @@ namespace vrpc {
           !is_std_function<T>::value, int>::type = 0
       >
       static std::tuple<no_ref_no_const<T>> unpack(nlohmann::json& j) {
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         return std::make_tuple(j["data"][key].get<no_ref_no_const<T>>());
       }
 
@@ -363,7 +363,7 @@ namespace vrpc {
           !is_std_function<T>::value, int>::type = 0
       >
       static std::tuple<T> unpack(nlohmann::json& j) {
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         return std::make_tuple(j["data"][key].get<T>());
       }
 
@@ -372,7 +372,7 @@ namespace vrpc {
         typename std::enable_if<is_std_function<T>::value, int>::type = 0
       >
       static auto unpack(nlohmann::json& j) {
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         auto ptr = std::make_shared<CallbackT<no_ref_no_const<T>>>(j, key);
         return std::make_tuple(ptr->bind_wrapper());
       }
@@ -389,7 +389,7 @@ namespace vrpc {
 
   /**
    * Unpack parameters into a tuple using perfect forwarding
-   * @param j json with keys a1, a2, etc. encoding function arguments
+   * @param j json with keys _1, _2, etc. encoding function arguments
    * @return std::tuple<Args...>
    */
   template<typename ...Args>

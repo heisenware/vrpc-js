@@ -39,6 +39,12 @@
     "typeinfo": "cpp",
     "utility": "cpp",
     "valarray": "cpp",
-    "vector": "cpp"
+    "vector": "cpp",
+    "cstdarg": "cpp",
+    "deque": "cpp",
+    "forward_list": "cpp",
+    "unordered_map": "cpp",
+    "numeric": "cpp",
+    "cinttypes": "cpp"
   }
 }

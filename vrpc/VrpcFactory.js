@@ -253,7 +253,7 @@ class VrpcFactory {
 
   static _extractDataToArray (data) {
     return Object.keys(data).sort()
-    .filter(value => value[0] === 'a')
+    .filter(value => value[0] === '_')
     .map(key => data[key])
   }
 
@@ -265,7 +265,7 @@ class VrpcFactory {
         wrappedArgs.push((...innerArgs) => {
           let data = {}
           innerArgs.forEach((value, index) => {
-            data[`a${index + 1}`] = value
+            data[`_${index + 1}`] = value
           })
           const jsonString = JSON.stringify({ data, id: arg })
           VrpcFactory._callback(jsonString)

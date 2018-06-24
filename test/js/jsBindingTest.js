@@ -79,7 +79,7 @@ describe('The nodejs VrpcFactory', () => {
     const json = {
       targetId: instanceId,
       method: 'hasCategory',
-      data: { a1: 'test' }
+      data: { _1: 'test' }
     }
     const ret = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
     assert.property(ret, 'data')
@@ -119,7 +119,7 @@ describe('The nodejs VrpcFactory', () => {
     const json = {
       targetId: instanceId,
       method: 'waitForMe',
-      data: { a1: 101 }
+      data: { _1: 101 }
     }
     const { data } = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
     if (data.r.substr(0, 5) === '__p__') {
@@ -135,7 +135,7 @@ describe('The nodejs VrpcFactory', () => {
     const json = {
       targetId: instanceId,
       method: 'callMeBackLater',
-      data: { a1: callbackId }
+      data: { _1: callbackId }
     }
     let count = 0
     const { data } = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
@@ -148,7 +148,7 @@ describe('The nodejs VrpcFactory', () => {
       })
     }
     eventEmitter.once(callbackId, data => {
-      assert.equal(data.a1, 100)
+      assert.equal(data._1, 100)
       count++
       assert.equal(count, 1)
     })

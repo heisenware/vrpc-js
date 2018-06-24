@@ -17,19 +17,19 @@ TEST_CASE("Test json packing and unpacking", "[packing]") {
   SECTION("Packing json with simple values") {
     nlohmann::json json;
     vrpc::pack(json, 5, "Hello", false, std::vector<int>({1, 2, 3}));
-    REQUIRE(json["a1"] == 5);
-    REQUIRE(json["a2"] == "Hello");
-    REQUIRE(json["a3"] == false);
-    REQUIRE(json["a4"] == std::vector<int>({1, 2, 3}));
+    REQUIRE(json["_1"] == 5);
+    REQUIRE(json["_2"] == "Hello");
+    REQUIRE(json["_3"] == false);
+    REQUIRE(json["_4"] == std::vector<int>({1, 2, 3}));
   }
 
   SECTION("Packing json with nested values") {
     nlohmann::json json;
     nlohmann::json inner{{"key1", "innerValue"}, {"key2", 2}};
     vrpc::pack(json, "test", inner);
-    REQUIRE(json["a1"] == "test");
-    REQUIRE(json["a2"]["key1"] == "innerValue");
-    REQUIRE(json["a2"]["key2"] == 2);
+    REQUIRE(json["_1"] == "test");
+    REQUIRE(json["_2"]["key1"] == "innerValue");
+    REQUIRE(json["_2"]["key2"] == 2);
   }
 
   SECTION("Check signature generation for empty json") {

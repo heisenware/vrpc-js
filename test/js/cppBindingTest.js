@@ -9,12 +9,10 @@ const addon = require('../../build/Release/vrpc_test')
 let callback
 
 function handleCallback (json) {
-  console.log('callback', json)
   if (callback !== undefined) callback(json)
 }
 
 describe('The native addon', () => {
-
   // The proxy instanceId we will test with
   let instanceId
 
@@ -75,7 +73,7 @@ describe('The native addon', () => {
     const json = {
       targetId: instanceId,
       method: 'hasCategory',
-      data: { a1: 'test' }
+      data: { _1: 'test' }
     }
     const ret = JSON.parse(addon.callRemote(JSON.stringify(json)))
     assert.property(ret, 'data')
@@ -115,7 +113,7 @@ describe('The native addon', () => {
     const json = {
       targetId: instanceId,
       method: 'callMeBack',
-      data: { a1: 'callback-1' }
+      data: { _1: 'callback-1' }
     }
     callback = sinon.spy()
     addon.callRemote(JSON.stringify(json))
