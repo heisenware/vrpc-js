@@ -42,6 +42,7 @@ const path = require('path')
 const fs = require('fs')
 const Ajv = require('ajv')
 const caller = require('caller')
+const shortid = require('shortid')
 
 class VrpcFactory {
 
@@ -88,16 +89,20 @@ class VrpcFactory {
 
   static callRemote (jsonString) {
     const json = JSON.parse(jsonString)
+    VrpcFactory.call(json)
+    return JSON.stringify(json)
+  }
+
+  static call (json) {
     const { targetId, method, data } = json
-    const args = VrpcFactory._extractDataToArray(data)
-    const wrappedArgs = VrpcFactory._wrapCallbacks(args)
+    const wrappedArgs = VrpcFactory._wrapCallbacks(json)
     // VrpcFactory._log.debug(`Calling function: ${method} with payload: ${data}`)
     switch (method) {
       // Special case: ctor
       case '__create__':
         try {
           const instance = VrpcFactory['_create'].apply(null, [targetId, ...wrappedArgs])
-          const instanceId = VrpcFactory._generateId(instance)
+          const instanceId = shortid.generate()
           VrpcFactory._instances.set(
             instanceId,
             {
@@ -137,7 +142,7 @@ class VrpcFactory {
               const ret = Klass[method].apply(null, wrappedArgs)
               // check if function returns promise
               if (ret && this._isFunction(ret.then)) {
-                this._handlePromise(data, method, ret)
+                this._handlePromise(json, method, ret)
               } else data.r = ret
             } catch (err) {
               data.e = err.message
@@ -154,7 +159,7 @@ class VrpcFactory {
               const ret = instance[method].apply(instance, wrappedArgs)
               // check if function returns promise
               if (ret && this._isFunction(ret.then)) {
-                this._handlePromise(data, method, ret)
+                this._handlePromise(json, method, ret)
               } else data.r = ret
             } catch (err) {
               data.e = err.message
@@ -162,41 +167,54 @@ class VrpcFactory {
           } else throw new Error(`Could not find function: ${method}`)
         }
     }
-    return JSON.stringify(json)
+  }
+
+  static getClassesArray () {
+    return Array.from(VrpcFactory._functionRegistry.keys())
+  }
+
+  static getMemberFunctionsArray (className) {
+    const entry = VrpcFactory._functionRegistry.get(className)
+    if (entry) return entry.memberFunctions
+    return []
   }
 
   static getMemberFunctions (className) {
-    let functions = []
+    return JSON.stringify({
+      functions: VrpcFactory.getMemberFunctionsArray(className)
+    })
+  }
+
+  static getStaticFunctionsArray (className) {
     const entry = VrpcFactory._functionRegistry.get(className)
-    if (entry) functions = entry.memberFunctions
-    return JSON.stringify({ functions })
+    if (entry) return entry.staticFunctions
+    return []
   }
 
   static getStaticFunctions (className) {
-    let functions = []
-    const entry = VrpcFactory._functionRegistry(className)
-    if (entry) functions = entry.staticFunctions
-    return JSON.stringify({ functions })
+    return JSON.stringify({
+      functions: VrpcFactory.getStaticFunctionsArray(className)
+    })
   }
 
-  static _handlePromise (data, method, promise) {
+  static _handlePromise (json, method, promise) {
     try {
       const cid = VrpcFactory._correlationId++ % Number.MAX_SAFE_INTEGER
       const id = `__p__${method}-${cid}`
-      data.r = id
+      json.data.r = id
       promise
       .then(value => {
         let data = { r: value }
-        const jsonString = JSON.stringify({ data, id })
-        VrpcFactory._callback(jsonString)
+        const promiseJson = Object.assign({}, json, { data, id })
+        VrpcFactory._callback(JSON.stringify(promiseJson), promiseJson)
       })
       .catch(reason => {
         const data = { e: reason }
-        const jsonString = JSON.stringify({ data, id })
-        VrpcFactory._callback(jsonString)
+        const promiseJson = Object.assign({}, json, { data, id })
+        VrpcFactory._callback(JSON.stringify(promiseJson), promiseJson)
       })
     } catch (err) {
-      data.e = err.message
+      json.data.e = err.message
     }
   }
 
@@ -257,7 +275,8 @@ class VrpcFactory {
     .map(key => data[key])
   }
 
-  static _wrapCallbacks (args) {
+  static _wrapCallbacks (json) {
+    const args = VrpcFactory._extractDataToArray(json.data)
     let wrappedArgs = []
     args.forEach(arg => {
       // Find those args that actually need to be function callbacks
@@ -267,8 +286,8 @@ class VrpcFactory {
           innerArgs.forEach((value, index) => {
             data[`_${index + 1}`] = value
           })
-          const jsonString = JSON.stringify({ data, id: arg })
-          VrpcFactory._callback(jsonString)
+          const callbackJson = Object.assign({}, json, { data, id: arg })
+          VrpcFactory._callback(JSON.stringify(callbackJson), callbackJson)
         })
       // Leave the others untouched
       } else {

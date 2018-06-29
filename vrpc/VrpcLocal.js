@@ -8,8 +8,9 @@ class VrpcLocal {
     this._binding = binding
 
     // Register callback handler
-    this._binding.onCallback(json => {
-      const { id, data } = JSON.parse(json)
+    this._binding.onCallback((jsonString, jsonObject) => {
+      // Only JS Adapters will provide the second argument
+      const { id, data } = jsonObject || JSON.parse(jsonString)
       this._eventEmitter.emit(id, data)
     })
   }

@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+
+'use strict'
+
+const { ArgumentParser } = require('argparse')
+const VrpcAgent = require('./VrpcAgent')
+const path = require('path')
+
+const parser = new ArgumentParser({
+  addHelp: true,
+  description: 'Starts a vrpc agent for node.js'
+})
+parser.addArgument(
+  ['agentId'],
+  {
+    help: 'Name of the agent for remote addressing',
+    type: 'string'
+  }
+)
+parser.addArgument(
+  ['-f', '--file'],
+  {
+    help: 'Name of the binding file (Default is \'PATH/binding.js\')',
+    type: 'string',
+    default: './binding.js'
+  }
+)
+parser.addArgument(
+  ['-b', '--brokerUrl'],
+  {
+    help: 'The broker URL',
+    type: 'string',
+    defaultValue: 'mqtt://test.mosquitto.org'
+  }
+)
+parser.addArgument(
+  ['-t', '--topicPrefix'],
+  {
+    help: 'The prefix for all vrpc communication',
+    type: 'string',
+    defaultValue: 'vrpc'
+  }
+)
+
+const args = parser.parseArgs()
+
+// Load the bindings
+try {
+  require(path.join(process.cwd(), args.file))
+} catch (err) {
+  console.error('Could not find \'binding.js\' file')
+  process.exit(1)
+}
+
+// Start the agent
+const { brokerUrl, topicPrefix } = args
+const vrpcAgent = new VrpcAgent(args.agentId, { brokerUrl, topicPrefix })
+
+vrpcAgent.serve().catch(err => {
+  console.error(`Error happened on agent: ${err.message}`)
+})

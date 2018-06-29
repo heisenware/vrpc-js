@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.0.0]
+## [2.0.0-alpha.0]
+
+### Added
+
+- VrpcAgent for node.js
+- VrpcRemote for node.js
+- Corresponding tests involving MQTT
+- Corresponding dependencies
 
 ### Changed
 
@@ -12,6 +19,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Adapted tests to instantiate VrpcLocal with `new` keyword
 - Removed VRPC_COMPILE_AS_ADDON and introduced VRPC_WITH_DL
 - Removed previously deprecated `cpp` symbolic link
+- Some details of the wire-protocol
+  - Renamed the argument identifiers from `a1`, `a2`... to `_1`, `_2`...
+  - Renamed `function` to `method`
 
 ## [1.1.5] - 14 Jun 2018
 

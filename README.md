@@ -82,7 +82,7 @@ together with your binding file into a native language addon. Afterwards, in
 const VrpcLocal = require('vrpc')
 const addon = require('build/Release/vrpc_foo')
 
-const vrpc = VrpcLocal(addon)
+const vrpc = new VrpcLocal(addon)
 
 const foo = vrpc.create('Foo', 42)
 console.log(foo.getValue()) // prints 42
@@ -506,7 +506,7 @@ emitter.on('empty', what => {
 })
 
 // Create an instance of a local (native-addon) vrpc factory
-const vrpc = VrpcLocal(addon)
+const vrpc = new VrpcLocal(addon)
 
 console.log('Why an example at the Bar?')
 console.log(' - Because', vrpc.callStatic('Bar', 'philosophy'))
