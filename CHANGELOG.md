@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - Renamed the argument identifiers from `a1`, `a2`... to `_1`, `_2`...
   - Renamed `function` to `method`
 - Renamed VrpcFactory to VrpcAdapter
+- Renamed vrpc_local.py to VrpcLocal.py
 
 ## [1.1.5] - 14 Jun 2018
 
