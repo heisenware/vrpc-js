@@ -18,7 +18,7 @@ matrix:
       install:
         - BUILD_TEST=1 pip install .
       script:
-        - python test/python/VrpcLocal_test.py
+        - python test/python/VrpcLocalTest.py
 
 notifications:
   email:
