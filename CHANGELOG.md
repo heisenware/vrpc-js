@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.0.0-alpha.0]
+## [unreleased]
 
 ### Added
 
@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Some details of the wire-protocol
   - Renamed the argument identifiers from `a1`, `a2`... to `_1`, `_2`...
   - Renamed `function` to `method`
+- Renamed VrpcFactory to VrpcAdapter
 
 ## [1.1.5] - 14 Jun 2018
 

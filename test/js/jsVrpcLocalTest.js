@@ -5,7 +5,7 @@
 const { assert } = require('chai')
 const EventEmitter = require('events')
 const VrpcLocal = require('../../vrpc/VrpcLocal')
-const VrpcFactory = require('../../vrpc/VrpcFactory')
+const VrpcAdapter = require('../../vrpc/VrpcAdapter')
 const TestClass = require('../fixtures/TestClass')
 
 const emitter = new EventEmitter()
@@ -16,13 +16,13 @@ const removedEntries = []
 emitter.on('new', entry => newEntries.push(entry))
 emitter.on('removed', entry => removedEntries.push(entry))
 
-// Register TestClass fixture to the VrpcFactory
-VrpcFactory.register(TestClass)
+// Register TestClass fixture to the VrpcAdapter
+VrpcAdapter.register(TestClass)
 
 describe('An instance of the VrpcLocal class', () => {
   let vrpc
-  it('should be construct-able given a node.js VrpcFactory', () => {
-    vrpc = new VrpcLocal(VrpcFactory)
+  it('should be construct-able given a node.js VrpcAdapter', () => {
+    vrpc = new VrpcLocal(VrpcAdapter)
     assert.ok(vrpc)
   })
   describe('The corresponding VrpcLocal instance', () => {

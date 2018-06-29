@@ -1,6 +1,6 @@
 const { promisify } = require('util')
 const mqtt = require('mqtt')
-const VrpcFactory = require('./VrpcFactory')
+const VrpcAdapter = require('./VrpcAdapter')
 
 class VrpcAgent {
 
@@ -20,7 +20,7 @@ class VrpcAgent {
       this._log.debug = () => {}
     }
     this._baseTopic = `${this._topicPrefix}/${this._agentId}`
-    VrpcFactory.onCallback(this._handleVrpcCallback.bind(this))
+    VrpcAdapter.onCallback(this._handleVrpcCallback.bind(this))
   }
 
   async serve () {
@@ -68,12 +68,12 @@ class VrpcAgent {
       )
     }
     // Publish class information
-    const classes = VrpcFactory.getClassesArray()
+    const classes = VrpcAdapter.getClassesArray()
     classes.forEach(async klass => {
       const json = {
         class: klass,
-        memberFunctions: VrpcFactory.getMemberFunctionsArray(klass),
-        staticFunctions: VrpcFactory.getStaticFunctionsArray(klass)
+        memberFunctions: VrpcAdapter.getMemberFunctionsArray(klass),
+        staticFunctions: VrpcAdapter.getStaticFunctionsArray(klass)
       }
       try {
         await this._mqttPublish(
@@ -92,10 +92,10 @@ class VrpcAgent {
 
   _generateTopics () {
     const topics = []
-    const classes = VrpcFactory.getClassesArray()
+    const classes = VrpcAdapter.getClassesArray()
     this._log.info(`Registering classes: ${classes}`)
     classes.forEach(klass => {
-      const staticFunctions = VrpcFactory.getStaticFunctionsArray(klass)
+      const staticFunctions = VrpcAdapter.getStaticFunctionsArray(klass)
       staticFunctions.forEach(func => {
         topics.push(`${this._baseTopic}/${klass}/${func}`)
       })
@@ -130,7 +130,7 @@ class VrpcAgent {
       }
       json.targetId = targetId
       json.method = method
-      VrpcFactory.call(json) // json is mutated and contains return value
+      VrpcAdapter.call(json) // json is mutated and contains return value
 
       // Special case: object creation -> need to register subscriber
       if (method === '__create__') {
@@ -145,7 +145,7 @@ class VrpcAgent {
   }
 
   _subscribeToMethodsOfNewInstance (className, instanceId) {
-    const memberFunctions = VrpcFactory.getMemberFunctionsArray(className)
+    const memberFunctions = VrpcAdapter.getMemberFunctionsArray(className)
     memberFunctions.forEach(async method => {
       const topic = `${this._baseTopic}/${className}/${instanceId}/${method}`
       await this._mqttSubscribe(topic)

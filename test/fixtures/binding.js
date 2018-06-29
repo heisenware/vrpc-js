@@ -1,4 +1,4 @@
-const VrpcFactory = require('../../vrpc/VrpcFactory')
+const VrpcAdapter = require('../../vrpc/VrpcAdapter')
 const TestClass = require('./TestClass')
 
-VrpcFactory.register(TestClass)
+VrpcAdapter.register(TestClass)

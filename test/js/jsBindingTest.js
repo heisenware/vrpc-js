@@ -3,7 +3,7 @@
 const EventEmitter = require('events')
 const { assert } = require('chai')
 const TestClass = require('../fixtures/TestClass')
-const VrpcFactory = require('../../vrpc/VrpcFactory')
+const VrpcAdapter = require('../../vrpc/VrpcAdapter')
 
 /* global describe, it */
 
@@ -14,23 +14,23 @@ function handleCallback (json) {
   eventEmitter.emit(id, data)
 }
 
-describe('The nodejs VrpcFactory', () => {
+describe('The nodejs VrpcAdapter', () => {
   it('should properly register the TestClass', () => {
-    VrpcFactory.register(TestClass)
+    VrpcAdapter.register(TestClass)
   })
 
   // The proxy instanceId we will test with
   let instanceId
 
   it('should allow to register a global callback handler', () => {
-    assert.isFunction(VrpcFactory.onCallback)
-    VrpcFactory.onCallback(handleCallback)
+    assert.isFunction(VrpcAdapter.onCallback)
+    VrpcAdapter.onCallback(handleCallback)
   })
 
   describe.skip('should properly handle illegal arguments to callRemote', () => {
     it('no argument', () => {
       assert.throws(
-        () => VrpcFactory.callRemote(),
+        () => VrpcAdapter.callRemote(),
         Error,
         'Wrong number of arguments, expecting exactly one'
       )
@@ -38,7 +38,7 @@ describe('The nodejs VrpcFactory', () => {
 
     it('wrong type', () => {
       assert.throws(
-        () => VrpcFactory.callRemote(15),
+        () => VrpcAdapter.callRemote(15),
         Error,
         'Wrong argument type, expecting string'
       )
@@ -46,7 +46,7 @@ describe('The nodejs VrpcFactory', () => {
 
     it('correct string type, but empty', () => {
       assert.throws(
-        () => VrpcFactory.callRemote(''),
+        () => VrpcAdapter.callRemote(''),
         Error,
         'Failed converting argument to valid and non-empty string'
       )
@@ -54,7 +54,7 @@ describe('The nodejs VrpcFactory', () => {
 
     it('correct string type, but not JSON parsable', () => {
       assert.throws(
-        () => VrpcFactory.callRemote('bad;'),
+        () => VrpcAdapter.callRemote('bad;'),
         Error,
         '[json.exception.parse_error.101] parse error at 1: syntax error - invalid literal; last read: \'b\''
       )
@@ -67,7 +67,7 @@ describe('The nodejs VrpcFactory', () => {
       method: '__create__',
       data: {} // No data => default ctor
     }
-    const ret = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
+    const ret = JSON.parse(VrpcAdapter.callRemote(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isString(ret.data.r)
     assert.property(ret, 'targetId')
@@ -81,7 +81,7 @@ describe('The nodejs VrpcFactory', () => {
       method: 'hasCategory',
       data: { _1: 'test' }
     }
-    const ret = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
+    const ret = JSON.parse(VrpcAdapter.callRemote(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isBoolean(ret.data.r)
     assert.isFalse(ret.data.r)
@@ -96,7 +96,7 @@ describe('The nodejs VrpcFactory', () => {
       data: {}
     }
     assert.throws(
-      () => VrpcFactory.callRemote(JSON.stringify(json)),
+      () => VrpcAdapter.callRemote(JSON.stringify(json)),
       Error,
       'Could not find function: not_there'
     )
@@ -109,7 +109,7 @@ describe('The nodejs VrpcFactory', () => {
       data: {}
     }
     assert.throws(
-      () => VrpcFactory.callRemote(JSON.stringify(json)),
+      () => VrpcAdapter.callRemote(JSON.stringify(json)),
       Error,
       'Could not find targetId: wrong'
     )
@@ -121,7 +121,7 @@ describe('The nodejs VrpcFactory', () => {
       method: 'waitForMe',
       data: { _1: 101 }
     }
-    const { data } = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
+    const { data } = JSON.parse(VrpcAdapter.callRemote(JSON.stringify(json)))
     if (data.r.substr(0, 5) === '__p__') {
       eventEmitter.once(data.r, promiseData => {
         assert.equal(promiseData.r, 101)
@@ -138,7 +138,7 @@ describe('The nodejs VrpcFactory', () => {
       data: { _1: callbackId }
     }
     let count = 0
-    const { data } = JSON.parse(VrpcFactory.callRemote(JSON.stringify(json)))
+    const { data } = JSON.parse(VrpcAdapter.callRemote(JSON.stringify(json)))
     const promiseId = data.r
     if (data.r.substr(0, 5) === '__p__') {
       eventEmitter.once(promiseId, data => {

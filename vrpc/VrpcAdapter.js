@@ -44,7 +44,7 @@ const Ajv = require('ajv')
 const caller = require('caller')
 const shortid = require('shortid')
 
-class VrpcFactory {
+class VrpcAdapter {
 
   static addPluginPath (dirPath) {
     let absDirPath
@@ -60,7 +60,7 @@ class VrpcFactory {
       const absNodePath = path.join(absDirPath, node)
       const type = fs.lstatSync(absNodePath)
       if (type.isDirectory()) {
-        VrpcFactory.addPluginPath(absNodePath)
+        VrpcAdapter.addPluginPath(absNodePath)
       } else if (type.isFile() && absNodePath.slice(-3) === '.js') {
         require('./' + path.join(relDirPath, node))
       }
@@ -71,39 +71,39 @@ class VrpcFactory {
   // TODO add namespaces
   static register (Klass, { withNew = true, schema = null } = {}) {
     // Get all static static functions
-    const staticFunctions = VrpcFactory._getStaticFunctions(Klass)
+    const staticFunctions = VrpcAdapter._getStaticFunctions(Klass)
     // Inject constructor and destructor
     staticFunctions.push('__create__')
     // staticFunctions.push('__create_named__')
     staticFunctions.push('__delete__')
-    const memberFunctions = VrpcFactory._getMemberFunctions(Klass)
-    VrpcFactory._functionRegistry.set(
+    const memberFunctions = VrpcAdapter._getMemberFunctions(Klass)
+    VrpcAdapter._functionRegistry.set(
       Klass.name,
       { Klass, withNew, staticFunctions, memberFunctions, schema }
     )
   }
 
   static onCallback (callback) {
-    VrpcFactory._callback = callback
+    VrpcAdapter._callback = callback
   }
 
   static callRemote (jsonString) {
     const json = JSON.parse(jsonString)
-    VrpcFactory.call(json)
+    VrpcAdapter.call(json)
     return JSON.stringify(json)
   }
 
   static call (json) {
     const { targetId, method, data } = json
-    const wrappedArgs = VrpcFactory._wrapCallbacks(json)
-    // VrpcFactory._log.debug(`Calling function: ${method} with payload: ${data}`)
+    const wrappedArgs = VrpcAdapter._wrapCallbacks(json)
+    // VrpcAdapter._log.debug(`Calling function: ${method} with payload: ${data}`)
     switch (method) {
       // Special case: ctor
       case '__create__':
         try {
-          const instance = VrpcFactory['_create'].apply(null, [targetId, ...wrappedArgs])
+          const instance = VrpcAdapter['_create'].apply(null, [targetId, ...wrappedArgs])
           const instanceId = shortid.generate()
-          VrpcFactory._instances.set(
+          VrpcAdapter._instances.set(
             instanceId,
             {
               targetId,
@@ -119,7 +119,7 @@ class VrpcFactory {
       // Special case: named construction
       case '__create_named__':
         try {
-          VrpcFactory._createNamed(targetId, wrappedArgs)
+          VrpcAdapter._createNamed(targetId, wrappedArgs)
           data.r = wrappedArgs[0] // First argument is instanceId
         } catch (err) {
           data.e = err.message
@@ -132,12 +132,12 @@ class VrpcFactory {
       // Regular function call
       default:
         // Check whether targetId is a registered class
-        const entry = VrpcFactory._functionRegistry.get(targetId)
+        const entry = VrpcAdapter._functionRegistry.get(targetId)
         if (entry !== undefined) { // entry is class -> function is static
           const { Klass } = entry
           // TODO Think about whether to do live checking (like here) or
           // rather sticking to those functions registered before...
-          if (VrpcFactory._isFunction(Klass[method])) {
+          if (VrpcAdapter._isFunction(Klass[method])) {
             try {
               const ret = Klass[method].apply(null, wrappedArgs)
               // check if function returns promise
@@ -149,12 +149,12 @@ class VrpcFactory {
             }
           } else throw new Error(`Could not find function: ${method}`)
         } else { // is not static
-          const entry = VrpcFactory._instances.get(targetId)
+          const entry = VrpcAdapter._instances.get(targetId)
           if (entry === undefined) {
             throw new Error(`Could not find targetId: ${targetId}`)
           }
           const { instance } = entry
-          if (VrpcFactory._isFunction(instance[method])) {
+          if (VrpcAdapter._isFunction(instance[method])) {
             try {
               const ret = instance[method].apply(instance, wrappedArgs)
               // check if function returns promise
@@ -170,48 +170,48 @@ class VrpcFactory {
   }
 
   static getClassesArray () {
-    return Array.from(VrpcFactory._functionRegistry.keys())
+    return Array.from(VrpcAdapter._functionRegistry.keys())
   }
 
   static getMemberFunctionsArray (className) {
-    const entry = VrpcFactory._functionRegistry.get(className)
+    const entry = VrpcAdapter._functionRegistry.get(className)
     if (entry) return entry.memberFunctions
     return []
   }
 
   static getMemberFunctions (className) {
     return JSON.stringify({
-      functions: VrpcFactory.getMemberFunctionsArray(className)
+      functions: VrpcAdapter.getMemberFunctionsArray(className)
     })
   }
 
   static getStaticFunctionsArray (className) {
-    const entry = VrpcFactory._functionRegistry.get(className)
+    const entry = VrpcAdapter._functionRegistry.get(className)
     if (entry) return entry.staticFunctions
     return []
   }
 
   static getStaticFunctions (className) {
     return JSON.stringify({
-      functions: VrpcFactory.getStaticFunctionsArray(className)
+      functions: VrpcAdapter.getStaticFunctionsArray(className)
     })
   }
 
   static _handlePromise (json, method, promise) {
     try {
-      const cid = VrpcFactory._correlationId++ % Number.MAX_SAFE_INTEGER
+      const cid = VrpcAdapter._correlationId++ % Number.MAX_SAFE_INTEGER
       const id = `__p__${method}-${cid}`
       json.data.r = id
       promise
       .then(value => {
         let data = { r: value }
         const promiseJson = Object.assign({}, json, { data, id })
-        VrpcFactory._callback(JSON.stringify(promiseJson), promiseJson)
+        VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
       })
       .catch(reason => {
         const data = { e: reason }
         const promiseJson = Object.assign({}, json, { data, id })
-        VrpcFactory._callback(JSON.stringify(promiseJson), promiseJson)
+        VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
       })
     } catch (err) {
       json.data.e = err.message
@@ -219,30 +219,30 @@ class VrpcFactory {
   }
 
   static _create (className, ...args) {
-    const { Klass, withNew, schema } = VrpcFactory._getClassEntry(className)
+    const { Klass, withNew, schema } = VrpcAdapter._getClassEntry(className)
     if (schema !== null) {
-      VrpcFactory._validate(schema, ...args)
+      VrpcAdapter._validate(schema, ...args)
     }
     if (withNew) return new Klass(...args)
     return Klass(...args)
   }
 
   static _validate (schema, params) {
-    if (!VrpcFactory._ajv) {
-      VrpcFactory._ajv = new Ajv()
+    if (!VrpcAdapter._ajv) {
+      VrpcAdapter._ajv = new Ajv()
     }
-    const valid = VrpcFactory._ajv.validate(schema, params)
-    if (!valid) throw new Error(VrpcFactory._ajv.errorsText())
+    const valid = VrpcAdapter._ajv.validate(schema, params)
+    if (!valid) throw new Error(VrpcAdapter._ajv.errorsText())
   }
 
   static _createNamed (className, instanceId, ...args) {
-    let instance = VrpcFactory._getNamed(instanceId)
+    let instance = VrpcAdapter._getNamed(instanceId)
     if (instance !== undefined) {
       return instance
     }
-    instance = VrpcFactory.create(className, ...args)
+    instance = VrpcAdapter.create(className, ...args)
     instance.log = instance.log.child({ instanceId })
-    VrpcFactory._instances.set(
+    VrpcAdapter._instances.set(
       instanceId,
       { className, instance, refCount: 1 }
     )
@@ -250,7 +250,7 @@ class VrpcFactory {
   }
 
   static _getNamed (instanceId) {
-    const entry = VrpcFactory._instances.get(instanceId)
+    const entry = VrpcAdapter._instances.get(instanceId)
     if (entry !== undefined) {
       entry.refCount += 1
       return entry.instance
@@ -258,14 +258,14 @@ class VrpcFactory {
   }
 
   static _deleteNamed (instanceId) {
-    const entry = VrpcFactory._instances.get(instanceId)
+    const entry = VrpcAdapter._instances.get(instanceId)
     if (entry !== undefined) {
       entry.refCount -= 1
       if (entry.refCount === 0) {
-        VrpcFactory._instances.delete(instanceId)
+        VrpcAdapter._instances.delete(instanceId)
       }
     } else {
-      // VrpcFactory should not happen
+      // VrpcAdapter should not happen
     }
   }
 
@@ -276,7 +276,7 @@ class VrpcFactory {
   }
 
   static _wrapCallbacks (json) {
-    const args = VrpcFactory._extractDataToArray(json.data)
+    const args = VrpcAdapter._extractDataToArray(json.data)
     let wrappedArgs = []
     args.forEach(arg => {
       // Find those args that actually need to be function callbacks
@@ -287,7 +287,7 @@ class VrpcFactory {
             data[`_${index + 1}`] = value
           })
           const callbackJson = Object.assign({}, json, { data, id: arg })
-          VrpcFactory._callback(JSON.stringify(callbackJson), callbackJson)
+          VrpcAdapter._callback(JSON.stringify(callbackJson), callbackJson)
         })
       // Leave the others untouched
       } else {
@@ -302,7 +302,7 @@ class VrpcFactory {
   }
 
   static _getClassEntry (className) {
-    const entry = VrpcFactory._functionRegistry.get(className)
+    const entry = VrpcAdapter._functionRegistry.get(className)
     if (!entry) {
       throw new Error(`"${className}" is not a registered class`)
     }
@@ -348,8 +348,8 @@ class VrpcFactory {
 }
 
 // Initialize static members
-VrpcFactory._functionRegistry = new Map()
-VrpcFactory._instances = new Map()
-VrpcFactory._correlationId = 0
+VrpcAdapter._functionRegistry = new Map()
+VrpcAdapter._instances = new Map()
+VrpcAdapter._correlationId = 0
 
-module.exports = VrpcFactory
+module.exports = VrpcAdapter
