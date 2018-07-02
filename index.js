@@ -1,5 +1,6 @@
 'use strict'
 module.exports = {
   VrpcLocal: require('./vrpc/VrpcLocal'),
-  VrpcRemote: require('./vrpc/VrpcRemote')
+  VrpcRemote: require('./vrpc/VrpcRemote'),
+  VrpcAdapter: require('./vrpc/VrpcAdapter')
 }
