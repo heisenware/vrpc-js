@@ -7,11 +7,15 @@ class VrpcAgent {
   constructor (
     agentId,
     {
+      username,
+      password,
       topicPrefix = 'vrpc',
       brokerUrl = 'mqtt://test.mosquitto.org',
       log = console
     } = {}
   ) {
+    this._username = username
+    this._password = password
     this._agentId = agentId
     this._topicPrefix = topicPrefix
     this._brokerUrl = brokerUrl
@@ -27,12 +31,14 @@ class VrpcAgent {
     const options = {
       keepalive: 120,
       clean: true,
-      connectTimeout: 10 * 1000
+      connectTimeout: 10 * 1000,
+      username: this._username,
+      password: this._password
     }
     this._log.info(`Agent ID     : ${this._agentId}`)
     this._log.info(`Broker URL   : ${this._brokerUrl}`)
     this._log.info(`Topic Prefix : ${this._topicPrefix}`)
-    this._log.info('Connecting to the MQTT server...')
+    this._log.info('Connecting to MQTT server...')
     this._client = mqtt.connect(this._brokerUrl, options)
     this._client.on('connect', this._handleConnect.bind(this))
     this._client.on('reconnect', this._handleReconnect.bind(this))
