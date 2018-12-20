@@ -33,9 +33,13 @@ class VrpcRemote {
     })
     this._client.on('message', (topic, message) => {
       const func = topic.split('/').pop()
+      const agent = topic.split('/')[1]
       if (func === '__info__') {
         // Json properties: { class, memberFunctions, staticFunctions }
         const json = JSON.parse(message.toString())
+        const classMap = this._classInfo.get(agent)
+        if (classMap) classMap.set(json.class, json)
+        else this._classInfo.set(agent, new Map([[json.class, json]]))
         this._classInfo.set(json.class, json)
       } else {
         const {id, data} = JSON.parse(message.toString())
@@ -85,7 +89,7 @@ class VrpcRemote {
     const instance = data.r
     const targetTopic = `${this._topicPrefix}/${agentId}/${className}/${instance}`
     let proxy = {}
-    let functions = this._classInfo.get(className).memberFunctions
+    let functions = this._classInfo.get(agentId).get(className).memberFunctions
     // Strip off argument signature
     functions = functions.map(name => {
       const pos = name.indexOf('-')
