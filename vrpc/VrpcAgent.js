@@ -83,7 +83,7 @@ class VrpcAgent {
       }
       try {
         await this._mqttPublish(
-          `${this._baseTopic}/${klass}/__info__`,
+          `${this._baseTopic}/${klass}/__static__/__info__`,
           JSON.stringify(json),
           { qos: 1, retain: true }
         )
@@ -103,7 +103,7 @@ class VrpcAgent {
     classes.forEach(klass => {
       const staticFunctions = VrpcAdapter.getStaticFunctionsArray(klass)
       staticFunctions.forEach(func => {
-        topics.push(`${this._baseTopic}/${klass}/${func}`)
+        topics.push(`${this._baseTopic}/${klass}/__static__/${func}`)
       })
     })
     return topics
@@ -120,21 +120,14 @@ class VrpcAgent {
       let json = JSON.parse(data.toString())
       this._log.debug(`Message arrived with topic: ${topic} and payload:`, json)
       const tokens = topic.split('/')
-      let targetId
-      let method
-      // <prefix>/<agent>/<class>/<function>
-      if (tokens.length === 4) {
-        targetId = tokens[2]
-        method = tokens[3]
-      // <prefix>/<agent>/<class>/<instance>/<function>
-      } else if (tokens.length === 5) {
-        targetId = tokens[3]
-        method = tokens[4]
-      } else {
-        this._log.warn(`Received message with invalid topic URI: ${topic}`)
+      if (tokens.length !== 5) {
+        this._log.warn(`Ignoring message with invalid topic: ${topic}`)
         return
       }
-      json.targetId = targetId
+      const klass = tokens[2]
+      const instance = tokens[3]
+      const method = tokens[4]
+      json.targetId = instance === '__static__' ? klass : instance
       json.method = method
       VrpcAdapter.call(json) // json is mutated and contains return value
 
@@ -142,7 +135,7 @@ class VrpcAgent {
       if (method === '__create__') {
         // TODO handle instantiation errors
         const instanceId = json.data.r
-        this._subscribeToMethodsOfNewInstance(targetId, instanceId)
+        this._subscribeToMethodsOfNewInstance(klass, instanceId)
       }
       await this._mqttPublish(json.sender, JSON.stringify(json), { qos: 1 })
     } catch (err) {
@@ -150,10 +143,10 @@ class VrpcAgent {
     }
   }
 
-  _subscribeToMethodsOfNewInstance (className, instanceId) {
-    const memberFunctions = VrpcAdapter.getMemberFunctionsArray(className)
+  _subscribeToMethodsOfNewInstance (klass, instance) {
+    const memberFunctions = VrpcAdapter.getMemberFunctionsArray(klass)
     memberFunctions.forEach(async method => {
-      const topic = `${this._baseTopic}/${className}/${instanceId}/${method}`
+      const topic = `${this._baseTopic}/${klass}/${instance}/${method}`
       await this._mqttSubscribe(topic)
       this._log.debug(`Subscribed to new topic after instantiation: ${topic}`)
     })

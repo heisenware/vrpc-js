@@ -27,13 +27,14 @@ class VrpcRemote {
     this._client = mqtt.connect(this._brokerUrl)
     this._client.on('connect', () => {
       // This will give us an overview of all remotely available classes
-      this._client.subscribe(`${this._topicPrefix}/+/+/__info__`)
+      this._client.subscribe(`${this._topicPrefix}/+/+/__static__/__info__`)
       // Listen for remote function return values
       this._client.subscribe(this._topic)
     })
     this._client.on('message', (topic, message) => {
-      const func = topic.split('/').pop()
-      const agent = topic.split('/')[1]
+      const tokens = topic.split('/')
+      const agent = tokens[1]
+      const func = tokens[4]
       if (func === '__info__') {
         // Json properties: { class, memberFunctions, staticFunctions }
         const json = JSON.parse(message.toString())
@@ -71,7 +72,7 @@ class VrpcRemote {
       data
     }
     await this._ensureConnected()
-    const topic = `${this._topicPrefix}/${agentId}/${className}/__create__`
+    const topic = `${this._topicPrefix}/${agentId}/${className}/__static__/__create__`
     this._client.publish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
       this._eventEmitter.once(json.id, data => {
@@ -174,7 +175,7 @@ class VrpcRemote {
       data: this._packData(functionName, ...args)
     }
     await this._ensureConnected()
-    const topic = `${this._topicPrefix}/${agentId}/${className}/${functionName}`
+    const topic = `${this._topicPrefix}/${agentId}/${className}/__static__/${functionName}`
     this._client.publish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
       this._eventEmitter.once(json.id, data => {
