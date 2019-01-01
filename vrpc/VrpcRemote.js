@@ -1,5 +1,6 @@
 const os = require('os')
 const process = require('process')
+const crypto = require('crypto')
 const mqtt = require('mqtt')
 const shortid = require('shortid')
 const EventEmitter = require('events')
@@ -7,9 +8,14 @@ const EventEmitter = require('events')
 class VrpcRemote {
 
   constructor ({
+    username,
+    password,
     brokerUrl = 'mqtt://test.mosquitto.org',
-    topicPrefix = 'vrpc' } = {}
+    topicPrefix = 'vrpc'
+   } = {}
   ) {
+    this._username = username
+    this._password = password
     this._brokerUrl = brokerUrl
     this._topicPrefix = topicPrefix
     this._instance = shortid.generate()
@@ -24,7 +30,15 @@ class VrpcRemote {
 
   _init () {
     // Immediately try to connect
-    this._client = mqtt.connect(this._brokerUrl)
+    const md4 = crypto.createHash('md4').update(this._topic).digest('hex')
+    const options = {
+      keepalive: 120,
+      clean: true,
+      username: this._username,
+      password: this._password,
+      clientId: `vrpcp${md4}`
+    }
+    this._client = mqtt.connect(this._brokerUrl, options)
     this._client.on('connect', () => {
       // This will give us an overview of all remotely available classes
       this._client.subscribe(`${this._topicPrefix}/+/+/__static__/__info__`)
