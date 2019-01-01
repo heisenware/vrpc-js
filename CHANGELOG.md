@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-alpha.3]
+
+### Changed
+
+- Adapter and Proxy can now use username and password for MQTT authentication
+- ClientIDs are not longer random generated but explicitly set
+
+### Fixed
+
+- Bug that led to ambiguity given different agent serving same class names
+
 ## [2.0.0-alpha.2]
 
 ### Changed
