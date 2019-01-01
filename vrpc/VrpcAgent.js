@@ -1,5 +1,6 @@
 const { promisify } = require('util')
 const mqtt = require('mqtt')
+const crypto = require('crypto')
 const VrpcAdapter = require('./VrpcAdapter')
 
 class VrpcAgent {
@@ -28,12 +29,14 @@ class VrpcAgent {
   }
 
   async serve () {
+    const md4 = crypto.createHash('md4').update(this._topicPrefix + this._agentId).digest('hex')
     const options = {
       keepalive: 120,
       clean: true,
       connectTimeout: 10 * 1000,
       username: this._username,
-      password: this._password
+      password: this._password,
+      clientId: `vrpca${md4}`
     }
     this._log.info(`Agent ID     : ${this._agentId}`)
     this._log.info(`Broker URL   : ${this._brokerUrl}`)
