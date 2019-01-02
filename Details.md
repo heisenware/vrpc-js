@@ -12,7 +12,7 @@ Configured by user: `<domain>` and `<agent>`
 
 Generate client ID:
 
-- `vrpca<md4 hash of domain + agent>`
+- `vrpca<md5 hash of domain + agent>`
 
 Iterate all registered classes (`<klass>`) and subscribe their static functions:
 
@@ -54,7 +54,7 @@ Configured by user: `<domain>`
 
 Generate client ID:
 
-- `vrpcp<md4 of own topic>`
+- `vrpcp<md5 of own topic>`
 
 Listen for available classes and response messages
 

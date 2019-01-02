@@ -30,13 +30,13 @@ class VrpcRemote {
 
   _init () {
     // Immediately try to connect
-    const md4 = crypto.createHash('md4').update(this._topic).digest('hex')
+    const md5 = crypto.createHash('md5').update(this._topic).digest('hex').substr(0, 18)
     const options = {
       keepalive: 120,
       clean: true,
       username: this._username,
       password: this._password,
-      clientId: `vrpcp${md4}`
+      clientId: `vrpcp${md5}`
     }
     this._client = mqtt.connect(this._brokerUrl, options)
     this._client.on('connect', () => {

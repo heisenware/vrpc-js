@@ -29,14 +29,14 @@ class VrpcAgent {
   }
 
   async serve () {
-    const md4 = crypto.createHash('md4').update(this._topicPrefix + this._agentId).digest('hex')
+    const md5 = crypto.createHash('md5').update(this._topicPrefix + this._agentId).digest('hex').substr(0, 18)
     const options = {
       keepalive: 120,
       clean: true,
       connectTimeout: 10 * 1000,
       username: this._username,
       password: this._password,
-      clientId: `vrpca${md4}`
+      clientId: `vrpca${md5}`
     }
     this._log.info(`Agent ID     : ${this._agentId}`)
     this._log.info(`Broker URL   : ${this._brokerUrl}`)
