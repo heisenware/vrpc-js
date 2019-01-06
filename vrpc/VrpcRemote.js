@@ -1,8 +1,6 @@
 const os = require('os')
-const process = require('process')
 const crypto = require('crypto')
 const mqtt = require('mqtt')
-const shortid = require('shortid')
 const EventEmitter = require('events')
 
 class VrpcRemote {
@@ -10,16 +8,19 @@ class VrpcRemote {
   constructor ({
     username,
     password,
+    token,
     brokerUrl = 'mqtt://test.mosquitto.org',
     topicPrefix = 'vrpc'
    } = {}
   ) {
     this._username = username
     this._password = password
+    this._token = token
     this._brokerUrl = brokerUrl
     this._topicPrefix = topicPrefix
-    this._instance = shortid.generate()
-    this._topic = `${topicPrefix}/${os.hostname()}-${process.pid}/${this._instance}`
+    this._instance = crypto.randomBytes(2).toString('hex')
+    this._clientId = this._createClientId(this._instance)
+    this._topic = `${topicPrefix}/${os.hostname()}/${this._instance}`
     this._classInfo = new Map()
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
@@ -28,15 +29,30 @@ class VrpcRemote {
     this._init()
   }
 
+  _createClientId (instanceId) {
+    const clientInfo = os.arch() + JSON.stringify(os.cpus()) + os.homedir() +
+    os.hostname() + JSON.stringify(os.networkInterfaces()) + os.platform() +
+    os.release() + os.totalmem() + os.type()
+    console.log('ClientInfo:', clientInfo)
+    const md5 = crypto.createHash('md5').update(clientInfo).digest('hex').substr(0, 13)
+    return `vrpcp${instanceId}X${md5}` // 5 + 4 + 1 + 13 = 23 (max clientId)
+  }
+
   _init () {
-    // Immediately try to connect
-    const md5 = crypto.createHash('md5').update(this._topic).digest('hex').substr(0, 18)
+    let clean = false
+    let username = this._username
+    let password = this._password
+    if (this._token !== undefined) {
+      clean = true
+      username = '__token__'
+      password = this._token
+    }
     const options = {
+      clean,
+      username,
+      password,
       keepalive: 120,
-      clean: true,
-      username: this._username,
-      password: this._password,
-      clientId: `vrpcp${md5}`
+      clientId: this._clientId
     }
     this._client = mqtt.connect(this._brokerUrl, options)
     this._client.on('connect', () => {
@@ -60,6 +76,23 @@ class VrpcRemote {
         const {id, data} = JSON.parse(message.toString())
         this._eventEmitter.emit(id, data)
       }
+    })
+  }
+
+  async reconnectWithToken (token) {
+    this._client.end(() => {
+      const options = {
+        clean: true,
+        username: '__token__',
+        password: token,
+        keepalive: 120,
+        clientId: this._clientId
+      }
+      this._client = mqtt.connect(this._brokerUrl, options)
+      return new Promise((resolve, reject) => {
+        this._client.once('connect', resolve)
+        this._client.once('error', () => reject(new Error('Failed to connect')))
+      })
     })
   }
 
