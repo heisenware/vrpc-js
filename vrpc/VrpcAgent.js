@@ -10,6 +10,7 @@ class VrpcAgent {
     {
       username,
       password,
+      token,
       topicPrefix = 'vrpc',
       brokerUrl = 'mqtt://test.mosquitto.org',
       log = console
@@ -17,6 +18,7 @@ class VrpcAgent {
   ) {
     this._username = username
     this._password = password
+    this._token = token
     this._agentId = agentId
     this._topicPrefix = topicPrefix
     this._brokerUrl = brokerUrl
@@ -30,12 +32,18 @@ class VrpcAgent {
 
   async serve () {
     const md5 = crypto.createHash('md5').update(this._topicPrefix + this._agentId).digest('hex').substr(0, 18)
+    let username = this._username
+    let password = this._password
+    if (this._token) {
+      username = '__token__'
+      password = this._token
+    }
     const options = {
+      username,
+      password,
       keepalive: 120,
       clean: true,
       connectTimeout: 10 * 1000,
-      username: this._username,
-      password: this._password,
       clientId: `vrpca${md5}`
     }
     this._log.info(`Agent ID     : ${this._agentId}`)

@@ -39,18 +39,16 @@ class VrpcRemote {
   }
 
   _init () {
-    let clean = false
     let username = this._username
     let password = this._password
-    if (this._token !== undefined) {
-      clean = true
+    if (this._token) {
       username = '__token__'
       password = this._token
     }
     const options = {
-      clean,
       username,
       password,
+      clean: true,
       keepalive: 120,
       clientId: this._clientId
     }
@@ -80,19 +78,9 @@ class VrpcRemote {
   }
 
   async reconnectWithToken (token) {
+    this._token = token
     this._client.end(() => {
-      const options = {
-        clean: true,
-        username: '__token__',
-        password: token,
-        keepalive: 120,
-        clientId: this._clientId
-      }
-      this._client = mqtt.connect(this._brokerUrl, options)
-      return new Promise((resolve, reject) => {
-        this._client.once('connect', resolve)
-        this._client.once('error', () => reject(new Error('Failed to connect')))
-      })
+      this._init()
     })
   }
 
