@@ -54,6 +54,12 @@ class TestClass {
     callback(ms)
   }
 
+  async willThrowLater () {
+    await new Promise((resolve, reject) => {
+      setTimeout(() => reject(new Error('Some test error'), 100))
+    })
+  }
+
   static crazy (who = undefined) {
     if (who === undefined) {
       return 'who is crazy?'

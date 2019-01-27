@@ -88,6 +88,14 @@ describe('An instance of the VrpcRemote class', () => {
           assert.equal(sleepTime, 100)
         })
       })
+      it('should be able to catch an asynchronous exception', async () => {
+        try {
+          await await testClass.willThrowLater()
+          assert.isTrue(false)
+        } catch (err) {
+          assert.equal(err.message, 'Some test error')
+        }
+      })
       it('should be able to call a static function', async () => {
         assert.equal(await vrpc.callStatic('js', 'TestClass', 'crazy'), 'who is crazy?')
       })

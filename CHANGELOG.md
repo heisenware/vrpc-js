@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+- Asynchronous exceptions where not caught on remote proxy (await await - style)
 - Session cleaning for re-login on node.js proxy
 
 ## [2.0.0-alpha.4]

@@ -208,8 +208,8 @@ class VrpcAdapter {
         const promiseJson = Object.assign({}, json, { data, id })
         VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
       })
-      .catch(reason => {
-        const data = { e: reason }
+      .catch(err => {
+        const data = { e: err.message }
         const promiseJson = Object.assign({}, json, { data, id })
         VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
       })
