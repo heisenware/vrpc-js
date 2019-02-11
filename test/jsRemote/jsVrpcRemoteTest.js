@@ -20,6 +20,13 @@ describe('An instance of the VrpcRemote class', () => {
     vrpc = new VrpcRemote({ topicPrefix: 'vrpc_test' })
     assert.ok(vrpc)
   })
+  it('should return available classes and functions', async () => {
+    await new Promise(resolve => setTimeout(resolve, 500))
+    console.log('Agents:', await vrpc.getAvailableAgents())
+    console.log('Classes:', await vrpc.getAvailableClasses())
+    console.log('Member Functions:', await vrpc.getAvailableMemberFunctions('js', 'TestClass'))
+    console.log('Static Functions:', await vrpc.getAvailableStaticFunctions('js'))
+  })
   describe('The corresponding VrpcRemote instance', () => {
     let testClass
     it('should be able to create a TestClass proxy using its default constructor', async () => {

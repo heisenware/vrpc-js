@@ -33,7 +33,7 @@ class VrpcRemote {
     const clientInfo = os.arch() + JSON.stringify(os.cpus()) + os.homedir() +
     os.hostname() + JSON.stringify(os.networkInterfaces()) + os.platform() +
     os.release() + os.totalmem() + os.type()
-    console.log('ClientInfo:', clientInfo)
+    // console.log('ClientInfo:', clientInfo)
     const md5 = crypto.createHash('md5').update(clientInfo).digest('hex').substr(0, 13)
     return `vrpcp${instanceId}X${md5}` // 5 + 4 + 1 + 13 = 23 (max clientId)
   }
@@ -69,7 +69,6 @@ class VrpcRemote {
         const classMap = this._classInfo.get(agent)
         if (classMap) classMap.set(json.class, json)
         else this._classInfo.set(agent, new Map([[json.class, json]]))
-        this._classInfo.set(json.class, json)
       } else {
         const {id, data} = JSON.parse(message.toString())
         this._eventEmitter.emit(id, data)
@@ -121,6 +120,79 @@ class VrpcRemote {
     })
   }
 
+  async getAvailableAgents () {
+    await this._ensureConnected()
+    return Array.from(this._classInfo.keys())
+  }
+
+  async getAvailableClasses (agentName) {
+    await this._ensureConnected()
+    if (agentName !== undefined) {
+      const classes = this._classInfo.get(agentName)
+      if (!classes) throw new Error(`Provided agent: ${agentName} is not available remotely`)
+      return Array.from(classes.keys())
+    }
+    const classes = []
+    this._classInfo.forEach(agent => {
+      classes.push(...Array.from(agent.keys()))
+    })
+    return classes
+  }
+
+  async getAvailableMemberFunctions (agentName, className) {
+    await this._ensureConnected()
+    if (agentName !== undefined) {
+      const classes = this._classInfo.get(agentName)
+      if (!classes) throw new Error(`Provided agent: ${agentName} is not available remotely`)
+      if (className !== undefined) {
+        const functions = classes.get(className)
+        if (!functions) {
+          throw new Error(`Provided class: ${className} is not available on agent: ${agentName}`)
+        }
+        return functions.memberFunctions.map(name => this._stripSignature(name))
+      }
+      const functions = []
+      classes.forEach(klass => {
+        functions.push(...klass.memberFunctions.map(name => this._stripSignature(name)))
+      })
+      return functions
+    }
+    const functions = []
+    this._classInfo.forEach(agent => {
+      agent.forEach(klass => {
+        functions.push(...klass.memberFunctions.map(name => this._stripSignature(name)))
+      })
+    })
+    return functions
+  }
+
+  async getAvailableStaticFunctions (agentName, className) {
+    await this._ensureConnected()
+    if (agentName !== undefined) {
+      const classes = this._classInfo.get(agentName)
+      if (!classes) throw new Error(`Provided agent: ${agentName} is not available remotely`)
+      if (className !== undefined) {
+        const functions = classes.get(className)
+        if (!functions) {
+          throw new Error(`Provided class: ${className} is not available on agent: ${agentName}`)
+        }
+        return functions.staticFunctions.map(name => this._stripSignature(name))
+      }
+      const functions = []
+      classes.forEach(klass => {
+        functions.push(...klass.staticFunctions.map(name => this._stripSignature(name)))
+      })
+      return functions
+    }
+    const functions = []
+    this._classInfo.forEach(agent => {
+      agent.forEach(klass => {
+        functions.push(...klass.staticFunctions.map(name => this._stripSignature(name)))
+      })
+    })
+    return functions
+  }
+
   async _createProxy (agentId, className, data) {
     const instance = data.r
     const targetTopic = `${this._topicPrefix}/${agentId}/${className}/${instance}`
@@ -130,7 +202,7 @@ class VrpcRemote {
     functions = functions.map(name => {
       const pos = name.indexOf('-')
       if (pos > 0) return name.substring(0, pos)
-      else return name
+      return name
     })
     // Remove overloads
     const uniqueFuncs = new Set(functions)
@@ -221,6 +293,12 @@ class VrpcRemote {
         }
       })
     })
+  }
+
+  _stripSignature (method) {
+    const pos = method.indexOf('-')
+    if (pos > 0) return method.substring(0, pos)
+    return method
   }
 
   _isFunction (variable) {
