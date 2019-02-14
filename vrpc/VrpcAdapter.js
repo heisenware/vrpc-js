@@ -69,14 +69,24 @@ class VrpcAdapter {
 
   // TODO add white- and black-list based filtering
   // TODO add namespaces
-  static register (Klass, { withNew = true, schema = null } = {}) {
+  static register (
+    Klass,
+    { onlyPublic = true, withNew = true, schema = null } = {}
+  ) {
     // Get all static static functions
-    const staticFunctions = VrpcAdapter._getStaticFunctions(Klass)
+    let staticFunctions = VrpcAdapter._getStaticFunctions(Klass)
+    if (onlyPublic) {
+      staticFunctions = staticFunctions.filter(f => !f.startsWith('_'))
+    }
     // Inject constructor and destructor
     staticFunctions.push('__create__')
-    // staticFunctions.push('__create_named__')
     staticFunctions.push('__delete__')
-    const memberFunctions = VrpcAdapter._getMemberFunctions(Klass)
+    staticFunctions.push('__createNamed__')
+    staticFunctions.push('__deleteNamed__')
+    let memberFunctions = VrpcAdapter._getMemberFunctions(Klass)
+    if (onlyPublic) {
+      memberFunctions = memberFunctions.filter(f => !f.startsWith('_'))
+    }
     VrpcAdapter._functionRegistry.set(
       Klass.name,
       { Klass, withNew, staticFunctions, memberFunctions, schema }
@@ -101,7 +111,7 @@ class VrpcAdapter {
       // Special case: ctor
       case '__create__':
         try {
-          const instance = VrpcAdapter['_create'].apply(null, [targetId, ...wrappedArgs])
+          const instance = VrpcAdapter._create(targetId, ...wrappedArgs)
           const instanceId = shortid.generate()
           VrpcAdapter._instances.set(
             instanceId,
@@ -116,8 +126,12 @@ class VrpcAdapter {
           data.e = err.message
         }
         break
-      // Special case: named construction
-      case '__create_named__':
+      // Special case: dtor
+      case '__delete__':
+        // TODO: Implement
+        break
+        // Special case: named construction
+      case '__createNamed__':
         try {
           VrpcAdapter._createNamed(targetId, wrappedArgs)
           data.r = wrappedArgs[0] // First argument is instanceId
@@ -125,8 +139,13 @@ class VrpcAdapter {
           data.e = err.message
         }
         break
-      // Special case: dtor
-      case '__delete__':
+      case '__getNamed__': // Special case: retrieval of known instance
+        const instance = VrpcAdapter._getNamed(targetId)
+        if (instance) data.r = targetId
+        else data.e = `Instance with id: ${targetId} does not exist`
+        break
+      // Special case: named deletion
+      case '__deleteNamed__':
         // TODO: Implement
         break
       // Regular function call
@@ -261,9 +280,8 @@ class VrpcAdapter {
     const entry = VrpcAdapter._instances.get(instanceId)
     if (entry !== undefined) {
       entry.refCount -= 1
-      if (entry.refCount === 0) {
-        VrpcAdapter._instances.delete(instanceId)
-      }
+      // No delete on 0 for now --> feels like a too complex scenario
+      VrpcAdapter._instances.delete(instanceId)
     } else {
       // VrpcAdapter should not happen
     }

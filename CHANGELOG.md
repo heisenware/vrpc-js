@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Token based login for node.js agent
 - Additional API functions allowing to query available agents, classes, methods
+- VrpcRemote functions: `createNamed` and `getNamed` to handle named instances
 
 ### Fixed
 
@@ -33,7 +34,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- Bug that led to ambiguity given different agent serving same class names
+- Bug that led to ambiguity given different agents serving same class names
 
 ## [2.0.0-alpha.2]
 

@@ -105,8 +105,39 @@ class VrpcRemote {
       sender: this._topic,
       data
     }
+    return this._getProxy(agentId, className, json)
+  }
+
+  async createNamed (agentId, className, instanceId, ...args) {
+    let data = { _1: instanceId }
+    args.forEach((value, index) => {
+      data[`_${index + 2}`] = value
+    })
+    const json = {
+      targetId: className,
+      method: '__createNamed__',
+      id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+      sender: this._topic,
+      data
+    }
+    return this._getProxy(agentId, className, json)
+  }
+
+  async getNamed (agentId, className, instanceId) {
+    const json = {
+      targetId: className,
+      method: '__getNamed__',
+      id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+      sender: this._topic,
+      data: { _1: instanceId }
+    }
+    return this._getProxy(agentId, className, json)
+  }
+
+  async _getProxy (agentId, className, json) {
     await this._ensureConnected()
-    const topic = `${this._topicPrefix}/${agentId}/${className}/__static__/__create__`
+    const { method } = json
+    const topic = `${this._topicPrefix}/${agentId}/${className}/__static__/${method}`
     this._client.publish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
       this._eventEmitter.once(json.id, data => {
