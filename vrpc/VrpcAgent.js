@@ -89,6 +89,7 @@ class VrpcAgent {
     classes.forEach(async klass => {
       const json = {
         class: klass,
+        instances: VrpcAdapter.getInstancesArray(klass),
         memberFunctions: VrpcAdapter.getMemberFunctionsArray(klass),
         staticFunctions: VrpcAdapter.getStaticFunctionsArray(klass)
       }
@@ -143,7 +144,7 @@ class VrpcAgent {
       VrpcAdapter.call(json) // json is mutated and contains return value
 
       // Special case: object creation -> need to register subscriber
-      if (method === '__create__') {
+      if (method === '__create__' || method === '__createNamed__') {
         // TODO handle instantiation errors
         const instanceId = json.data.r
         this._subscribeToMethodsOfNewInstance(klass, instanceId)

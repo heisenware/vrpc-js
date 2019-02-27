@@ -82,6 +82,7 @@ class VrpcAdapter {
     staticFunctions.push('__create__')
     staticFunctions.push('__delete__')
     staticFunctions.push('__createNamed__')
+    staticFunctions.push('__getNamed__')
     staticFunctions.push('__deleteNamed__')
     let memberFunctions = VrpcAdapter._getMemberFunctions(Klass)
     if (onlyPublic) {
@@ -113,14 +114,7 @@ class VrpcAdapter {
         try {
           const instance = VrpcAdapter._create(targetId, ...wrappedArgs)
           const instanceId = shortid.generate()
-          VrpcAdapter._instances.set(
-            instanceId,
-            {
-              targetId,
-              instance,
-              refCount: 1
-            }
-          )
+          VrpcAdapter._instances.set(instanceId, { targetId, instance })
           data.r = instanceId
         } catch (err) {
           data.e = err.message
@@ -133,20 +127,25 @@ class VrpcAdapter {
         // Special case: named construction
       case '__createNamed__':
         try {
-          VrpcAdapter._createNamed(targetId, wrappedArgs)
+          VrpcAdapter._createNamed(targetId, ...wrappedArgs)
           data.r = wrappedArgs[0] // First argument is instanceId
         } catch (err) {
           data.e = err.message
         }
         break
       case '__getNamed__': // Special case: retrieval of known instance
-        const instance = VrpcAdapter._getNamed(targetId)
-        if (instance) data.r = targetId
-        else data.e = `Instance with id: ${targetId} does not exist`
+        const instanceId = wrappedArgs[0]
+        const instance = VrpcAdapter._getNamed(instanceId)
+        if (instance) data.r = instanceId
+        else data.e = `Instance with id: ${instanceId} does not exist`
         break
       // Special case: named deletion
       case '__deleteNamed__':
-        // TODO: Implement
+        try {
+          data.r = VrpcAdapter._deleteNamed(targetId)
+        } catch (err) {
+          data.e = err.message
+        }
         break
       // Regular function call
       default:
@@ -190,6 +189,14 @@ class VrpcAdapter {
 
   static getClassesArray () {
     return Array.from(VrpcAdapter._functionRegistry.keys())
+  }
+
+  static getInstancesArray (className) {
+    const instances = []
+    VrpcAdapter._instances.forEach((value, key) => {
+      if (value.className === className) instances.push(key)
+    })
+    return instances
   }
 
   static getMemberFunctionsArray (className) {
@@ -259,19 +266,14 @@ class VrpcAdapter {
     if (instance !== undefined) {
       return instance
     }
-    instance = VrpcAdapter.create(className, ...args)
-    instance.log = instance.log.child({ instanceId })
-    VrpcAdapter._instances.set(
-      instanceId,
-      { className, instance, refCount: 1 }
-    )
+    instance = VrpcAdapter._create(className, ...args)
+    VrpcAdapter._instances.set(instanceId, { className, instance })
     return instance
   }
 
   static _getNamed (instanceId) {
     const entry = VrpcAdapter._instances.get(instanceId)
     if (entry !== undefined) {
-      entry.refCount += 1
       return entry.instance
     }
   }
@@ -279,11 +281,11 @@ class VrpcAdapter {
   static _deleteNamed (instanceId) {
     const entry = VrpcAdapter._instances.get(instanceId)
     if (entry !== undefined) {
-      entry.refCount -= 1
-      // No delete on 0 for now --> feels like a too complex scenario
       VrpcAdapter._instances.delete(instanceId)
+      return true
     } else {
       // VrpcAdapter should not happen
+      return false
     }
   }
 

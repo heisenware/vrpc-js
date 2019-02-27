@@ -10,12 +10,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Token based login for node.js agent
 - Additional API functions allowing to query available agents, classes, methods
-- VrpcRemote functions: `createNamed` and `getNamed` to handle named instances
+- Possibility to create named instances usable by multiple proxies
 
 ### Fixed
 
 - Asynchronous exceptions where not caught on remote proxy (await await - style)
 - Session cleaning for re-login on node.js proxy
+
+### Changed
+
+- The API of VrpcRemote to take a objects instead of multiple args
 
 ## [2.0.0-alpha.4]
 

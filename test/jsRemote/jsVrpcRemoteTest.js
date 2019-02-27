@@ -20,17 +20,18 @@ describe('An instance of the VrpcRemote class', () => {
     vrpc = new VrpcRemote({ topicPrefix: 'vrpc_test' })
     assert.ok(vrpc)
   })
-  it.skip('should return available classes and functions', async () => {
+  it('should return available classes and functions', async () => {
     await new Promise(resolve => setTimeout(resolve, 300))
+    console.log('Domains:', await vrpc.getAvailableDomains())
     console.log('Agents:', await vrpc.getAvailableAgents())
-    console.log('Classes:', await vrpc.getAvailableClasses())
-    console.log('Member Functions:', await vrpc.getAvailableMemberFunctions('js', 'TestClass'))
-    console.log('Static Functions:', await vrpc.getAvailableStaticFunctions('js'))
+    console.log('Classes:', await vrpc.getAvailableClasses('js'))
+    console.log('Member Functions:', await vrpc.getAvailableMemberFunctions('TestClass', 'js'))
+    console.log('Static Functions:', await vrpc.getAvailableStaticFunctions('TestClass', 'js'))
   })
   describe('The corresponding VrpcRemote instance', () => {
     let testClass
     it('should be able to create a TestClass proxy using its default constructor', async () => {
-      testClass = await vrpc.create('js', 'TestClass')
+      testClass = await vrpc.create({ agent: 'js', className: 'TestClass' })
       assert.ok(testClass)
     })
     describe('The corresponding TestClass proxy', () => {
@@ -104,10 +105,99 @@ describe('An instance of the VrpcRemote class', () => {
         }
       })
       it('should be able to call a static function', async () => {
-        assert.equal(await vrpc.callStatic('js', 'TestClass', 'crazy'), 'who is crazy?')
+        assert.equal(
+          await vrpc.callStatic({
+            agent: 'js',
+            className: 'TestClass',
+            functionName: 'crazy'
+          }),
+          'who is crazy?'
+        )
       })
       it('and overloads thereof', async () => {
-        assert.equal(await vrpc.callStatic('js', 'TestClass', 'crazy', 'vrpc'), 'vrpc is crazy!')
+        assert.equal(
+          await vrpc.callStatic({
+            agent: 'js',
+            className: 'TestClass',
+            functionName: 'crazy',
+            args: ['vrpc']
+          }),
+          'vrpc is crazy!'
+        )
+      })
+    })
+  })
+})
+
+describe('Another instance of the VrpcRemote class', () => {
+  let vrpc
+  it('should be construct-able with pre-defined domain and agent', () => {
+    vrpc = new VrpcRemote({ topicPrefix: 'vrpc_test', agent: 'js' })
+    assert.isObject(vrpc)
+  })
+  describe('The corresponding VrpcRemote instance', () => {
+    let proxy
+    it('should be able to create a named proxy instance', async () => {
+      proxy = await vrpc.create({
+        className: 'TestClass',
+        instance: 'test1',
+        args: [{ test: [1, 2, 3] }]
+      })
+      assert.isObject(proxy)
+    })
+    describe('The corresponding TestClass proxy', () => {
+      let test1
+      it('should have all bound functions as own methods', () => {
+        assert.isFunction(proxy.getRegistry)
+        assert.isFunction(proxy.hasCategory)
+        assert.isFunction(proxy.notifyOnNew)
+        assert.isFunction(proxy.notifyOnRemoved)
+        assert.isFunction(proxy.addEntry)
+        assert.isFunction(proxy.removeEntry)
+        assert.isFunction(proxy.waitForMe)
+        assert.isFunction(proxy.callMeBackLater)
+        assert.isNotFunction(proxy.crazy)
+      })
+      it('should return the correct registry as provided during construction', async () => {
+        const registry = await proxy.getRegistry()
+        assert.deepEqual(registry, { test: [1, 2, 3] })
+      })
+      it('should not be possible to attach to non-existing instance', async () => {
+        try {
+          await vrpc.getInstance({ className: 'TestClass', instance: 'bad' })
+          assert.fail()
+        } catch (err) {
+          assert.equal(err.message, 'Instance with id: bad does not exist')
+        }
+      })
+      it('should be possible to attach to the named instance', async () => {
+        test1 = await vrpc.getInstance({ className: 'TestClass', instance: 'test1' })
+        assert.isObject(test1)
+      })
+      describe('The attached named instance', () => {
+        it('should have all bound functions as own methods', () => {
+          assert.isFunction(test1.getRegistry)
+          assert.isFunction(test1.hasCategory)
+          assert.isFunction(test1.notifyOnNew)
+          assert.isFunction(test1.notifyOnRemoved)
+          assert.isFunction(test1.addEntry)
+          assert.isFunction(test1.removeEntry)
+          assert.isFunction(test1.waitForMe)
+          assert.isFunction(test1.callMeBackLater)
+          assert.isNotFunction(test1.crazy)
+        })
+        it('should return the correct registry as provided during construction', async () => {
+          assert.deepEqual((await test1.getRegistry()), { test: [1, 2, 3] })
+        })
+        it.skip('should be delete-able', async () => {
+          assert.equal(await vrpc.deleteInstance('test1'), true)
+          try {
+            await vrpc.getInstance({ className: 'TestClass', instance: 'test1' })
+            assert.fail()
+          } catch (err) {
+            assert.equal(err.message, 'Instance with id: bad does not exist')
+          }
+        })
       })
     })
   })

@@ -6,22 +6,24 @@ const EventEmitter = require('events')
 class VrpcRemote {
 
   constructor ({
+    token,
     username,
     password,
-    token,
-    brokerUrl = 'mqtt://test.mosquitto.org',
-    topicPrefix = 'vrpc'
+    agent = '*',
+    topicPrefix = '*',
+    brokerUrl = 'mqtt://test.mosquitto.org'
    } = {}
   ) {
+    this._token = token
     this._username = username
     this._password = password
-    this._token = token
-    this._brokerUrl = brokerUrl
+    this._agent = agent
     this._topicPrefix = topicPrefix
+    this._brokerUrl = brokerUrl
     this._instance = crypto.randomBytes(2).toString('hex')
     this._clientId = this._createClientId(this._instance)
     this._topic = `${topicPrefix}/${os.hostname()}/${this._instance}`
-    this._classInfo = new Map()
+    this._domainMap = new Map()
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
     this._client
@@ -29,13 +31,154 @@ class VrpcRemote {
     this._init()
   }
 
-  _createClientId (instanceId) {
+  async create ({
+    className,
+    instance,
+    args = [],
+    agent = this._agent,
+    domain = this._topicPrefix
+  } = {}) {
+    if (agent === '*') throw new Error('Agent must be specified')
+    if (domain === '*') throw new Error('Domain must be specified')
+    let data = instance ? { _1: instance } : {}
+    const offset = instance ? 2 : 1
+    args.forEach((value, index) => {
+      data[`_${index + offset}`] = value
+    })
+    const json = {
+      targetId: className,
+      method: instance ? '__createNamed__' : '__create__',
+      id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+      sender: `${domain}/${os.hostname()}/${this._instance}`,
+      data
+    }
+    return this._getProxy(domain, agent, className, json)
+  }
+
+  async getInstance ({
+    className,
+    instance,
+    agent = this._agent,
+    domain = this._topicPrefix
+  }) {
+    const json = {
+      targetId: className,
+      method: '__getNamed__',
+      id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+      sender: `${domain}/${os.hostname()}/${this._instance}`,
+      data: { _1: instance }
+    }
+    return this._getProxy(domain, agent, className, json)
+  }
+
+  async callStatic ({
+    className,
+    functionName,
+    args = [],
+    agent = this._agent,
+    domain = this._topicPrefix
+  } = {}) {
+    if (domain === '*') throw new Error('You must specify a domain')
+    const json = {
+      targetId: className,
+      method: functionName,
+      sender: `${domain}/${os.hostname()}/${this._instance}`,
+      data: this._packData(functionName, ...args)
+    }
+    await this._ensureConnected()
+    const topic = `${domain}/${agent}/${className}/__static__/${functionName}`
+    this._client.publish(topic, JSON.stringify(json))
+    return new Promise((resolve, reject) => {
+      this._eventEmitter.once(json.id, data => {
+        if (data.e) {
+          reject(new Error(data.e))
+        } else {
+          resolve(data.r)
+        }
+      })
+    })
+  }
+
+  async getAvailableDomains () {
+    await this._ensureConnected()
+    return Array.from(this._domainMap.keys())
+  }
+
+  async getAvailableAgents (domain = this._topicPrefix) {
+    if (domain === '*') throw new Error('Domain must be specified')
+    await this._ensureConnected()
+    const agentMap = this._domainMap.get(domain)
+    if (!agentMap) return []
+    return Array.from(agentMap.keys())
+  }
+
+  async getAvailableClasses (agent = this._agent, domain = this._topicPrefix) {
+    if (agent === '*') throw new Error('Agent must be specified')
+    if (domain === '*') throw new Error('Domain must be specified')
+    await this._ensureConnected()
+    const agentMap = this._domainMap.get(domain)
+    if (!agentMap) return []
+    const classMap = agentMap.get(agent)
+    if (!classMap) return []
+    return Array.from(classMap.keys())
+  }
+
+  async getAvailableInstances (className, agent = this._agent, domain = this._topicPrefix) {
+    if (agent === '*') throw new Error('Agent must be specified')
+    if (domain === '*') throw new Error('Domain must be specified')
+    await this._ensureConnected()
+    const agentMap = this._domainMap.get(domain)
+    if (!agentMap) return []
+    const classMap = agentMap.get(agent)
+    if (!classMap) return []
+    const classInfo = classMap.get(className)
+    if (!classInfo) return []
+    return classInfo.instances
+  }
+
+  async getAvailableMemberFunctions (className, agent = this._agent, domain = this._topicPrefix) {
+    if (agent === '*') throw new Error('Agent must be specified')
+    if (domain === '*') throw new Error('Domain must be specified')
+    await this._ensureConnected()
+    const agentMap = this._domainMap.get(domain)
+    if (!agentMap) return []
+    const classMap = agentMap.get(agent)
+    if (!classMap) return []
+    const classInfo = classMap.get(className)
+    if (!classInfo) return []
+    return classInfo.memberFunctions.map(name => this._stripSignature(name))
+  }
+
+  async getAvailableStaticFunctions (className, agent = this._agent, domain = this._topicPrefix) {
+    if (agent === '*') throw new Error('Agent must be specified')
+    if (domain === '*') throw new Error('Domain must be specified')
+    await this._ensureConnected()
+    const agentMap = this._domainMap.get(domain)
+    if (!agentMap) return []
+    const classMap = agentMap.get(agent)
+    if (!classMap) return []
+    const classInfo = classMap.get(className)
+    if (!classInfo) return []
+    return classInfo.staticFunctions.map(name => this._stripSignature(name))
+  }
+
+  async reconnectWithToken (
+    token,
+    { agent = this._agent, domain = this._topicPrefix } = {}
+  ) {
+    this._token = token
+    this._agent = agent
+    this._topicPrefix = domain
+    this._client.end(() => this._init())
+  }
+
+  _createClientId (instance) {
     const clientInfo = os.arch() + JSON.stringify(os.cpus()) + os.homedir() +
     os.hostname() + JSON.stringify(os.networkInterfaces()) + os.platform() +
     os.release() + os.totalmem() + os.type()
     // console.log('ClientInfo:', clientInfo)
     const md5 = crypto.createHash('md5').update(clientInfo).digest('hex').substr(0, 13)
-    return `vrpcp${instanceId}X${md5}` // 5 + 4 + 1 + 13 = 23 (max clientId)
+    return `vrpcp${instance}X${md5}` // 5 + 4 + 1 + 13 = 23 (max clientId)
   }
 
   _init () {
@@ -55,20 +198,23 @@ class VrpcRemote {
     this._client = mqtt.connect(this._brokerUrl, options)
     this._client.on('connect', () => {
       // This will give us an overview of all remotely available classes
-      this._client.subscribe(`${this._topicPrefix}/+/+/__static__/__info__`)
+      const domain = this._topicPrefix === '*' ? '+' : this._topicPrefix
+      const agent = this._agent === '*' ? '+' : this._agent
+      this._client.subscribe(`${domain}/${agent}/+/__static__/__info__`)
       // Listen for remote function return values
-      this._client.subscribe(this._topic)
+      this._client.subscribe(`${domain}/${os.hostname()}/${this._instance}`)
     })
     this._client.on('message', (topic, message) => {
       const tokens = topic.split('/')
+      const domain = tokens[0]
       const agent = tokens[1]
       const func = tokens[4]
       if (func === '__info__') {
-        // Json properties: { class, memberFunctions, staticFunctions }
+        // Json properties: { class, instances, memberFunctions, staticFunctions }
         const json = JSON.parse(message.toString())
-        const classMap = this._classInfo.get(agent)
-        if (classMap) classMap.set(json.class, json)
-        else this._classInfo.set(agent, new Map([[json.class, json]]))
+        const domainMap = VrpcRemote._getOrCreate(this._domainMap, domain)
+        const classMap = VrpcRemote._getOrCreate(domainMap, agent)
+        classMap.set(json.class, json)
       } else {
         const {id, data} = JSON.parse(message.toString())
         this._eventEmitter.emit(id, data)
@@ -76,11 +222,13 @@ class VrpcRemote {
     })
   }
 
-  async reconnectWithToken (token) {
-    this._token = token
-    this._client.end(() => {
-      this._init()
-    })
+  static _getOrCreate (map, key) {
+    let value = map.get(key)
+    if (!value) {
+      value = new Map()
+      map.set(key, value)
+    }
+    return value
   }
 
   _ensureConnected () {
@@ -93,142 +241,28 @@ class VrpcRemote {
     })
   }
 
-  async create (agentId, className, ...args) {
-    let data = {}
-    args.forEach((value, index) => {
-      data[`_${index + 1}`] = value
-    })
-    const json = {
-      targetId: className,
-      method: '__create__',
-      id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      sender: this._topic,
-      data
-    }
-    return this._getProxy(agentId, className, json)
-  }
-
-  async createNamed (agentId, className, instanceId, ...args) {
-    let data = { _1: instanceId }
-    args.forEach((value, index) => {
-      data[`_${index + 2}`] = value
-    })
-    const json = {
-      targetId: className,
-      method: '__createNamed__',
-      id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      sender: this._topic,
-      data
-    }
-    return this._getProxy(agentId, className, json)
-  }
-
-  async getNamed (agentId, className, instanceId) {
-    const json = {
-      targetId: className,
-      method: '__getNamed__',
-      id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      sender: this._topic,
-      data: { _1: instanceId }
-    }
-    return this._getProxy(agentId, className, json)
-  }
-
-  async _getProxy (agentId, className, json) {
+  async _getProxy (domain, agent, className, json) {
     await this._ensureConnected()
     const { method } = json
-    const topic = `${this._topicPrefix}/${agentId}/${className}/__static__/${method}`
+    const topic = `${domain}/${agent}/${className}/__static__/${method}`
     this._client.publish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
       this._eventEmitter.once(json.id, data => {
         if (data.e) {
           reject(new Error(data.e))
         } else {
-          const proxy = this._createProxy(agentId, className, data)
+          const proxy = this._createProxy(domain, agent, className, data)
           resolve(proxy)
         }
       })
     })
   }
 
-  async getAvailableAgents () {
-    await this._ensureConnected()
-    return Array.from(this._classInfo.keys())
-  }
-
-  async getAvailableClasses (agentName) {
-    await this._ensureConnected()
-    if (agentName !== undefined) {
-      const classes = this._classInfo.get(agentName)
-      if (!classes) throw new Error(`Provided agent: ${agentName} is not available remotely`)
-      return Array.from(classes.keys())
-    }
-    const classes = []
-    this._classInfo.forEach(agent => {
-      classes.push(...Array.from(agent.keys()))
-    })
-    return classes
-  }
-
-  async getAvailableMemberFunctions (agentName, className) {
-    await this._ensureConnected()
-    if (agentName !== undefined) {
-      const classes = this._classInfo.get(agentName)
-      if (!classes) throw new Error(`Provided agent: ${agentName} is not available remotely`)
-      if (className !== undefined) {
-        const functions = classes.get(className)
-        if (!functions) {
-          throw new Error(`Provided class: ${className} is not available on agent: ${agentName}`)
-        }
-        return functions.memberFunctions.map(name => this._stripSignature(name))
-      }
-      const functions = []
-      classes.forEach(klass => {
-        functions.push(...klass.memberFunctions.map(name => this._stripSignature(name)))
-      })
-      return functions
-    }
-    const functions = []
-    this._classInfo.forEach(agent => {
-      agent.forEach(klass => {
-        functions.push(...klass.memberFunctions.map(name => this._stripSignature(name)))
-      })
-    })
-    return functions
-  }
-
-  async getAvailableStaticFunctions (agentName, className) {
-    await this._ensureConnected()
-    if (agentName !== undefined) {
-      const classes = this._classInfo.get(agentName)
-      if (!classes) throw new Error(`Provided agent: ${agentName} is not available remotely`)
-      if (className !== undefined) {
-        const functions = classes.get(className)
-        if (!functions) {
-          throw new Error(`Provided class: ${className} is not available on agent: ${agentName}`)
-        }
-        return functions.staticFunctions.map(name => this._stripSignature(name))
-      }
-      const functions = []
-      classes.forEach(klass => {
-        functions.push(...klass.staticFunctions.map(name => this._stripSignature(name)))
-      })
-      return functions
-    }
-    const functions = []
-    this._classInfo.forEach(agent => {
-      agent.forEach(klass => {
-        functions.push(...klass.staticFunctions.map(name => this._stripSignature(name)))
-      })
-    })
-    return functions
-  }
-
-  async _createProxy (agentId, className, data) {
+  async _createProxy (domain, agent, className, data) {
     const instance = data.r
-    const targetTopic = `${this._topicPrefix}/${agentId}/${className}/${instance}`
+    const targetTopic = `${domain}/${agent}/${className}/${instance}`
     let proxy = {}
-    let functions = this._classInfo.get(agentId).get(className).memberFunctions
+    let functions = this._domainMap.get(domain).get(agent).get(className).memberFunctions
     // Strip off argument signature
     functions = functions.map(name => {
       const pos = name.indexOf('-')
@@ -303,27 +337,6 @@ class VrpcRemote {
       }
     })
     return data
-  }
-
-  async callStatic (agentId, className, functionName, ...args) {
-    const json = {
-      targetId: className,
-      method: functionName,
-      sender: this._topic,
-      data: this._packData(functionName, ...args)
-    }
-    await this._ensureConnected()
-    const topic = `${this._topicPrefix}/${agentId}/${className}/__static__/${functionName}`
-    this._client.publish(topic, JSON.stringify(json))
-    return new Promise((resolve, reject) => {
-      this._eventEmitter.once(json.id, data => {
-        if (data.e) {
-          reject(new Error(data.e))
-        } else {
-          resolve(data.r)
-        }
-      })
-    })
   }
 
   _stripSignature (method) {
