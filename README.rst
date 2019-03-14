@@ -376,7 +376,6 @@ Then on the top of your binding file (before the macros) add:
 .. code:: cpp
 
     #include <json.hpp>
-    using nlohmann::json;
 
     namespace ns {
       void to_json(json& j, const Person& p) {
@@ -491,15 +490,13 @@ Then you can fully bind it like that:
 
     // NOTE: Do not include <vrpc.hpp>, even if you IDE complains
 
-    using nlohmann::json;
-
     namespace vrpc_example {
 
       // Register custom type: Bottle
-      void to_json(json& j, const Bottle& b) {
-        j = json{{"brand", b.brand}, {"country", b.country}, {"age", b.age}};
+      void to_json(vrpc::json& j, const Bottle& b) {
+        j = vrpc::json{{"brand", b.brand}, {"country", b.country}, {"age", b.age}};
       }
-      void from_json(const json& j, Bottle& b) {
+      void from_json(const vrpc::json& j, Bottle& b) {
         b.brand = j.at("brand").get<std::string>();
         b.country = j.at("country").get<std::string>();
         b.age = j.at("age").get<int>();

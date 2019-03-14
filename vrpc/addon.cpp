@@ -143,7 +143,7 @@ namespace vrpc_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_member_functions(arg);
-      nlohmann::json j;
+      vrpc::json j;
       j["functions"] = functions;
       ret = j.dump();
     } catch (const std::exception& e) {
@@ -165,7 +165,7 @@ namespace vrpc_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_static_functions(arg);
-      nlohmann::json j;
+      vrpc::json j;
       j["functions"] = functions;
       ret = j.dump();
     } catch (const std::exception& e) {
@@ -180,7 +180,7 @@ namespace vrpc_bindings {
 
   Persistent<Function> callback_handler;
 
-  void cppCallbackHandler(Isolate* isolate, const nlohmann::json& json) {
+  void cppCallbackHandler(Isolate* isolate, const vrpc::json& json) {
     _VRPC_DEBUG << "will call back with " << json << std::endl;
     HandleScope handleScope(isolate);
     Local<Function> cb = Local<Function>::New(isolate, callback_handler);

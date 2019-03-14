@@ -342,14 +342,13 @@ Then on the top of your binding file (before the macros) add:
 
 ```cpp
 #include <json.hpp>
-using nlohmann::json;
 
 namespace ns {
-  void to_json(json& j, const Person& p) {
-    j = json{{"name", p.name}, {"address", p.address}, {"age", p.age}};
+  void to_json(vrpc::json& j, const Person& p) {
+    j = vrpc::json{{"name", p.name}, {"address", p.address}, {"age", p.age}};
   }
 
-  void from_json(const json& j, Person& p) {
+  void from_json(const vrpc::json& j, Person& p) {
     p.name = j.at("name").get<std::string>();
     p.address = j.at("address").get<std::string>();
     p.age = j.at("age").get<int>();
@@ -454,8 +453,6 @@ Then you can fully bind it like that:
 #include "Bar.hpp"
 
 // NOTE: Do not include <vrpc.hpp>, even if you IDE complains
-
-using nlohmann::json;
 
 namespace vrpc_example {
 

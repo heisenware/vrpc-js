@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - The API of VrpcRemote to take a objects instead of multiple args
+- Updated version of Modern JSON lib to 3.5.0
+- Changed namespace and macro names from nlohmann to vrpc
+- Adapted corresponding examples, tests and documentation
 
 ## [2.0.0-alpha.4]
 
