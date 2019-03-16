@@ -40,6 +40,10 @@ SOFTWARE.
 #ifndef VRPC_HPP
 #define VRPC_HPP
 
+#define VRPC_VERSION_MAJOR 2
+#define VRPC_VERSION_MINOR 0
+#define VRPC_VERSION_PATCH 0
+
 #include <cstdint>
 #include <functional>
 #include <iostream>
