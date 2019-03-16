@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Asynchronous exceptions where not caught on remote proxy (await await - style)
 - Session cleaning for re-login on node.js proxy
+- Proper promise based await of client disconnect in case of VrpcRemote reconnect
 
 ### Changed
 

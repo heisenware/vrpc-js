@@ -170,6 +170,9 @@ class VrpcRemote {
     this._agent = agent
     this._topicPrefix = domain
     this._client.end(() => this._init())
+    return new Promise(resolve => {
+      this._client.once('connect', resolve)
+    })
   }
 
   _createClientId (instance) {
