@@ -27,13 +27,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Renamed all topicPrefix to domain
 - Commandline options of vrpc-agent-js and default settings
 
-## [2.0.0-alpha.4]
+## [2.0.0-alpha.4] - 02 Jan 2019
 
 ### Fixed
 
 - Exchanged md4 with md5 hashing fixing missing browser support
 
-## [2.0.0-alpha.3]
+## [2.0.0-alpha.3] - 01 Jan 2019
 
 ### Changed
 
@@ -46,19 +46,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Bug that led to ambiguity given different agents serving same class names
 
-## [2.0.0-alpha.2]
+## [2.0.0-alpha.2] - 02 Jul 2018
 
 ### Changed
 
 - module.exports in index.js to also support VrpcAdapter
 
-## [2.0.0-alpha.1]
+## [2.0.0-alpha.1] - 02 Jul 2018
 
 ### Changed
 
 - module.exports in index.js to also support VrpcRemote
 
-## [2.0.0-alpha.0]
+## [2.0.0-alpha.0] - 02 Jul 2018
 
 ### Added
 
