@@ -5,7 +5,7 @@ cd $(dirname `[[ $0 = /* ]] && echo "$0" || echo "$PWD/${0#./}"`)
 executable="../../vrpc/vrpc-agent-js"
 bindingFile="../fixtures/binding.js"
 
-$executable -t vrpc_test -f $bindingFile js & agent_pid=$!
+$executable -d test.vrpc -a js -f $bindingFile -b mqtt://test.mosquitto.org & agent_pid=$!
 sleep 2
 ../../node_modules/.bin/mocha . --exit & mocha_pid=$!
 EXIT_CODE=$?

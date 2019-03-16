@@ -5,33 +5,32 @@ const VrpcAdapter = require('./VrpcAdapter')
 
 class VrpcAgent {
 
-  constructor (
-    agentId,
-    {
+  constructor ({
+      domain,
+      agent,
       username,
       password,
       token,
-      topicPrefix = 'vrpc',
-      brokerUrl = 'mqtt://test.mosquitto.org',
+      broker = 'mqtt://test.mosquitto.org',
       log = console
     } = {}
   ) {
     this._username = username
     this._password = password
     this._token = token
-    this._agentId = agentId
-    this._topicPrefix = topicPrefix
-    this._brokerUrl = brokerUrl
+    this._agent = agent
+    this._domain = domain
+    this._broker = broker
     this._log = log
     if (this._log.constructor && this._log.constructor.name === 'Console') {
       this._log.debug = () => {}
     }
-    this._baseTopic = `${this._topicPrefix}/${this._agentId}`
+    this._baseTopic = `${this._domain}/${this._agent}`
     VrpcAdapter.onCallback(this._handleVrpcCallback.bind(this))
   }
 
   async serve () {
-    const md5 = crypto.createHash('md5').update(this._topicPrefix + this._agentId).digest('hex').substr(0, 18)
+    const md5 = crypto.createHash('md5').update(this._domain + this._agent).digest('hex').substr(0, 18)
     let username = this._username
     let password = this._password
     if (this._token) {
@@ -46,11 +45,11 @@ class VrpcAgent {
       connectTimeout: 10 * 1000,
       clientId: `vrpca${md5}`
     }
-    this._log.info(`Agent ID     : ${this._agentId}`)
-    this._log.info(`Broker URL   : ${this._brokerUrl}`)
-    this._log.info(`Topic Prefix : ${this._topicPrefix}`)
+    this._log.info(`Domain : ${this._domain}`)
+    this._log.info(`Agent  : ${this._agent}`)
+    this._log.info(`Broker : ${this._broker}`)
     this._log.info('Connecting to MQTT server...')
-    this._client = mqtt.connect(this._brokerUrl, options)
+    this._client = mqtt.connect(this._broker, options)
     this._client.on('connect', this._handleConnect.bind(this))
     this._client.on('reconnect', this._handleReconnect.bind(this))
     this._client.on('error', this._handleError.bind(this))
@@ -165,7 +164,7 @@ class VrpcAgent {
   }
 
   _handleReconnect () {
-    this._log.warn(`Reconnecting to ${this._brokerUrl}`)
+    this._log.warn(`Reconnecting to ${this._broker}`)
   }
 
   _handleError (err) {

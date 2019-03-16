@@ -11,9 +11,25 @@ const parser = new ArgumentParser({
   description: 'Starts a vrpc agent for node.js'
 })
 parser.addArgument(
-  ['agentId'],
+  ['-d', '--domain'],
+  {
+    help: 'The prefix for all vrpc communication',
+    type: 'string',
+    required: true
+  }
+)
+parser.addArgument(
+  ['-a', '--agent'],
   {
     help: 'Name of the agent for remote addressing',
+    type: 'string',
+    required: true
+  }
+)
+parser.addArgument(
+  ['-t', '--token'],
+  {
+    help: 'Token for authentication and authorization',
     type: 'string'
   }
 )
@@ -22,23 +38,15 @@ parser.addArgument(
   {
     help: 'Name of the binding file (Default is \'PATH/binding.js\')',
     type: 'string',
-    default: './binding.js'
+    defaultValue: './binding.js'
   }
 )
 parser.addArgument(
-  ['-b', '--brokerUrl'],
+  ['-b', '--broker'],
   {
-    help: 'The broker URL',
+    help: 'The broker to use',
     type: 'string',
-    defaultValue: 'mqtt://test.mosquitto.org'
-  }
-)
-parser.addArgument(
-  ['-t', '--topicPrefix'],
-  {
-    help: 'The prefix for all vrpc communication',
-    type: 'string',
-    defaultValue: 'vrpc'
+    defaultValue: 'mqtts://vrpc.io'
   }
 )
 
@@ -53,8 +61,8 @@ try {
 }
 
 // Start the agent
-const { brokerUrl, topicPrefix } = args
-const vrpcAgent = new VrpcAgent(args.agentId, { brokerUrl, topicPrefix })
+const { domain, agent, broker, token } = args
+const vrpcAgent = new VrpcAgent({ domain, agent, broker, token })
 
 vrpcAgent.serve().catch(err => {
   console.error(`Error happened on agent: ${err.message}`)

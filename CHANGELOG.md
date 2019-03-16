@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Updated version of Modern JSON lib to 3.5.0
 - Changed namespace and macro names from nlohmann to vrpc
 - Adapted corresponding examples, tests and documentation
+- Renamed all topicPrefix to domain
+- Commandline options of vrpc-agent-js and default settings
 
 ## [2.0.0-alpha.4]
 

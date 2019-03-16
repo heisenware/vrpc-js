@@ -10,19 +10,19 @@ class VrpcRemote {
     username,
     password,
     agent = '*',
-    topicPrefix = '*',
-    brokerUrl = 'mqtt://test.mosquitto.org'
+    domain = '*',
+    broker = 'mqtts://vrpc.io'
    } = {}
   ) {
     this._token = token
     this._username = username
     this._password = password
     this._agent = agent
-    this._topicPrefix = topicPrefix
-    this._brokerUrl = brokerUrl
+    this._domain = domain
+    this._broker = broker
     this._instance = crypto.randomBytes(2).toString('hex')
     this._clientId = this._createClientId(this._instance)
-    this._topic = `${topicPrefix}/${os.hostname()}/${this._instance}`
+    this._topic = `${domain}/${os.hostname()}/${this._instance}`
     this._domainMap = new Map()
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
@@ -36,7 +36,7 @@ class VrpcRemote {
     instance,
     args = [],
     agent = this._agent,
-    domain = this._topicPrefix
+    domain = this._domain
   } = {}) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
@@ -59,7 +59,7 @@ class VrpcRemote {
     className,
     instance,
     agent = this._agent,
-    domain = this._topicPrefix
+    domain = this._domain
   }) {
     const json = {
       targetId: className,
@@ -76,7 +76,7 @@ class VrpcRemote {
     functionName,
     args = [],
     agent = this._agent,
-    domain = this._topicPrefix
+    domain = this._domain
   } = {}) {
     if (domain === '*') throw new Error('You must specify a domain')
     const json = {
@@ -104,7 +104,7 @@ class VrpcRemote {
     return Array.from(this._domainMap.keys())
   }
 
-  async getAvailableAgents (domain = this._topicPrefix) {
+  async getAvailableAgents (domain = this._domain) {
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
     const agentMap = this._domainMap.get(domain)
@@ -112,7 +112,7 @@ class VrpcRemote {
     return Array.from(agentMap.keys())
   }
 
-  async getAvailableClasses (agent = this._agent, domain = this._topicPrefix) {
+  async getAvailableClasses (agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
@@ -123,7 +123,7 @@ class VrpcRemote {
     return Array.from(classMap.keys())
   }
 
-  async getAvailableInstances (className, agent = this._agent, domain = this._topicPrefix) {
+  async getAvailableInstances (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
@@ -136,7 +136,7 @@ class VrpcRemote {
     return classInfo.instances
   }
 
-  async getAvailableMemberFunctions (className, agent = this._agent, domain = this._topicPrefix) {
+  async getAvailableMemberFunctions (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
@@ -149,7 +149,7 @@ class VrpcRemote {
     return classInfo.memberFunctions.map(name => this._stripSignature(name))
   }
 
-  async getAvailableStaticFunctions (className, agent = this._agent, domain = this._topicPrefix) {
+  async getAvailableStaticFunctions (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
@@ -164,11 +164,11 @@ class VrpcRemote {
 
   async reconnectWithToken (
     token,
-    { agent = this._agent, domain = this._topicPrefix } = {}
+    { agent = this._agent, domain = this._domain } = {}
   ) {
     this._token = token
     this._agent = agent
-    this._topicPrefix = domain
+    this._domain = domain
     this._client.end(() => this._init())
     return new Promise(resolve => {
       this._client.once('connect', resolve)
@@ -198,10 +198,10 @@ class VrpcRemote {
       keepalive: 120,
       clientId: this._clientId
     }
-    this._client = mqtt.connect(this._brokerUrl, options)
+    this._client = mqtt.connect(this._broker, options)
     this._client.on('connect', () => {
       // This will give us an overview of all remotely available classes
-      const domain = this._topicPrefix === '*' ? '+' : this._topicPrefix
+      const domain = this._domain === '*' ? '+' : this._domain
       const agent = this._agent === '*' ? '+' : this._agent
       this._client.subscribe(`${domain}/${agent}/+/__static__/__info__`)
       // Listen for remote function return values
