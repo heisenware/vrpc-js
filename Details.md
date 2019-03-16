@@ -1,5 +1,9 @@
 # Topic structure
 
+
+WARNING: This document currently is partially outdated. It will be adapted
+with the public release of 2.0.0.
+
 General pattern
 
 `<domain>/<agent>/<klass>/<instance>/<method>`
@@ -50,7 +54,7 @@ with payload:
 
 ### During initialization
 
-Configured by user: `<domain>`
+Configured by user (optional): `<domain>` and `<agent>`
 
 Generate client ID:
 
@@ -59,7 +63,7 @@ Generate client ID:
 Listen for available classes and response messages
 
 - [subscribe] `<domain>/+/+/__static__/__info__`
-- [subscribe] `<domain>/<host>-<pid>/<language>/<uid>`
+- [subscribe] `<domain>/<host>/<language>/<uid>`
 
 ### During runtime
 
