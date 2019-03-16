@@ -56,7 +56,7 @@ describe('The nodejs VrpcAdapter', () => {
       assert.throws(
         () => VrpcAdapter.callRemote('bad;'),
         Error,
-        '[json.exception.parse_error.101] parse error at 1: syntax error - invalid literal; last read: \'b\''
+        '[json.exception.parse_error.101] parse error at line 1, column 1: syntax error while parsing value - invalid literal; last read: \'b\''
       )
     })
   })
