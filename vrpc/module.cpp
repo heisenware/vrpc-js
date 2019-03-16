@@ -74,7 +74,7 @@ namespace vrpc_python_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_member_functions(class_name);
-      json j;
+      vrpc::json j;
       j["functions"] = functions;
       ret = j.dump();
     } catch (const std::exception& e) {
@@ -94,7 +94,7 @@ namespace vrpc_python_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_static_functions(class_name);
-      json j;
+      vrpc::json j;
       j["functions"] = functions;
       ret = j.dump();
     } catch (const std::exception& e) {
@@ -106,9 +106,9 @@ namespace vrpc_python_bindings {
 
   static PyObject* callback_handler = NULL;
 
-  static void cppCallbackHandler(const json& json) {
-    _VRPC_DEBUG << "will call back with " << json << std::endl;
-    PyObject* arglist = Py_BuildValue("(s)", json.dump().c_str());
+  static void cppCallbackHandler(const vrpc::json& j) {
+    _VRPC_DEBUG << "will call back with " << j << std::endl;
+    PyObject* arglist = Py_BuildValue("(s)", j.dump().c_str());
     PyObject* result = PyObject_CallObject(callback_handler, arglist);
     Py_DECREF(arglist);
   }
