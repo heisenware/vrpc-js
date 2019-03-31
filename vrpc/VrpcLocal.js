@@ -77,6 +77,8 @@ function VrpcLocal (addon = null) {
       } else if (isEmitter(value)) {
         const id = `${functionName}-${index}`
         data[`a${index + 1}`] = id
+        // Check wether already registered
+        if (_eventEmitter.eventNames().includes(id)) return
         _eventEmitter.on(id, data => {
           const args = Object.keys(data).sort()
           .filter(value => value[0] === 'a')
