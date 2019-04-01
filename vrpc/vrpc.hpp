@@ -57,10 +57,8 @@ SOFTWARE.
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#ifndef _WIN32
-  #ifdef VRPC_WITH_DL
-    #include <dlfcn.h>
-  #endif
+#if defined(VRPC_WITH_DL) && !defined(_WIN32)
+ #include <dlfcn.h>
 #endif
 #include "json.hpp"
 
@@ -1032,7 +1030,7 @@ namespace vrpc {
     }
 
     static void load_bindings(const std::string& path) {
-      #ifdef VRPC_WITH_DL
+      #if defined(VRPC_WITH_DL) && !defined(_WIN32)
         void* libHandle = dlopen(path.c_str(), RTLD_LAZY);
         if (libHandle == 0) {
           throw std::runtime_error("Problem loading bindings: " +
