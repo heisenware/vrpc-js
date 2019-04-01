@@ -38,7 +38,7 @@ if environ.get('BUILD_EXAMPLE') == '1':
 
 setup(
     name='vrpc',
-    version='2.0.0-alpha.6',
+    version='2.0.0-alpha.7',
     license='MIT',
     description='Variadic Remote Procedure Calls',
     long_description=long_description,
