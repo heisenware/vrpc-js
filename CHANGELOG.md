@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Protected dlfcn.h header from being compiled by windows
+- Callback multiplication upon re-registering with same event name
 
 ## [2.0.0-alpha.5] - 17 Mar 2019
 

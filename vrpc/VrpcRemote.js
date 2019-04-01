@@ -325,13 +325,14 @@ class VrpcRemote {
           value.apply(null, args) // This is the actual function call
         })
       } else if (this._isEmitter(value)) {
-        const id = `__f__${functionName}-${index}`
+        const { emitter, event } = value
+        const id = `__f__${functionName}-${index}-${event}`
         data[`_${index + 1}`] = id
+        if (this._eventEmitter.eventNames().includes(id)) return
         this._eventEmitter.on(id, data => {
           const args = Object.keys(data).sort()
           .filter(value => value[0] === '_')
           .map(key => data[key])
-          const { emitter, event } = value
           emitter.emit(event, ...args)
         })
       } else {
