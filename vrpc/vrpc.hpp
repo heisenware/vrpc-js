@@ -57,8 +57,10 @@ SOFTWARE.
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#ifdef VRPC_WITH_DL
-  #include <dlfcn.h>
+#ifndef _WIN32
+  #ifdef VRPC_WITH_DL
+    #include <dlfcn.h>
+  #endif
 #endif
 #include "json.hpp"
 

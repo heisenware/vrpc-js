@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-alpha.6] - 01 Apr 2019
+
+### Fixed
+
+- Protected dlfcn.h header from being compiled by windows
+
 ## [2.0.0-alpha.5] - 17 Mar 2019
 
 ### Added
