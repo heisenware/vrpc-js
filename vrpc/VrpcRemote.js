@@ -27,7 +27,6 @@ class VrpcRemote {
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
     this._client
-
     this._init()
   }
 
@@ -52,6 +51,7 @@ class VrpcRemote {
       sender: `${domain}/${os.hostname()}/${this._instance}`,
       data
     }
+    await this._ensureConnected()
     return this._getProxy(domain, agent, className, json)
   }
 
@@ -68,6 +68,7 @@ class VrpcRemote {
       sender: `${domain}/${os.hostname()}/${this._instance}`,
       data: { _1: instance }
     }
+    await this._ensureConnected()
     return this._getProxy(domain, agent, className, json)
   }
 
@@ -245,7 +246,6 @@ class VrpcRemote {
   }
 
   async _getProxy (domain, agent, className, json) {
-    await this._ensureConnected()
     const { method } = json
     const topic = `${domain}/${agent}/${className}/__static__/${method}`
     this._client.publish(topic, JSON.stringify(json))
@@ -284,7 +284,6 @@ class VrpcRemote {
           sender: this._topic,
           data: this._packData(name, ...args)
         }
-        await this._ensureConnected()
         this._client.publish(`${targetTopic}/${name}`, JSON.stringify(json))
         return new Promise((resolve, reject) => {
           this._eventEmitter.once(json.id, data => {
