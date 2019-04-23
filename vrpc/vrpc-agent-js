@@ -46,7 +46,7 @@ parser.addArgument(
   {
     help: 'The broker to use',
     type: 'string',
-    defaultValue: 'mqtts://vrpc.io'
+    defaultValue: 'mqtts://vrpc.io:8883'
   }
 )
 

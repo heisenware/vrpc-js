@@ -11,7 +11,7 @@ class VrpcRemote {
     password,
     agent = '*',
     domain = '*',
-    broker = 'mqtts://vrpc.io'
+    broker = 'mqtts://vrpc.io:8883'
    } = {}
   ) {
     this._token = token
@@ -197,7 +197,8 @@ class VrpcRemote {
       password,
       clean: true,
       keepalive: 120,
-      clientId: this._clientId
+      clientId: this._clientId,
+      rejectUnauthorized: false
     }
     this._client = mqtt.connect(this._broker, options)
     this._client.on('connect', () => {

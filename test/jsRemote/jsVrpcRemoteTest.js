@@ -17,7 +17,7 @@ emitter.on('removed', entry => removedEntries.push(entry))
 describe('An instance of the VrpcRemote class', () => {
   let vrpc
   it('should be construct-able given an optional domain', () => {
-    vrpc = new VrpcRemote({ domain: 'test.vrpc', broker: 'mqtt://test.mosquitto.org' })
+    vrpc = new VrpcRemote({ domain: 'test.vrpc', token: 'SEHnWL0UkaPaS3FPzMaqA3Nnm30FXUrn' })
     assert.ok(vrpc)
   })
   it('should return available classes and functions', async () => {
@@ -132,7 +132,7 @@ describe('An instance of the VrpcRemote class', () => {
 describe('Another instance of the VrpcRemote class', () => {
   let vrpc
   it('should be construct-able with pre-defined domain and agent', () => {
-    vrpc = new VrpcRemote({ domain: 'test.vrpc', agent: 'js', broker: 'mqtt://test.mosquitto.org' })
+    vrpc = new VrpcRemote({ domain: 'test.vrpc', agent: 'js', token: 'SEHnWL0UkaPaS3FPzMaqA3Nnm30FXUrn' })
     assert.isObject(vrpc)
   })
   describe('The corresponding VrpcRemote instance', () => {

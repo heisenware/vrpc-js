@@ -11,7 +11,7 @@ class VrpcAgent {
       username,
       password,
       token,
-      broker = 'mqtt://test.mosquitto.org',
+      broker = 'mqtts://vrpc.io:8883',
       log = console
     } = {}
   ) {
@@ -43,7 +43,8 @@ class VrpcAgent {
       keepalive: 120,
       clean: true,
       connectTimeout: 10 * 1000,
-      clientId: `vrpca${md5}`
+      clientId: `vrpca${md5}`,
+      rejectUnauthorized: false
     }
     this._log.info(`Domain : ${this._domain}`)
     this._log.info(`Agent  : ${this._agent}`)
