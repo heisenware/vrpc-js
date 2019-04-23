@@ -34,7 +34,7 @@
   "bugs": {
     "url": "https://github.com/bheisen/vrpc-nodejs-example/issues"
   },
-  "homepage": "https://github.com/bheisen/vrpc#readme",
+  "homepage": "https://vrpc.io",
   "devDependencies": {
     "chai": "~4.1.0",
     "mocha": "^5.2.0",
