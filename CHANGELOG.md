@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - New npm run script: build - Triggers building of addons needed for testing,
   examples and dynamic loading feature
+- `catch.hpp` header to third_party, simplifying installation and build
 
 ### Changed
 
