@@ -99,7 +99,6 @@ vrpc/__pycache__/
 
 # C++ dev-depenedencies
 /third_party/bin
-/third_party/include
 /third_party/lib
 /third_party/build
 
