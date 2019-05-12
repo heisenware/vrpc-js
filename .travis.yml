@@ -8,6 +8,10 @@ matrix:
         - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
       node_js:
         - "8"
+        - "10"
+      install:
+        - npm install
+        - npm run build
     - language: python
       python: 3.6
       before_install:
