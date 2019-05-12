@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [2.0.0-alpha.8] - 12 May 2019
 
 ### Added
 
@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   published as retained message, indicating offline/online status and hostname
 
 ### Changed
+
 - Default broker for tests is now vrpc.io itself and uses tls secured mqtt
 - Currently the validity of the server certificate will be trusted
 - Removed the need of automatically building native add-on during vrpc installation
