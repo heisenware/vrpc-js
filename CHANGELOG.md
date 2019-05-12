@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - New npm run script: build - Triggers building of addons needed for testing,
   examples and dynamic loading feature
 - `catch.hpp` header to third_party, simplifying installation and build
+- Configurable timeout (default 5s) to rpc function calls
+- Retained agent status (`<domain>/<agent>/__agent__/__static__/__info__`)
+  published as retained message, indicating offline/online status and hostname
 
 ### Changed
-
 - Default broker for tests is now vrpc.io itself and uses tls secured mqtt
 - Currently the validity of the server certificate will be trusted
 - Removed the need of automatically building native add-on during vrpc installation

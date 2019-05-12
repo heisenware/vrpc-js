@@ -11,7 +11,8 @@ class VrpcRemote {
     password,
     agent = '*',
     domain = '*',
-    broker = 'mqtts://vrpc.io:8883'
+    broker = 'mqtts://vrpc.io:8883',
+    timeout = 5 * 1000
    } = {}
   ) {
     this._token = token
@@ -20,6 +21,7 @@ class VrpcRemote {
     this._agent = agent
     this._domain = domain
     this._broker = broker
+    this._timeout = timeout
     this._instance = crypto.randomBytes(2).toString('hex')
     this._clientId = this._createClientId(this._instance)
     this._topic = `${domain}/${os.hostname()}/${this._instance}`
@@ -90,7 +92,16 @@ class VrpcRemote {
     const topic = `${domain}/${agent}/${className}/__static__/${functionName}`
     this._client.publish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
+      const msg = `Function call timed out (> ${this._timeout} ms)`
+      let id = setTimeout(
+        () => {
+          this._eventEmitter.removeAllListeners(json.id)
+          reject(new Error(msg))
+        },
+        this._timeout
+      )
       this._eventEmitter.once(json.id, data => {
+        clearTimeout(id)
         if (data.e) {
           reject(new Error(data.e))
         } else {
@@ -251,7 +262,16 @@ class VrpcRemote {
     const topic = `${domain}/${agent}/${className}/__static__/${method}`
     this._client.publish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
+      const msg = `Proxy creation timed out (> ${this._timeout} ms)`
+      let id = setTimeout(
+        () => {
+          this._eventEmitter.removeAllListeners(json.id)
+          reject(new Error(msg))
+        },
+        this._timeout
+      )
       this._eventEmitter.once(json.id, data => {
+        clearTimeout(id)
         if (data.e) {
           reject(new Error(data.e))
         } else {
@@ -287,7 +307,16 @@ class VrpcRemote {
         }
         this._client.publish(`${targetTopic}/${name}`, JSON.stringify(json))
         return new Promise((resolve, reject) => {
+          const msg = `Function call timed out (> ${this._timeout} ms)`
+          let id = setTimeout(
+            () => {
+              this._eventEmitter.removeAllListeners(json.id)
+              reject(new Error(msg))
+            },
+            this._timeout
+          )
           this._eventEmitter.once(json.id, data => {
+            clearTimeout(id)
             if (data.e) {
               reject(new Error(data.e))
             } else {

@@ -1,3 +1,4 @@
+const os = require('os')
 const { promisify } = require('util')
 const mqtt = require('mqtt')
 const crypto = require('crypto')
@@ -44,7 +45,16 @@ class VrpcAgent {
       clean: true,
       connectTimeout: 10 * 1000,
       clientId: `vrpca${md5}`,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
+      will: {
+        topic: `${this._baseTopic}/__agent__/__static__/__info__`,
+        payload: JSON.stringify({
+          status: 'offline',
+          hostname: os.hostname()
+        }),
+        qos: 1,
+        retain: true
+      }
     }
     this._log.info(`Domain : ${this._domain}`)
     this._log.info(`Agent  : ${this._agent}`)
@@ -95,6 +105,14 @@ class VrpcAgent {
       }
       try {
         await this._mqttPublish(
+          `${this._baseTopic}/__agent__/__static__/__info__`,
+          JSON.stringify({
+            status: 'online',
+            hostname: os.hostname()
+          }),
+          { qos: 1, retain: true }
+        )
+        await this._mqttPublish(
           `${this._baseTopic}/${klass}/__static__/__info__`,
           JSON.stringify(json),
           { qos: 1, retain: true }
@@ -121,10 +139,33 @@ class VrpcAgent {
     return topics
   }
 
-  async onDisconnect () {
+  async end ({ unregister }) {
+    const classes = VrpcAdapter.getClassesArray()
+    for (const klass in classes) {
+      try {
+        const agentTopic = `${this._baseTopic}/__agent__/__static__/__info__`
+        if (unregister) {
+          const infoTopic = `${this._baseTopic}/${klass}/__static__/__info__`
+          await this._mqttPublish(infoTopic, null, { qos: 1, retain: true })
+          await this._mqttPublish(agentTopic, null, { qos: 1, retain: true })
+        } else {
+          await this._mqttPublish(
+            agentTopic,
+            JSON.stringify({
+              status: 'offline',
+              hostname: os.hostname()
+            }),
+            { qos: 1, retain: true }
+          )
+        }
+      } catch (err) {
+        this._log.error(
+          err,
+          `Problem during disconnecting agent: ${err.message}`
+        )
+      }
+    }
     this._client.end()
-    this._client.once('end', () => this._disconnectDone())
-    await this.waitUntilState('disconnected')
   }
 
   async _handleMessage (topic, data) {

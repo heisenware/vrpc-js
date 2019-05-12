@@ -17,7 +17,11 @@ emitter.on('removed', entry => removedEntries.push(entry))
 describe('An instance of the VrpcRemote class', () => {
   let vrpc
   it('should be construct-able given an optional domain', () => {
-    vrpc = new VrpcRemote({ domain: 'test.vrpc', token: process.env.VRPC_TEST_TOKEN })
+    vrpc = new VrpcRemote({
+      domain: 'test.vrpc',
+      token: process.env.VRPC_TEST_TOKEN,
+      timeout: 1000
+    })
     assert.ok(vrpc)
   })
   it('should return available classes and functions', async () => {
@@ -29,6 +33,18 @@ describe('An instance of the VrpcRemote class', () => {
     console.log('Static Functions:', await vrpc.getAvailableStaticFunctions('TestClass', 'js'))
   })
   describe('The corresponding VrpcRemote instance', () => {
+    it('should timeout if non-existing code is tried to be proxied', async () => {
+      try {
+        await vrpc.create({
+          agent: 'js',
+          className: 'DoesNotExist',
+          instance: 'test'
+        })
+        assert.fail()
+      } catch (err) {
+        assert.equal(err.message, 'Proxy creation timed out (> 1000 ms)')
+      }
+    })
     let testClass
     it('should be able to create a TestClass proxy using its default constructor', async () => {
       testClass = await vrpc.create({ agent: 'js', className: 'TestClass' })
@@ -125,6 +141,19 @@ describe('An instance of the VrpcRemote class', () => {
           'vrpc is crazy!'
         )
       })
+      it('should timeout non-existing static functions calls ', async () => {
+        try {
+          await vrpc.callStatic({
+            agent: 'js',
+            className: 'TestClass',
+            functionName: 'doesNotExist',
+            args: ['vrpc']
+          })
+          assert.fail()
+        } catch (err) {
+          assert.equal(err.message, 'Function call timed out (> 1000 ms)')
+        }
+      })
     })
   })
 })
@@ -132,7 +161,11 @@ describe('An instance of the VrpcRemote class', () => {
 describe('Another instance of the VrpcRemote class', () => {
   let vrpc
   it('should be construct-able with pre-defined domain and agent', () => {
-    vrpc = new VrpcRemote({ domain: 'test.vrpc', agent: 'js', token: process.env.VRPC_TEST_TOKEN })
+    vrpc = new VrpcRemote({
+      domain: 'test.vrpc',
+      agent: 'js',
+      token: process.env.VRPC_TEST_TOKEN
+    })
     assert.isObject(vrpc)
   })
   describe('The corresponding VrpcRemote instance', () => {
