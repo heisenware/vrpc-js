@@ -7,11 +7,12 @@
     "example": "examples"
   },
   "scripts": {
+    "build": "ln -sf binding.gyp.no-auto binding.gyp && third_party/install.sh && node-gyp rebuild && rm binding.gyp",
     "test": "npm run test:cpp && npm run test:js && npm run test:jsRemote",
-    "test:cpp": "third_party/install.sh && BUILD_TEST=1 node-gyp rebuild && build/Release/vrpc-test",
+    "test:cpp": "build/Release/vrpc-test",
     "test:js": "./node_modules/.bin/mocha test/js",
     "test:jsRemote": "test/jsRemote/test.sh",
-    "example": "BUILD_EXAMPLE=1 node-gyp rebuild && echo '\n' && node examples/Bar.js"
+    "example": "node examples/Bar.js"
   },
   "bin": {
     "vrpc-agent-js": "./vrpc/vrpc-agent-js"

@@ -6,10 +6,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [unreleased]
 
+### Added
+
+- New npm run script: build - Triggers building of addons needed for testing,
+  examples and dynamic loading feature
+
 ### Changed
 
 - Default broker for tests is now vrpc.io itself and uses tls secured mqtt
 - Currently the validity of the server certificate will be trusted
+- Removed the need of automatically building native add-on during vrpc installation
+
 
 ## [2.0.0-alpha.7] - 01 Apr 2019
 
