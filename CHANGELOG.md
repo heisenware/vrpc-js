@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - `docs` folder with examples for nodeJS and python3 language bindings
 - static `fromCommandline` function to VrpcAgent.js
+- support to remotely use event-emitters provided by NodeJS agents
+
+### Fixed
+
+- a bug while remotely registering async functions as direct callbacks
 
 ## [2.0.0-alpha.8] - 12 May 2019
 

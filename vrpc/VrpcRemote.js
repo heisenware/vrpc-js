@@ -187,6 +187,10 @@ class VrpcRemote {
     })
   }
 
+  async end () {
+    return new Promise(resolve => this._client.end(resolve))
+  }
+
   _createClientId (instance) {
     const clientInfo = os.arch() + JSON.stringify(os.cpus()) + os.homedir() +
     os.hostname() + JSON.stringify(os.networkInterfaces()) + os.platform() +
@@ -346,14 +350,35 @@ class VrpcRemote {
     args.forEach((value, index) => {
       // Check whether provided argument is a function
       if (this._isFunction(value)) {
-        const id = `__f__${functionName}-${index}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`
-        data[`_${index + 1}`] = id
-        this._eventEmitter.once(id, data => {
-          const args = Object.keys(data).sort()
-          .filter(value => value[0] === '_')
-          .map(key => data[key])
-          value.apply(null, args) // This is the actual function call
-        })
+        // Check special case of an event emitter registration
+        // We test three conditions:
+        // 1) functionName must be "on"
+        // 2) callback is second argument
+        // 3) first argument was string
+        if (functionName === 'on' &&
+          index === 1 &&
+          typeof args[0] === 'string'
+        ) {
+          const id = `__f__${functionName}-${index}-${args[0]}`
+          data[`_${index + 1}`] = id
+          if (this._eventEmitter.eventNames().includes(id)) return
+          this._eventEmitter.on(id, data => {
+            const args = Object.keys(data).sort()
+            .filter(value => value[0] === '_')
+            .map(key => data[key])
+            value.apply(null, args)
+          })
+        // Regular function callback
+        } else {
+          const id = `__f__${functionName}-${index}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`
+          data[`_${index + 1}`] = id
+          this._eventEmitter.once(id, data => {
+            const args = Object.keys(data).sort()
+            .filter(value => value[0] === '_')
+            .map(key => data[key])
+            value.apply(null, args) // This is the actual function call
+          })
+        }
       } else if (this._isEmitter(value)) {
         const { emitter, event } = value
         const id = `__f__${functionName}-${index}-${event}`
@@ -380,7 +405,9 @@ class VrpcRemote {
 
   _isFunction (variable) {
     const getType = {}
-    return variable && getType.toString.call(variable) === '[object Function]'
+    const type = getType.toString.call(variable)
+    return variable &&
+      (type === '[object Function]' || type === '[object AsyncFunction]')
   }
 
   _isEmitter (variable) {
