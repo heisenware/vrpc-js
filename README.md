@@ -41,28 +41,28 @@ dynamic linkage), executable or source package.
 
 ### Embedding C++ into NodeJS
 
-- [Simple C++ to NodeJS Binding Example](docs/examples/CppNodeExample1)
-- [Advanced C++ to NodeJS Binding Example](docs/examples/CppNodeExample2)
+- [Simple C++ to NodeJS Binding Example](docs/examples/CppNodeExample1.md)
+- [Advanced C++ to NodeJS Binding Example](docs/examples/CppNodeExample2.md)
 
 ### Embedding C++ into Python3
 
-- [Simple C++ to Python Binding Example](docs/examples/CppPythonExample1)
-- [Advanced C++ to Python Binding Example](docs/examples/CppPythonExample2)
+- [Simple C++ to Python Binding Example](docs/examples/CppPythonExample1.md)
+- [Advanced C++ to Python Binding Example](docs/examples/CppPythonExample2.md)
 
 ### Making existing C++ code remotely callable (agent)
 
-- [Simple C++ Agent Example](docs/examples/CppAgentLinuxExample1)
-- [Advanced C++ Agent Example](docs/examples/CppAgentLinuxExample2)
+- [Simple C++ Agent Example](docs/examples/CppAgentLinuxExample1.md)
+- [Advanced C++ Agent Example](docs/examples/CppAgentLinuxExample2.md)
 
 ### Making existing NodeJS code remotely callable (agent)
 
-- [NodeJS Agent Example](docs/examples/NodeAgentExample)
+- [NodeJS Agent Example](docs/examples/NodeAgentExample.md)
 
 ### Calling code remotely from NodeJS (proxy)
 
-- [NodeJS Remote Proxy Example](docs/examples/NodeProxyExample)
+- [NodeJS Remote Proxy Example](docs/examples/NodeProxyExample.md)
 
 ## Reference Documentation
 
-- [C++ Binding Syntax](docs/reference/cppBinding)
-- [C++ Agent](docs/reference/cppAgent)
+- [C++ Binding Syntax](docs/reference/cppBinding.md)
+- [C++ Agent](docs/reference/cppAgent.md)
