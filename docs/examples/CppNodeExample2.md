@@ -288,3 +288,24 @@ node index.js
 
 If you see the program running you are using a good portion of
 native C++ code from within NodeJS, congrats!!
+
+### The thing with the C++ callbacks
+
+There are two very different categories of callbacks:
+
+* **Those you provide as function argument and are called exactly once.** All kinds
+  of `done` callbacks, indicating the completion of an asynchronous activity
+  belong to this category.
+
+* **Those which you register once, and which are called any number of times until
+  you explicitly de-register them.** All kinds of event callbacks that work in a
+  publish/subscribe fashion fall into that category.
+
+The example demonstrates this two different callbacks, `prepareDrink` belonging
+to the first and `onEmptyDrink` to the second category, respectively.
+
+vrpc can handle both of them in their natural way, i.e. use callback functions
+that can be wrapped up to `Promise`s and play nice with `async/await` patterns
+for category one. The event-like callbacks can be taken up by Node.js' inbuilt
+`EventEmitter` and assigned an arbitrary event-name. In both cases, all
+callback arguments are perfectly forwarded.

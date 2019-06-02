@@ -84,6 +84,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - ClientIDs are not longer random generated but explicitly set
 - Added __static__ keyword to wire protocol as placeholder for the instance
   position in case of static function
+- Updated README to reflect latest documentation
 
 ### Fixed
 
