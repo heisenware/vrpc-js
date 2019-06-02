@@ -8,15 +8,70 @@ that creating VRPC bindings still remains a trivial task...
 ---
 **NOTE**
 
-In order to follow this example from scratch, create a new directory (e.g.
-`vrpc-cpp-python-example2`), cd into it and run:
+In order to follow this example from scratch, first download
+the correct C++ agent for your platform from https://vrpc.io/web/download.
+
+Save the tarball in a new directory (e.g.
+`vrpc-cpp-agent-example2`), and unpack it using:
 
 ```bash
-pip3 install 'vrpc==2.0.0a8' --user
+tar -xzf vrpc-cpp-agent-<platform>.tar.gz
+```
+
+then rename the resultant directory to `third_party`, i.e.
+
+```bash
+mv <platform> third_party
 ```
 Finally create a directory `src` and you are good to go.
 
+If you start with VRPC the first time please see steps A-C before proceeding
+with step 1.
+
 ---
+
+## STEP A: Create a free VRPC account
+
+If you already have an account, simply skip this step.
+
+If not, quickly create a new one by clicking on "CREATE A NEW ACCOUNT"
+under https://vrpc.io/app. It takes less than a minute and the only thing
+required is your name and a valid email address.
+
+## STEP B: Create a free domain
+
+If you already have a domain, simply skip this step.
+
+If not, navigate to the domain tab in your VRPC app and click *ADD DOMAIN*,
+choose a free domain and hit *Start 30 days trial* button.
+
+## STEP C: Test VRPC installation and connectivity
+
+For any agent to work, you must provide it with a valid domain and agent
+token. You get an agent token from your VRPC app under the account tab.
+
+Simply copy the *adminToken* or create a new one (recommended) and use this.
+
+Having that you are ready to test:
+
+```bash
+./vrpc-test-agent -a test -d <yourDomain> -t <yourToken>
+```
+
+In case of success you should see an output similar to this:
+
+```bash
+Domain          : <yourDomain>
+Agent ID        : test
+Broker URL      : ssl://vrpc.io:8883
+------------------
+Persistance     :
+Clean Session   : 1
+Connect Timeout : 10
+Keep Alive      : 120
+Server Auth     : 0
+Connecting to the MQTT server... [OK]
+```
 
 ## STEP 1: C++ code that should be bound
 
@@ -124,17 +179,16 @@ namespace bar {
 }
 ```
 
-## STEP 2: Binding file
+## STEP 2: Main file
 
-This binding code shows some new features, like binding of custom data types,
-handling callbacks, overloads and static functions.
-
-*src/binding.cpp*
+We are going to produce an executable that starts an agent and sits waiting
+until it receives remote requests to call functions. Hence, we have to provide
+a `main.cpp` file.
 
 ```cpp
+#include <vrpc.hpp>
+#include <vrpc_agent.hpp>
 #include "Bar.hpp"
-
-// NOTE: Do not include <vrpc.hpp>, even if you IDE complains
 
 using namespace bar;
 
@@ -152,7 +206,6 @@ namespace vrpc {
 
   // Register constructors
   VRPC_VOID_CTOR(Bar)
-
   VRPC_CTOR(Bar, const Bar::Assortment&)
 
   // Register functions
@@ -164,126 +217,71 @@ namespace vrpc {
   VRPC_MEMBER_FUNCTION_CONST(Bar, Bar::Assortment, getAssortment)
   VRPC_STATIC_FUNCTION(Bar, std::string, philosophy)
 }
+
+
+int main(int argc, char** argv) {
+  auto agent = vrpc::VrpcAgent::from_commandline(argc, argv);
+  if (agent) agent->serve();
+  return EXIT_SUCCESS;
+}
 ```
 
-## STEP 3: Creation of native addon
+As you can see, even complex code can be bound using VRPC macros.
 
-Creation of the addon actually always stays the same. Typically, you can start
-from copying some example file over and slightly adapt it to your needs.
 
-*setup.py*
+## STEP 3: Compilation
 
-```python
-from distutils.sysconfig import get_python_lib
-from setuptools import setup, Extension
-from os import path
-import subprocess
-import re
+Certainly, you want to use the builtin tools of your IDE or any other
+make file generator (such as CMAKE, node-gyp, etc.) you feel familiar with.
 
-res = subprocess.run(
-    ['pip3', 'show', 'vrpc', '--disable-pip-version-check'], stdout=subprocess.PIPE)
-install_path = re.search('Location: (.*)', res.stdout.decode('utf-8')).group(1)
-vrpc_path = path.join(install_path, 'vrpc')
-vrpc_module_cpp = path.join(vrpc_path, 'module.cpp')
+You are encouraged to do so! For getting VRPC compiled only make sure you:
 
-module = Extension(
-    'vrpc_bar', # Your module name here
-    include_dirs=[vrpc_path, './src'],
-    define_macros=[
-        ('VRPC_MODULE_NAME', '"vrpc_bar"'), # and here
-        ('VRPC_MODULE_FUNC', 'PyInit_vrpc_bar') # and again here
-    ],
-    extra_compile_args=['-std=c++14', '-fPIC'],
-    sources=[
-        vrpc_module_cpp,
-         './src/Bar.cpp'
-    ],
-    language='c++'
-)
+- add `third_party/include` to your include folders (`-I` compiler flag)
+- add `third_party/lib` to your library folders (`-L` compiler flag)
+- use `libvrpc_agent.a` as dependent library for a static build (`-l:` compiler flag)
+- or use `vrpc_agent` as dependent library for a dynamic build (`-l` compiler flag)
 
-setup(
-    name='vrpc-python-example2',
-    install_requires=['vrpc'],
-    ext_modules=[module]
-)
+For getting this example working we quickly write a Makefile by hand, like so:
+
+*Makefile*
+
+```Makefile
+TARGET = vrpc-bar-agent
+CPPFLAGS = -I./third_party/include -pthread -fPIC -m64 -O3 -std=c++14
+LDFLAGS = -pthread -L./third_party/lib
+LDLIBS = -l:libvrpc_agent.a
+
+SRCS := $(shell find ./src -name *.cpp)
+OBJS := $(addsuffix .o,$(basename $(SRCS)))
+DEPS := $(OBJS:.o=.d)
+
+$(TARGET): $(OBJS)
+	$(CXX) $(LDFLAGS) $(OBJS) -o $@ $(LOADLIBES) $(LDLIBS)
+
+.PHONY: clean
+clean:
+	$(RM) $(TARGET) $(OBJS) $(DEPS)
+
+-include $(DEPS)
 ```
 
-As already stated in the first example you need to run:
-```bash
-pip3 install . --user
+That's already it, after typing
 ```
-in order to build the python native extension.
-
-## STEP 4: The Python application
-
-By reading the code, you will get a feeling how VRPC exposes the bound
-code. VRPC uses typical language features to represent the bound functionality.
-
-*main.py*
-
-```python
-from vrpc import VrpcLocal
-import vrpc_bar  # Imports the extension
-
-
-def _onEvent(event, *args):
-    if event == 'empty':
-        print(" - Oh no! The {} is empty!".format(args[0]))
-
-
-def main():
-    # Create an instance of a local (native-extension) vrpc factory
-    vrpc = VrpcLocal(vrpc_bar)
-    print("Why an example at the Bar?")
-    print(" - Because {}".format(vrpc.call_static('Bar', 'philosophy')))
-
-    # Create a Bar instance (using default constructor)
-    bar = vrpc.create('Bar')
-
-    print("Do you have rum")
-    print(" - Yes" if bar.hasDrink('rum') else " - No")
-
-    print("Well, then let's get a bottle out of the cellar.")
-    bar.addBottle(
-        'rum',
-        {'brand': 'Don Papa', 'country': 'Philippines', 'age': 7}
-    )
-
-    print("Now, can I have a drink?")
-    print(" - Yes" if bar.hasDrink('rum') else " - No")
-
-    print("I would go for a \"Dark and Stormy\", please")
-    msg = " - Here's your drink, took only {}s"
-    bar.prepareDrink(lambda seconds: print(msg.format(seconds)))
-
-    print("Nice! I take another one. Please tell me, once the rum is empty.")
-    bar.onEmptyDrink((_onEvent, 'empty'))
-    bar.prepareDrink(lambda seconds: print(msg.format(seconds) + " this time"))
-    bar.removeBottle('rum')
-
-    # Create another bar - already equipped - using second constructor
-    neighborsBar = vrpc.create(
-        'Bar',
-        {
-            'rum': [
-                {'brand': 'Botucal', 'country': 'Venezula', 'age': 8},
-                {'brand': 'Plantation XO', 'country': 'Barbados', 'age': 20}
-            ],
-            'brandy': [
-                {'brand': 'Lustau Solera', 'country': 'Spain', 'age': 15}
-            ]
-        }
-    )
-    print("How is your neighbor sorted?")
-    print(" - Very well:\n{}".format(neighborsBar.getAssortment()))
-
-
-if __name__ == '__main__':
-    main()
+make
 ```
+your agent should build and should be immediately ready to use.
 
-Test it using:
+Try it by typing:
 
 ```bash
-python3 main.py
+./vrpc-bar-agent -a test -d <yourDomain> -t <yourToken>
 ```
+
+(see steps A-C if you don't know that your domain or your token is)
+
+If you see the line
+```
+Connecting to the MQTT server... [OK]
+```
+
+appearing in your terminal, you made it and your C++ code is remotely callable!

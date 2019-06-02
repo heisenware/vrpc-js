@@ -7,7 +7,7 @@ integrate existing C++ code into Node.js.
 **NOTE**
 
 In order to follow this example from scratch, create a new directory (e.g.
-`vrpc-node-example1`), cd into it and run:
+`vrpc-cpp-node-example1`), cd into it and run:
 
 ```bash
 npm init -f -y
@@ -79,7 +79,7 @@ and create a `binding.gyp` file (and place it in the root directory):
 ```python
 {
   'variables': {
-    'vrpc_path': 'node_modules/vrpc/vrpc'
+    'vrpc_path': '<!(if [ -e ../vrpc ]; then echo ../vrpc/vrpc; else echo node_modules/vrpc/vrpc; fi)'
   },
   'targets': [
     {

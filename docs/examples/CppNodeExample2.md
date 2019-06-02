@@ -9,7 +9,7 @@ that creating VRPC bindings still remains a trivial task...
 **NOTE**
 
 In order to follow this example from scratch, create a new directory (e.g.
-`vrpc-node-example2`), cd into it and run:
+`vrpc-cpp-node-example2`), cd into it and run:
 
 ```bash
 npm init -f -y
@@ -30,7 +30,7 @@ corresponding source file.
 #include <unordered_map>
 #include <vector>
 
-namespace vrpc_example {
+namespace bar {
 
   struct Bottle {
     std::string brand;
@@ -79,7 +79,7 @@ namespace vrpc_example {
 #include <thread>
 #include <stdlib.h>
 
-namespace vrpc_example {
+namespace bar {
 
   Bar::Bar(const Assortment& assortment): _assortment(assortment) {}
 
@@ -138,13 +138,15 @@ handling callbacks, overloads and static functions.
 
 // NOTE: Do not include <vrpc.hpp>, even if your IDE complains
 
-namespace vrpc_example {
+using namespace bar;
+
+namespace vrpc {
 
   // Register custom type: Bottle
-  void to_json(vrpc::json& j, const Bottle& b) {
-    j = vrpc::json{{"brand", b.brand}, {"country", b.country}, {"age", b.age}};
+  void to_json(json& j, const Bottle& b) {
+    j = json{{"brand", b.brand}, {"country", b.country}, {"age", b.age}};
   }
-  void from_json(const vrpc::json& j, Bottle& b) {
+  void from_json(const json& j, Bottle& b) {
     b.brand = j.at("brand").get<std::string>();
     b.country = j.at("country").get<std::string>();
     b.age = j.at("age").get<int>();
@@ -174,7 +176,7 @@ from copying some example file over and slightly adapt it to your needs.
 ```python
 {
   'variables': {
-    'vrpc_path': 'node_modules/vrpc/vrpc'
+    'vrpc_path': '<!(if [ -e ../vrpc ]; then echo ../vrpc/vrpc; else echo node_modules/vrpc/vrpc; fi)'
   },
   'targets': [
     {
@@ -222,7 +224,7 @@ code. VRPC uses typical language features to represent the bound functionality.
 
 const EventEmitter = require('events')
 const { VrpcLocal } = require('vrpc')
-const addon = require('../build/Release/vrpc_bar')
+const addon = require('./build/Release/vrpc_bar')
 
 // Create an event emitter
 const emitter = new EventEmitter()

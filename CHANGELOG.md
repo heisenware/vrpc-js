@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- `docs` folder with examples for nodeJS and python3 language bindings
+- `docs` folder with examples for NodeJS, C++ and Python bindings
 - static `fromCommandline` function to VrpcAgent.js
 - support to remotely use event-emitters provided by NodeJS agents
 

@@ -7,7 +7,7 @@ integrate existing C++ code into Python 3.
 **NOTE**
 
 In order to follow this example from scratch, create a new directory (e.g.
-`vrpc-python-example1`), cd into it and run:
+`vrpc-cpp-python-example1`), cd into it and run:
 
 ```bash
 pip3 install 'vrpc==2.0.0a8' --user
