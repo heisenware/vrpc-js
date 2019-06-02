@@ -2,9 +2,43 @@ const os = require('os')
 const { promisify } = require('util')
 const mqtt = require('mqtt')
 const crypto = require('crypto')
+const { ArgumentParser } = require('argparse')
 const VrpcAdapter = require('./VrpcAdapter')
 
 class VrpcAgent {
+
+  static fromCommandline () {
+    const parser = new ArgumentParser({
+      addHelp: true,
+      description: 'VRPC NodeJS Agent'
+    })
+    parser.addArgument(
+      ['-a', '--agent'],
+      { help: 'Agent name', required: true }
+    )
+    parser.addArgument(
+      ['-d', '--domain'],
+      { help: 'Domain name', required: true }
+    )
+    parser.addArgument(
+      ['-t', '--token'],
+      { help: 'Agent Token' }
+    )
+    parser.addArgument(
+      ['-b', '--broker'],
+      { help: 'Broker url', defaultValue: 'mqtts://vrpc.io:8883' }
+    )
+    parser.addArgument(
+      ['-u', '--username'],
+      { help: 'Username' }
+    )
+    parser.addArgument(
+      ['-P', '--password'],
+      { help: 'Password' }
+    )
+    const args = parser.parseArgs()
+    return new VrpcAgent(args)
+  }
 
   constructor ({
       domain,

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - `docs` folder with examples for nodeJS and python3 language bindings
+- static `fromCommandline` function to VrpcAgent.js
 
 ## [2.0.0-alpha.8] - 12 May 2019
 
