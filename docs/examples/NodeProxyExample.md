@@ -21,6 +21,7 @@ directory (e.g. `vrpc-node-proxy-example`), cd into it and run:
 npm init -f -y
 npm install vrpc@2.0.0-alpha.8
 ```
+
 ---
 
 ## STEP A: Create a proxy token
