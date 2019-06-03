@@ -80,11 +80,10 @@ async function main () {
   try {
     // NOTE: We await twice here, firstly the network call and secondly
     // the returned promise
-    let seconds = await await bar.prepareDrink('rum', (answer) => {
+    const ms = await await bar.prepareDrink('rum', (answer) => {
       console.log(answer)
     })
-    seconds /= 1000
-    console.log(`Cool, that took only ${seconds} seconds to prepare!`)
+    console.log(`Cool, that took only ${ms / 1000} seconds to prepare!`)
   } catch (err) {
     console.log(`Sorry: ${err.message}`)
   }
