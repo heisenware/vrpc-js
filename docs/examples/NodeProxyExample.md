@@ -100,3 +100,9 @@ async function main () {
 // Start the script
 main().catch(err => console.log(`An error happened: ${err.message}`))
 ```
+
+If you have the agent example already running, try this one with:
+
+```bash
+node index.js
+```
