@@ -126,6 +126,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Renamed VrpcFactory to VrpcAdapter
 - Renamed vrpc_local.py to VrpcLocal.py
 
+## [1.1.7] - 31 Mar 2019
+
+### Fixed
+
+  - Re-registration problem for emitter based callbacks resulting in multiplied callbacks
+
+## [1.1.6] - 31 Mar 2019
+
+  - Nothing changed, this tag is identical to 1.1.5 for a technical issue during
+    publishing
+
 ## [1.1.5] - 14 Jun 2018
 
 ### Changed
