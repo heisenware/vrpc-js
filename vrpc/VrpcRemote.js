@@ -85,6 +85,7 @@ class VrpcRemote {
     const json = {
       targetId: className,
       method: functionName,
+      id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       sender: `${domain}/${os.hostname()}/${this._instance}`,
       data: this._packData(functionName, ...args)
     }

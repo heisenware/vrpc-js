@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - a bug while remotely registering async functions as direct callbacks
 - sending multiple agent-info messages if several classes were registered
+- incorrect internal correlationId in node.js remote-proxy
 
 ## [2.0.0-alpha.8] - 12 May 2019
 
