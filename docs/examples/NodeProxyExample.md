@@ -19,7 +19,7 @@ directory (e.g. `vrpc-node-proxy-example`), cd into it and run:
 
 ```bash
 npm init -f -y
-npm install vrpc@2.0.0-alpha.8
+npm install vrpc
 ```
 
 ---

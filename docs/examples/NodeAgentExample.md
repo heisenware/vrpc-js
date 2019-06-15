@@ -11,7 +11,7 @@ In order to follow this example from scratch, create a new directory (e.g.
 
 ```bash
 npm init -f -y
-npm install vrpc@2.0.0-alpha.8
+npm install vrpc
 ```
 Finally create a directory `src` and you are good to go.
 
