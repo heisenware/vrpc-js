@@ -128,6 +128,15 @@ class VrpcAgent {
         `Problem during initial topic subscription: ${err.message}`
       )
     }
+    // Publish agent online
+    await this._mqttPublish(
+      `${this._baseTopic}/__agent__/__static__/__info__`,
+      JSON.stringify({
+        status: 'online',
+        hostname: os.hostname()
+      }),
+      { qos: 1, retain: true }
+    )
     // Publish class information
     const classes = VrpcAdapter.getClassesArray()
     classes.forEach(async klass => {
@@ -138,14 +147,6 @@ class VrpcAgent {
         staticFunctions: VrpcAdapter.getStaticFunctionsArray(klass)
       }
       try {
-        await this._mqttPublish(
-          `${this._baseTopic}/__agent__/__static__/__info__`,
-          JSON.stringify({
-            status: 'online',
-            hostname: os.hostname()
-          }),
-          { qos: 1, retain: true }
-        )
         await this._mqttPublish(
           `${this._baseTopic}/${klass}/__static__/__info__`,
           JSON.stringify(json),
