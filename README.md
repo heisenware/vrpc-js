@@ -64,5 +64,6 @@ dynamic linkage), executable or source package.
 
 ## Reference Documentation
 
+- [RPC Protocol Details](docs/reference/remoteProtocol.md)
 - [C++ Binding Syntax](docs/reference/cppBinding.md)
 - [C++ Agent](docs/reference/cppAgent.md)
