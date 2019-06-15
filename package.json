@@ -37,15 +37,15 @@
   },
   "homepage": "https://vrpc.io",
   "devDependencies": {
-    "chai": "~4.1.0",
-    "mocha": "^5.2.0",
-    "sinon": "^5.0.10"
+    "chai": "^4.2.0",
+    "mocha": "^6.1.4",
+    "sinon": "^7.3.2"
   },
   "dependencies": {
-    "ajv": "^6.5.1",
+    "ajv": "^6.10.0",
     "argparse": "^1.0.10",
     "caller": "^1.0.1",
-    "mqtt": "^2.18.2",
-    "shortid": "^2.2.8"
+    "mqtt": "^3.0.0",
+    "shortid": "^2.2.14"
   }
 }
