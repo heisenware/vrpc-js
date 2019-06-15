@@ -10,7 +10,6 @@ test_module = Extension(
     'vrpc_test_ext',
     include_dirs=['./vrpc', './test/fixtures'],
     define_macros=[
-        ('VRPC_COMPILE_AS_ADDON', '<binding.cpp>'),
         ('VRPC_MODULE_NAME', '"vrpc_test_ext"'),
         ('VRPC_MODULE_FUNC', 'PyInit_vrpc_test_ext')
     ],
@@ -23,7 +22,6 @@ example_module = Extension(
     'vrpc_example_ext',
     include_dirs=['./vrpc', './examples'],
     define_macros=[
-        ('VRPC_COMPILE_AS_ADDON', '<binding.cpp>'),
         ('VRPC_MODULE_NAME', '"vrpc_example_ext"'),
         ('VRPC_MODULE_FUNC', 'PyInit_vrpc_example_ext')
     ],
@@ -40,7 +38,7 @@ if environ.get('BUILD_EXAMPLE') == '1':
 
 setup(
     name='vrpc',
-    version='1.1.7',
+    version='2.0.0-alpha.8',
     license='MIT',
     description='Variadic Remote Procedure Calls',
     long_description=long_description,

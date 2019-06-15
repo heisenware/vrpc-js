@@ -9,27 +9,27 @@ using namespace vrpc;
 TEST_CASE("Test json packing and unpacking", "[packing]") {
 
   SECTION("Packing empty json") {
-    nlohmann::json json;
-    vrpc::pack(json);
-    REQUIRE(json.empty());
+    json j;
+    vrpc::pack(j);
+    REQUIRE(j.empty());
   }
 
   SECTION("Packing json with simple values") {
-    nlohmann::json json;
-    vrpc::pack(json, 5, "Hello", false, std::vector<int>({1, 2, 3}));
-    REQUIRE(json["a1"] == 5);
-    REQUIRE(json["a2"] == "Hello");
-    REQUIRE(json["a3"] == false);
-    REQUIRE(json["a4"] == std::vector<int>({1, 2, 3}));
+    json j;
+    vrpc::pack(j, 5, "Hello", false, std::vector<int>({1, 2, 3}));
+    REQUIRE(j["_1"] == 5);
+    REQUIRE(j["_2"] == "Hello");
+    REQUIRE(j["_3"] == false);
+    REQUIRE(j["_4"] == std::vector<int>({1, 2, 3}));
   }
 
   SECTION("Packing json with nested values") {
-    nlohmann::json json;
-    nlohmann::json inner{{"key1", "innerValue"}, {"key2", 2}};
-    vrpc::pack(json, "test", inner);
-    REQUIRE(json["a1"] == "test");
-    REQUIRE(json["a2"]["key1"] == "innerValue");
-    REQUIRE(json["a2"]["key2"] == 2);
+    json j;
+    json inner{{"key1", "innerValue"}, {"key2", 2}};
+    vrpc::pack(j, "test", inner);
+    REQUIRE(j["_1"] == "test");
+    REQUIRE(j["_2"]["key1"] == "innerValue");
+    REQUIRE(j["_2"]["key2"] == 2);
   }
 
   SECTION("Check signature generation for empty json") {

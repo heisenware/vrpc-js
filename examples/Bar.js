@@ -12,7 +12,7 @@ emitter.on('empty', what => {
 })
 
 // Create an instance of a local (native-addon) vrpc factory
-const vrpc = VrpcLocal(addon)
+const vrpc = new VrpcLocal(addon)
 
 console.log('Why an example at the Bar?')
 console.log(' - Because', vrpc.callStatic('Bar', 'philosophy'))

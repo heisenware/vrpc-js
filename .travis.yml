@@ -8,6 +8,10 @@ matrix:
         - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
       node_js:
         - "8"
+        - "10"
+      install:
+        - npm install
+        - npm run build
     - language: python
       python: 3.6
       before_install:
@@ -18,7 +22,7 @@ matrix:
       install:
         - BUILD_TEST=1 pip install .
       script:
-        - python test/python/vrpc_local_test.py
+        - python test/python/VrpcLocalTest.py
 
 notifications:
   email:

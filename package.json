@@ -1,17 +1,21 @@
 {
   "name": "vrpc",
-  "version": "1.1.7",
+  "version": "2.0.0-alpha.8",
   "description": "Variadic Remote Procedure Calls",
   "main": "index.js",
   "directories": {
     "example": "examples"
   },
   "scripts": {
-    "postinstall": "ln -sf vrpc cpp",
-    "test": "npm run test:cpp && npm run test:js",
-    "test:cpp": "third_party/install.sh && BUILD_TEST=1 node-gyp rebuild && build/Release/vrpc-test",
+    "build": "ln -sf binding.gyp.no-auto binding.gyp && third_party/install.sh && node-gyp rebuild && rm binding.gyp",
+    "test": "npm run test:cpp && npm run test:js && npm run test:jsRemote",
+    "test:cpp": "build/Release/vrpc-test",
     "test:js": "./node_modules/.bin/mocha test/js",
-    "example": "BUILD_EXAMPLE=1 node-gyp rebuild && echo '\n' && node examples/Bar.js"
+    "test:jsRemote": "test/jsRemote/test.sh",
+    "example": "node examples/Bar.js"
+  },
+  "bin": {
+    "vrpc-agent-js": "./vrpc/vrpc-agent-js"
   },
   "keywords": [
     "language bindings",
@@ -31,10 +35,17 @@
   "bugs": {
     "url": "https://github.com/bheisen/vrpc-nodejs-example/issues"
   },
-  "homepage": "https://github.com/bheisen/vrpc#readme",
+  "homepage": "https://vrpc.io",
   "devDependencies": {
-    "mocha": "^3.4.2",
-    "chai": "~4.1.0",
-    "sinon": "^5.0.10"
+    "chai": "^4.2.0",
+    "mocha": "^6.1.4",
+    "sinon": "^7.3.2"
+  },
+  "dependencies": {
+    "ajv": "^6.10.0",
+    "argparse": "^1.0.10",
+    "caller": "^1.0.1",
+    "mqtt": "^3.0.0",
+    "shortid": "^2.2.14"
   }
 }

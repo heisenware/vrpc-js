@@ -1,1 +1,1 @@
-from .vrpc_local import VrpcLocal
+from .VrpcLocal import VrpcLocal

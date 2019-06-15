@@ -10,13 +10,12 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
        ________\///________\///________\///__\///___________________\/////////__
 
 
-Non-intrusively binds any C++ code and provides access in form of asynchronous
-remote procedural callbacks (RPC).
-Author: Dr. Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
+Enables Python3 to run VRPC as native addon.
+Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-Copyright (c) 2018 Dr. Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
+Copyright (c) 2018 - 2019 Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
 of this software and associated  documentation files (the "Software"), to deal
@@ -41,13 +40,13 @@ SOFTWARE.
 #include "vrpc.hpp"
 #include "json.hpp"
 
-#ifdef VRPC_COMPILE_AS_ADDON
-  #include VRPC_COMPILE_AS_ADDON
+#ifndef VRPC_WITH_DL
+  #include <binding.cpp>
 #endif
 
 namespace vrpc_python_bindings {
 
-  static PyObject* callCpp(PyObject* self, PyObject* args) {
+  static PyObject* callRemote(PyObject* self, PyObject* args) {
     const char* json_string;
     // Check whether we got a string as single argument
     if (!PyArg_ParseTuple(args, "s", &json_string)) {
@@ -74,7 +73,7 @@ namespace vrpc_python_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_member_functions(class_name);
-      nlohmann::json j;
+      vrpc::json j;
       j["functions"] = functions;
       ret = j.dump();
     } catch (const std::exception& e) {
@@ -94,7 +93,7 @@ namespace vrpc_python_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_static_functions(class_name);
-      nlohmann::json j;
+      vrpc::json j;
       j["functions"] = functions;
       ret = j.dump();
     } catch (const std::exception& e) {
@@ -106,9 +105,9 @@ namespace vrpc_python_bindings {
 
   static PyObject* callback_handler = NULL;
 
-  static void cppCallbackHandler(const nlohmann::json& json) {
-    _VRPC_DEBUG << "will call back with " << json << std::endl;
-    PyObject* arglist = Py_BuildValue("(s)", json.dump().c_str());
+  static void cppCallbackHandler(const vrpc::json& j) {
+    _VRPC_DEBUG << "will call back with " << j << std::endl;
+    PyObject* arglist = Py_BuildValue("(s)", j.dump().c_str());
     PyObject* result = PyObject_CallObject(callback_handler, arglist);
     Py_DECREF(arglist);
   }
@@ -139,8 +138,8 @@ namespace vrpc_python_bindings {
   // Define functions in module
   static PyMethodDef VrpcMethods[] = {
     {
-      "callCpp",
-      callCpp,
+      "callRemote",
+      callRemote,
       METH_VARARGS,
       "Call bound C++ function"
     },

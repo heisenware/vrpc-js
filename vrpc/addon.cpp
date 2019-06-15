@@ -10,12 +10,12 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
        ________\///________\///________\///__\///___________________\/////////__
 
 
-Enables node.js to run vrpc as native addon.
+Enables Node.js to run VRPC as native addon.
 Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-Copyright (c) 2018 Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
+Copyright (c) 2018 - 2019 Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
 of this software and associated  documentation files (the "Software"), to deal
@@ -40,8 +40,8 @@ SOFTWARE.
 #include "vrpc.hpp"
 #include "json.hpp"
 
-#ifdef VRPC_COMPILE_AS_ADDON
-  #include VRPC_COMPILE_AS_ADDON
+#ifndef VRPC_WITH_DL
+  #include <binding.cpp>
 #endif
 
 namespace vrpc_bindings {
@@ -93,7 +93,7 @@ namespace vrpc_bindings {
     return *utf8Buffer;
   }
 
-  void callCpp(const FunctionCallbackInfo<Value>& args) {
+  void callRemote(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
     // Expect one argument and parse it to std::string
@@ -143,7 +143,7 @@ namespace vrpc_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_member_functions(arg);
-      nlohmann::json j;
+      vrpc::json j;
       j["functions"] = functions;
       ret = j.dump();
     } catch (const std::exception& e) {
@@ -165,7 +165,7 @@ namespace vrpc_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_static_functions(arg);
-      nlohmann::json j;
+      vrpc::json j;
       j["functions"] = functions;
       ret = j.dump();
     } catch (const std::exception& e) {
@@ -180,7 +180,7 @@ namespace vrpc_bindings {
 
   Persistent<Function> callback_handler;
 
-  void cppCallbackHandler(Isolate* isolate, const nlohmann::json& json) {
+  void cppCallbackHandler(Isolate* isolate, const vrpc::json& json) {
     _VRPC_DEBUG << "will call back with " << json << std::endl;
     HandleScope handleScope(isolate);
     Local<Function> cb = Local<Function>::New(isolate, callback_handler);
@@ -203,7 +203,7 @@ namespace vrpc_bindings {
     NODE_SET_METHOD(exports, "loadBindings", loadBindings);
     NODE_SET_METHOD(exports, "getMemberFunctions", getMemberFunctions);
     NODE_SET_METHOD(exports, "getStaticFunctions", getStaticFunctions);
-    NODE_SET_METHOD(exports, "callCpp", callCpp);
+    NODE_SET_METHOD(exports, "callRemote", callRemote);
     NODE_SET_METHOD(exports, "onCallback", onCallback);
   }
 

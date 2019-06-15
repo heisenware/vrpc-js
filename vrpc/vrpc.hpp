@@ -16,7 +16,7 @@ Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-Copyright (c) 2018 Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
+Copyright (c) 2018 - 2019 Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
 of this software and associated  documentation files (the "Software"), to deal
@@ -40,6 +40,10 @@ SOFTWARE.
 #ifndef VRPC_HPP
 #define VRPC_HPP
 
+#define VRPC_VERSION_MAJOR 2
+#define VRPC_VERSION_MINOR 0
+#define VRPC_VERSION_PATCH 0
+
 #include <cstdint>
 #include <functional>
 #include <iostream>
@@ -53,7 +57,9 @@ SOFTWARE.
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <dlfcn.h>
+#if defined(VRPC_WITH_DL) && !defined(_WIN32)
+ #include <dlfcn.h>
+#endif
 #include "json.hpp"
 
 #ifdef VRPC_DEBUG
@@ -65,7 +71,7 @@ SOFTWARE.
 #endif
 
 // Add std::function to json's serializable types
-namespace nlohmann {
+namespace vrpc {
 
   template <typename R, typename ...Args>
   struct adl_serializer<std::function<R(Args...)>> {
@@ -94,16 +100,16 @@ namespace vrpc {
       return t;
     }
 
-    inline void pack_r(nlohmann::json &json, char i) {}
+    inline void pack_r(vrpc::json &json, char i) {}
 
     template <class Tfirst, class ... Trest>
     inline void pack_r(
-      nlohmann::json& json,
+      vrpc::json& json,
       char i,
       const Tfirst& first,
       const Trest&... rest
     ) {
-      char name[4] = "a ";
+      char name[] = {'_', '\0', '\0', '\0'};
       name[1] = i;
       json[name] = first;
       detail::pack_r(json, i + 1, rest...);
@@ -112,11 +118,11 @@ namespace vrpc {
 
   /**
    * Pack the parameters into a json object.
-   * @param json Will be filled with keys a1, a2, etc. and associated values
+   * @param json Will be filled with keys _1, _2, etc. and associated values
    * @param args Any type and number of arguments forming the values
    */
   template <class ... Ts>
-  inline void pack(nlohmann::json& json, const Ts& ... args) {
+  inline void pack(vrpc::json& json, const Ts& ... args) {
     detail::pack_r(json, '1', args...);
   }
 
@@ -231,7 +237,7 @@ namespace vrpc {
     return detail::variadic_bind(detail::build_indices<sizeof...(Args)>{}, f);
   }
 
-  typedef std::function<void (const nlohmann::json&) > CallbackHandler;
+  typedef std::function<void (const vrpc::json&) > CallbackHandler;
 
   struct Callback {
 
@@ -249,10 +255,10 @@ namespace vrpc {
     struct CallbackT<std::function<R(Args...)>> :
     public std::enable_shared_from_this<CallbackT<std::function<R(Args...)>>>,
     public vrpc::Callback {
-      nlohmann::json m_json;
+      vrpc::json m_json;
       std::string m_callback_id;
 
-      CallbackT(const nlohmann::json& json, const std::string key) :
+      CallbackT(const vrpc::json& json, const std::string key) :
           m_json(json),
           m_callback_id(json["data"][key].get<std::string>()) {
         _VRPC_DEBUG << "Constructed with: " << m_json << " and "
@@ -260,7 +266,7 @@ namespace vrpc {
       }
 
       void wrapper(Args... args) {
-        nlohmann::json data;
+        vrpc::json data;
         pack(data, args...);
         m_json["data"] = data;
         m_json["id"] = m_callback_id;
@@ -296,8 +302,8 @@ namespace vrpc {
     struct unpack_impl;
 
     /* This specialization will remove reference and CV qualifier and bring
-    * back the recursion to the standard path using nlohmann::json::get().
-    * Really, it should use nlohmann::json::get_ref() in combination with
+    * back the recursion to the standard path using vrpc::json::get().
+    * Really, it should use vrpc::json::get_ref() in combination with
     * std::tie(), however currently json does not support custom types in refs.
     */
     template<char C, typename A, typename ...Args>
@@ -306,7 +312,7 @@ namespace vrpc {
         typename T = A,
         typename std::enable_if<std::is_reference<T>::value, int>::type = 0
       >
-      static auto unpack(nlohmann::json& j)
+      static auto unpack(vrpc::json& j)
       -> decltype(
         std::tuple_cat(
           std::make_tuple(std::declval<no_ref_no_const<T>>()),
@@ -314,7 +320,7 @@ namespace vrpc {
         )
       ) {
         // length 4 for better assembly alignment
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         typedef typename std::remove_const<
           typename std::remove_reference<T>::type
         >::type T_no_ref_no_const;
@@ -328,12 +334,12 @@ namespace vrpc {
         typename T = A,
         typename std::enable_if<!std::is_reference<T>::value, int>::type = 0
       >
-      static auto unpack(nlohmann::json& j)
+      static auto unpack(vrpc::json& j)
       -> decltype(std::tuple_cat(
         std::make_tuple(std::declval<T>()),
         unpack_impl<C + 1, Args...>::unpack(j))
       ) {
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         return std::tuple_cat(
           std::make_tuple(j["data"][key].get<T>()),
           unpack_impl < C + 1, Args...>::unpack(j)
@@ -349,8 +355,8 @@ namespace vrpc {
           std::is_reference<T>::value &&
           !is_std_function<T>::value, int>::type = 0
       >
-      static std::tuple<no_ref_no_const<T>> unpack(nlohmann::json& j) {
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+      static std::tuple<no_ref_no_const<T>> unpack(vrpc::json& j) {
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         return std::make_tuple(j["data"][key].get<no_ref_no_const<T>>());
       }
 
@@ -360,8 +366,8 @@ namespace vrpc {
           !std::is_reference<T>::value &&
           !is_std_function<T>::value, int>::type = 0
       >
-      static std::tuple<T> unpack(nlohmann::json& j) {
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+      static std::tuple<T> unpack(vrpc::json& j) {
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         return std::make_tuple(j["data"][key].get<T>());
       }
 
@@ -369,8 +375,8 @@ namespace vrpc {
         typename T = A,
         typename std::enable_if<is_std_function<T>::value, int>::type = 0
       >
-      static auto unpack(nlohmann::json& j) {
-        constexpr const char key[] = {'a', C, '\0', '\0'};
+      static auto unpack(vrpc::json& j) {
+        constexpr const char key[] = {'_', C, '\0', '\0'};
         auto ptr = std::make_shared<CallbackT<no_ref_no_const<T>>>(j, key);
         return std::make_tuple(ptr->bind_wrapper());
       }
@@ -379,7 +385,7 @@ namespace vrpc {
     template<char C>
     struct unpack_impl<C> {
 
-      static std::tuple<> unpack(nlohmann::json&) {
+      static std::tuple<> unpack(vrpc::json&) {
         return std::tuple<>();
       }
     };
@@ -387,11 +393,11 @@ namespace vrpc {
 
   /**
    * Unpack parameters into a tuple using perfect forwarding
-   * @param j json with keys a1, a2, etc. encoding function arguments
+   * @param j json with keys _1, _2, etc. encoding function arguments
    * @return std::tuple<Args...>
    */
   template<typename ...Args>
-  auto unpack(nlohmann::json& j)
+  auto unpack(vrpc::json& j)
   -> decltype(detail::unpack_impl < '1', Args...>::unpack(j)) {
     return detail::unpack_impl < '1', Args...>::unpack(j);
   }
@@ -407,7 +413,7 @@ namespace vrpc {
     template<std::size_t I = 0, typename ...Args>
     inline typename std::enable_if<I < sizeof...(Args), void>::type
     get_signature(std::string& signature, const std::tuple<Args...>& t) {
-      nlohmann::json j{
+      vrpc::json j{
         {"t", std::get<I>(t)}};
       signature += j["t"].type_name();
       return get_signature < I + 1, Args...>(signature, t);
@@ -424,7 +430,7 @@ namespace vrpc {
     return signature.empty() ? signature : "-" + signature;
   }
 
-  inline std::string get_signature(const nlohmann::json& json) {
+  inline std::string get_signature(const vrpc::json& json) {
     std::string signature;
     for (const auto& it : json) {
       signature += it.type_name();
@@ -719,14 +725,14 @@ namespace vrpc {
       this->do_bind_instance(Value(instance));
     }
 
-    void call_function(nlohmann::json& json) {
+    void call_function(vrpc::json& json) {
       this->do_call_function(json);
     }
 
   protected:
 
     virtual void do_bind_instance(const Value& instance) = 0;
-    virtual void do_call_function(nlohmann::json& json) = 0;
+    virtual void do_call_function(vrpc::json& json) = 0;
   };
 
   template <typename Klass, typename Lambda, typename ...Args>
@@ -742,7 +748,7 @@ namespace vrpc {
 
     virtual ~MemberFunction() { }
 
-    virtual void do_call_function(nlohmann::json& json) {
+    virtual void do_call_function(vrpc::json& json) {
       try {
         json["data"]["r"] = vrpc::call(
           m_lambda(m_ptr),
@@ -771,7 +777,7 @@ namespace vrpc {
 
     virtual ~VoidMemberFunction() { }
 
-    virtual void do_call_function(nlohmann::json& json) {
+    virtual void do_call_function(vrpc::json& json) {
       try {
         vrpc::call(m_lambda(m_ptr), vrpc::unpack<Args...>(json));
         json["data"]["r"] = nullptr;
@@ -797,7 +803,7 @@ namespace vrpc {
 
     virtual ~StaticFunction() { }
 
-    virtual void do_call_function(nlohmann::json& json) {
+    virtual void do_call_function(vrpc::json& json) {
       try {
         json["data"]["r"] = vrpc::call(m_lambda(), vrpc::unpack<Args...>(json));
       } catch (const std::exception& e) {
@@ -822,7 +828,7 @@ namespace vrpc {
 
     virtual ~VoidStaticFunction() { }
 
-    virtual void do_call_function(nlohmann::json& json) {
+    virtual void do_call_function(vrpc::json& json) {
       try {
         vrpc::call(m_lambda(), vrpc::unpack<Args...>(json));
         json["data"]["r"] = nullptr;
@@ -848,7 +854,7 @@ namespace vrpc {
 
     virtual ~ConstructorFunction() = default;
 
-    virtual void do_call_function(nlohmann::json& json) {
+    virtual void do_call_function(vrpc::json& json) {
       try {
         json["data"]["r"] = vrpc::call(m_lambda, vrpc::unpack<Args...>(json));
       } catch (const std::exception& e) {
@@ -997,16 +1003,16 @@ namespace vrpc {
     }
 
     static std::string call(const std::string& jsonString) {
-      nlohmann::json json;
-      json = nlohmann::json::parse(jsonString);
+      vrpc::json json;
+      json = vrpc::json::parse(jsonString);
       LocalFactory::call(json);
       return json.dump();
     }
 
-    static void call(nlohmann::json& json) {
+    static void call(vrpc::json& json) {
       const std::string& target_id = json["targetId"];
-      std::string function = json["function"];
-      nlohmann::json& args = json["data"];
+      std::string function = json["method"];
+      vrpc::json& args = json["data"];
       function += vrpc::get_signature(args);
       _VRPC_DEBUG << "Calling function: " << function
           << " with payload: " << args << std::endl;
@@ -1024,11 +1030,15 @@ namespace vrpc {
     }
 
     static void load_bindings(const std::string& path) {
-      void* libHandle = dlopen(path.c_str(), RTLD_LAZY);
-      if (libHandle == 0) {
-        throw std::runtime_error("Problem loading bindings: " +
-            std::string(dlerror()));
-      }
+      #if defined(VRPC_WITH_DL) && !defined(_WIN32)
+        void* libHandle = dlopen(path.c_str(), RTLD_LAZY);
+        if (libHandle == 0) {
+          throw std::runtime_error("Problem loading bindings: " +
+              std::string(dlerror()));
+        }
+      #else
+        _VRPC_DEBUG << "Ignored call, dynamic loading is disabled" << std::endl;
+      #endif
     }
 
   private:
