@@ -10,13 +10,12 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
        ________\///________\///________\///__\///___________________\/////////__
 
 
-Non-intrusively binds any C++ code and provides access in form of asynchronous
-remote procedural callbacks (RPC).
-Author: Dr. Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
+Enables Python3 to run VRPC as native addon.
+Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-Copyright (c) 2018 Dr. Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
+Copyright (c) 2018 - 2019 Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
 of this software and associated  documentation files (the "Software"), to deal
