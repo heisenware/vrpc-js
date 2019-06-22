@@ -89,11 +89,8 @@ describe('The native addon', () => {
       method: 'not_there',
       data: {}
     }
-    assert.throws(
-      () => addon.callRemote(JSON.stringify(json)),
-      Error,
-      'Could not find function: not_there'
-    )
+    const ret = JSON.parse(addon.callRemote(JSON.stringify(json)))
+    assert.equal(ret.data.e, 'Could not find function: not_there')
   })
 
   it('should correctly handle call to non-existing targetId', () => {
@@ -102,11 +99,8 @@ describe('The native addon', () => {
       method: 'not_there',
       data: {}
     }
-    assert.throws(
-      () => addon.callRemote(JSON.stringify(json)),
-      Error,
-      'Could not find targetId: wrong'
-    )
+    const ret = JSON.parse(addon.callRemote(JSON.stringify(json)))
+    assert.equal(ret.data.e, 'Could not find targetId: wrong')
   })
 
   it('should properly trigger callbacks', () => {
