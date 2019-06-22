@@ -60,7 +60,7 @@ TEST_CASE("Test functionality of generic holder", "[Value]") {
     auto ia = v.get<int>();
     REQUIRE(ia == 1);
   }
-
+  /* NOTE: Currently unsupported because of windows compiler issues
   SECTION("Check retrieval without get") {
     // Store an integer to Value
     Value v(1);
@@ -74,7 +74,7 @@ TEST_CASE("Test functionality of generic holder", "[Value]") {
     std::shared_ptr<int> ip = v;
     REQUIRE(*ip == 1);
   }
-
+  */
   SECTION("Check formatting") {
     Value v;
     v = 1;
