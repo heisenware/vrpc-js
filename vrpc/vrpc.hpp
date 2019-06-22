@@ -559,15 +559,16 @@ namespace vrpc {
       return *this;
     }
 
-    template <typename T>
-    operator const T&() const {
-      return const_cast<Value*> (this)->template get<T>();
-    }
+    // NOTE: Windows compiler is broken here
+    // template <typename T>
+    // operator const T&() const {
+    //   return const_cast<Value*> (this)->template get<T>();
+    // }
 
-    template <typename T>
-    operator T() const {
-      return const_cast<Value*> (this)->template get<T>();
-    }
+    // template <typename T>
+    // operator T() const {
+    //   return const_cast<Value*> (this)->template get<T>();
+    // }
 
     template <typename T>
     T& operator=(T& rhs) {
@@ -1017,15 +1018,15 @@ namespace vrpc {
       _VRPC_DEBUG << "Calling function: " << function
           << " with payload: " << args << std::endl;
       auto it_t = detail::init<LocalFactory>().m_function_registry.find(target_id);
-      if (it_t != detail::init<LocalFactory>().m_class_function_registry.end()) {
+      if (it_t != detail::init<LocalFactory>().m_function_registry.end()) {
         auto it_f = it_t->second.find(function);
         if (it_f != it_t->second.end()) {
           it_f->second->call_function(json);
         } else {
-          throw std::runtime_error("Could not find function: " + function);
+          json["data"]["e"] = "Could not find function: " + function;
         }
       } else {
-        throw std::runtime_error("Could not find targetId: " + target_id);
+        json["data"]["e"] = "Could not find targetId: " + target_id;
       }
     }
 
