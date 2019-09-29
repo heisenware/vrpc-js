@@ -13,8 +13,7 @@ class VrpcRemote {
     domain = '*',
     broker = 'mqtts://vrpc.io:8883',
     timeout = 5 * 1000
-   } = {}
-  ) {
+  } = {}) {
     this._token = token
     this._username = username
     this._password = password
@@ -25,10 +24,10 @@ class VrpcRemote {
     this._instance = crypto.randomBytes(2).toString('hex')
     this._clientId = this._createClientId(this._instance)
     this._topic = `${domain}/${os.hostname()}/${this._instance}`
-    this._domainMap = new Map()
+    this._domains = {}
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
-    this._client
+    this._client = null
     this._init()
   }
 
@@ -41,7 +40,7 @@ class VrpcRemote {
   } = {}) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
-    let data = instance ? { _1: instance } : {}
+    const data = instance ? { _1: instance } : {}
     const offset = instance ? 2 : 1
     args.forEach((value, index) => {
       data[`_${index + offset}`] = value
@@ -94,7 +93,7 @@ class VrpcRemote {
     this._client.publish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
       const msg = `Function call timed out (> ${this._timeout} ms)`
-      let id = setTimeout(
+      const id = setTimeout(
         () => {
           this._eventEmitter.removeAllListeners(json.id)
           reject(new Error(msg))
@@ -112,67 +111,72 @@ class VrpcRemote {
     })
   }
 
+  async getAvailabilities () {
+    await this._ensureConnected()
+    return this._domains
+  }
+
   async getAvailableDomains () {
     await this._ensureConnected()
-    return Array.from(this._domainMap.keys())
+    return Object.keys(this._domains)
   }
 
   async getAvailableAgents (domain = this._domain) {
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
-    const agentMap = this._domainMap.get(domain)
-    if (!agentMap) return []
-    return Array.from(agentMap.keys())
+    return this._domains[domain]
+      ? Object.keys(this._domains[domain].agents)
+      : []
   }
 
   async getAvailableClasses (agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
-    const agentMap = this._domainMap.get(domain)
-    if (!agentMap) return []
-    const classMap = agentMap.get(agent)
-    if (!classMap) return []
-    return Array.from(classMap.keys())
+    return this._domains[domain]
+      ? this._domains[domain].agents[agent]
+        ? Object.keys(this._domains[domain].agents[agent].classes)
+        : []
+      : []
   }
 
   async getAvailableInstances (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
-    const agentMap = this._domainMap.get(domain)
-    if (!agentMap) return []
-    const classMap = agentMap.get(agent)
-    if (!classMap) return []
-    const classInfo = classMap.get(className)
-    if (!classInfo) return []
-    return classInfo.instances
+    return this._domains[domain]
+      ? this._domains[domain].agents[agent]
+        ? this._domains[domain].agents[agent].classes[className]
+          ? this._domains[domain].agents[agent].classes[className].instances
+          : []
+        : []
+      : []
   }
 
   async getAvailableMemberFunctions (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
-    const agentMap = this._domainMap.get(domain)
-    if (!agentMap) return []
-    const classMap = agentMap.get(agent)
-    if (!classMap) return []
-    const classInfo = classMap.get(className)
-    if (!classInfo) return []
-    return classInfo.memberFunctions.map(name => this._stripSignature(name))
+    return this._domains[domain]
+      ? this._domains[domain].agents[agent]
+        ? this._domains[domain].agents[agent].classes[className]
+          ? this._domains[domain].agents[agent].classes[className].memberFunctions.map(name => this._stripSignature(name))
+          : []
+        : []
+      : []
   }
 
   async getAvailableStaticFunctions (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
     await this._ensureConnected()
-    const agentMap = this._domainMap.get(domain)
-    if (!agentMap) return []
-    const classMap = agentMap.get(agent)
-    if (!classMap) return []
-    const classInfo = classMap.get(className)
-    if (!classInfo) return []
-    return classInfo.staticFunctions.map(name => this._stripSignature(name))
+    return this._domains[domain]
+      ? this._domains[domain].agents[agent]
+        ? this._domains[domain].agents[agent].classes[className]
+          ? this._domains[domain].agents[agent].classes[className].staticFunctions.map(name => this._stripSignature(name))
+          : []
+        : []
+      : []
   }
 
   async reconnectWithToken (
@@ -227,29 +231,38 @@ class VrpcRemote {
     })
     this._client.on('message', (topic, message) => {
       const tokens = topic.split('/')
-      const domain = tokens[0]
-      const agent = tokens[1]
-      const func = tokens[4]
-      if (func === '__info__') {
-        // Json properties: { class, instances, memberFunctions, staticFunctions }
-        const json = JSON.parse(message.toString())
-        const domainMap = VrpcRemote._getOrCreate(this._domainMap, domain)
-        const classMap = VrpcRemote._getOrCreate(domainMap, agent)
-        classMap.set(json.class, json)
-      } else {
-        const {id, data} = JSON.parse(message.toString())
+      const [domain, agent, klass, instance, func] = tokens
+      if (func === '__info__' && instance === '__static__') {
+        // AgentInfo message
+        if (klass === '__agent__') {
+          console.log('## Received Agent Info', domain, agent, klass)
+          const { status, hostname } = JSON.parse(message.toString())
+          this._createIfNotExist(domain, agent)
+          this._domains[domain].agents[agent].status = status
+          this._domains[domain].agents[agent].hostname = hostname
+        } else { // ClassInfo message
+          console.log('## Received Class Info', domain, agent, klass)
+          // Json properties: { class, instances, memberFunctions, staticFunctions }
+          const json = JSON.parse(message.toString())
+          this._createIfNotExist(domain, agent)
+          if (!this._domains[domain].agents[agent].classes[klass]) {
+            this._domains[domain].agents[agent].classes[klass] = json
+          }
+        }
+      } else { // RPC message
+        const { id, data } = JSON.parse(message.toString())
         this._eventEmitter.emit(id, data)
       }
     })
   }
 
-  static _getOrCreate (map, key) {
-    let value = map.get(key)
-    if (!value) {
-      value = new Map()
-      map.set(key, value)
+  _createIfNotExist (domain, agent) {
+    if (!this._domains[domain]) {
+      this._domains[domain] = { agents: {} }
     }
-    return value
+    if (!this._domains[domain].agents[agent]) {
+      this._domains[domain].agents[agent] = { classes: {} }
+    }
   }
 
   _ensureConnected () {
@@ -268,7 +281,7 @@ class VrpcRemote {
     this._client.publish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
       const msg = `Proxy creation timed out (> ${this._timeout} ms)`
-      let id = setTimeout(
+      const id = setTimeout(
         () => {
           this._eventEmitter.removeAllListeners(json.id)
           reject(new Error(msg))
@@ -290,8 +303,8 @@ class VrpcRemote {
   async _createProxy (domain, agent, className, data) {
     const instance = data.r
     const targetTopic = `${domain}/${agent}/${className}/${instance}`
-    let proxy = {}
-    let functions = this._domainMap.get(domain).get(agent).get(className).memberFunctions
+    const proxy = {}
+    let functions = this._domains[domain].agents[agent].classes[className].memberFunctions
     // Strip off argument signature
     functions = functions.map(name => {
       const pos = name.indexOf('-')
@@ -347,7 +360,7 @@ class VrpcRemote {
   }
 
   _packData (functionName, ...args) {
-    let data = {}
+    const data = {}
     args.forEach((value, index) => {
       // Check whether provided argument is a function
       if (this._isFunction(value)) {
@@ -365,8 +378,8 @@ class VrpcRemote {
           if (this._eventEmitter.eventNames().includes(id)) return
           this._eventEmitter.on(id, data => {
             const args = Object.keys(data).sort()
-            .filter(value => value[0] === '_')
-            .map(key => data[key])
+              .filter(value => value[0] === '_')
+              .map(key => data[key])
             value.apply(null, args)
           })
         // Regular function callback
@@ -375,8 +388,8 @@ class VrpcRemote {
           data[`_${index + 1}`] = id
           this._eventEmitter.once(id, data => {
             const args = Object.keys(data).sort()
-            .filter(value => value[0] === '_')
-            .map(key => data[key])
+              .filter(value => value[0] === '_')
+              .map(key => data[key])
             value.apply(null, args) // This is the actual function call
           })
         }
@@ -387,8 +400,8 @@ class VrpcRemote {
         if (this._eventEmitter.eventNames().includes(id)) return
         this._eventEmitter.on(id, data => {
           const args = Object.keys(data).sort()
-          .filter(value => value[0] === '_')
-          .map(key => data[key])
+            .filter(value => value[0] === '_')
+            .map(key => data[key])
           emitter.emit(event, ...args)
         })
       } else {
