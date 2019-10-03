@@ -92,24 +92,7 @@ class VrpcRemote {
     await this._ensureConnected()
     const topic = `${domain}/${agent}/${className}/__static__/${functionName}`
     this._client.publish(topic, JSON.stringify(json))
-    return new Promise((resolve, reject) => {
-      const msg = `Function call timed out (> ${this._timeout} ms)`
-      let id = setTimeout(
-        () => {
-          this._eventEmitter.removeAllListeners(json.id)
-          reject(new Error(msg))
-        },
-        this._timeout
-      )
-      this._eventEmitter.once(json.id, data => {
-        clearTimeout(id)
-        if (data.e) {
-          reject(new Error(data.e))
-        } else {
-          resolve(data.r)
-        }
-      })
-    })
+    return this._handleAgentAnswer(json.id)
   }
 
   async getAvailableDomains () {
@@ -311,39 +294,43 @@ class VrpcRemote {
           data: this._packData(name, ...args)
         }
         this._client.publish(`${targetTopic}/${name}`, JSON.stringify(json))
-        return new Promise((resolve, reject) => {
-          const msg = `Function call timed out (> ${this._timeout} ms)`
-          let id = setTimeout(
-            () => {
-              this._eventEmitter.removeAllListeners(json.id)
-              reject(new Error(msg))
-            },
-            this._timeout
-          )
-          this._eventEmitter.once(json.id, data => {
-            clearTimeout(id)
-            if (data.e) {
-              reject(new Error(data.e))
-            } else {
-              const ret = data.r
-              // Handle functions returning a promise
-              if (typeof ret === 'string' && ret.substr(0, 5) === '__p__') {
-                const promise = new Promise((resolve, reject) => {
-                  this._eventEmitter.once(ret, promiseData => {
-                    if (promiseData.e) reject(new Error(promiseData.e))
-                    else resolve(promiseData.r)
-                  })
-                })
-                resolve(promise)
-              } else {
-                resolve(ret)
-              }
-            }
-          })
-        })
+        return this._handleAgentAnswer(json.id)
       }
     })
     return proxy
+  }
+
+  _handleAgentAnswer (id) {
+    return new Promise((resolve, reject) => {
+      const msg = `Function call timed out (> ${this._timeout} ms)`
+      const timer = setTimeout(
+        () => {
+          this._eventEmitter.removeAllListeners(id)
+          reject(new Error(msg))
+        },
+        this._timeout
+      )
+      this._eventEmitter.once(id, data => {
+        clearTimeout(timer)
+        if (data.e) {
+          reject(new Error(data.e))
+        } else {
+          const ret = data.r
+          // Handle functions returning a promise
+          if (typeof ret === 'string' && ret.substr(0, 5) === '__p__') {
+            const promise = new Promise((resolve, reject) => {
+              this._eventEmitter.once(ret, promiseData => {
+                if (promiseData.e) reject(new Error(promiseData.e))
+                else resolve(promiseData.r)
+              })
+            })
+            resolve(promise)
+          } else {
+            resolve(ret)
+          }
+        }
+      })
+    })
   }
 
   _packData (functionName, ...args) {
