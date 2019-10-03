@@ -4,12 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [2.0.2] - 03 Oct 2019
 
 ### Fixed
 
 - missing promise support on static functions (GH-2)
 - proper association for multiple C++ instances of same class
+
+### Added
+
+- improved possibility to retrieve availabilities in `VrpcRemote.js`
 
 ## [2.0.1] - 22 Jun 2019
 

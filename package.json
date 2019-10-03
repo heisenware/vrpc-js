@@ -1,6 +1,6 @@
 {
   "name": "vrpc",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Variadic Remote Procedure Calls",
   "main": "index.js",
   "directories": {
@@ -19,12 +19,13 @@
   },
   "keywords": [
     "language bindings",
-    "RPC",
-    "Remote Procedural Calls",
+    "asynchronous RPC",
+    "asynchronous remote procedural calls",
     "C++ to Node.js",
     "C++ to Python",
     "header-only",
-    "C++14"
+    "C++14",
+    "mqtt based iot"
   ],
   "repository": {
     "type": "git",
