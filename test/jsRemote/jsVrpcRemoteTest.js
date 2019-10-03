@@ -61,6 +61,7 @@ describe('An instance of the VrpcRemote class', () => {
         assert.isFunction(testClass.waitForMe)
         assert.isFunction(testClass.callMeBackLater)
         assert.isNotFunction(testClass.crazy)
+        assert.isNotFunction(testClass.promisedEcho)
       })
       it('should return an empty object after calling getRegistry()', async () => {
         assert.isEmpty(await testClass.getRegistry())
@@ -141,6 +142,17 @@ describe('An instance of the VrpcRemote class', () => {
           'vrpc is crazy!'
         )
       })
+      it('and async versions thereof', async () => {
+        assert.equal(
+          await await vrpc.callStatic({
+            agent: 'js',
+            className: 'TestClass',
+            functionName: 'promisedEcho',
+            args: ['Hello, echo!']
+          }),
+          'Hello, echo!'
+        )
+      })
       it('should timeout non-existing static functions calls ', async () => {
         try {
           await vrpc.callStatic({
@@ -190,6 +202,7 @@ describe('Another instance of the VrpcRemote class', () => {
         assert.isFunction(proxy.waitForMe)
         assert.isFunction(proxy.callMeBackLater)
         assert.isNotFunction(proxy.crazy)
+        assert.isNotFunction(proxy.promisedEcho)
       })
       it('should return the correct registry as provided during construction', async () => {
         const registry = await proxy.getRegistry()

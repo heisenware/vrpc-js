@@ -1,7 +1,7 @@
 # VRPC - Variadic Remote Procedure Calls
 [![Build Status](https://travis-ci.org/bheisen/vrpc.svg?branch=master)](https://travis-ci.org/bheisen/vrpc)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/bheisen/vrpc/master/LICENSE)
-[![Semver](https://img.shields.io/SemVer/2.0.0.png)](https://semver.org/spec/v2.0.0.html)
+[![Semver](https://img.shields.io/badge/semver-2.0.0-blue)](https://semver.org/spec/v2.0.0.html)
 [![GitHub Releases](https://img.shields.io/github/tag/bheisen/vrpc.svg)](https://github.com/bheisen/vrpc/tag)
 [![GitHub Issues](https://img.shields.io/github/issues/bheisen/vrpc.svg)](http://github.com/bheisen/vrpc/issues)
 
@@ -11,10 +11,10 @@
 
 ## What is VRPC?
 
-VRPC - Variadic Remote Procedure Calls - is a modern implementation of the old
-RPC (remote procedure calls) idea. Basically, it allows to directly call
-functions written in any programming language by functions written in any other
-(or the same) programming language.
+VRPC - Variadic Remote Procedure Calls - is a modern and asynchronous
+implementation of the old RPC (remote procedure calls) idea. Basically, it
+allows to directly call functions written in any programming language by
+functions written in any other (or the same) programming language.
 
 VRPC is modern as existing code can be made remotely callable:
 
@@ -32,7 +32,7 @@ such as:
 - asynchronicity (i.e. event-loop integration)
 - exception handling
 - object orientation
-- lamda and closures support
+- lambda and closures support
 
 Depending on the targeted technologies, VRPC ships as a library (static or
 dynamic linkage), executable or source package.

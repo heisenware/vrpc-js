@@ -23,6 +23,7 @@ describe('An instance of the VrpcLocal class', () => {
   })
   describe('The corresponding VrpcLocal instance', () => {
     let testClass
+    let anotherTestClass
     it('should be able to create a TestClass proxy using default constructor', () => {
       testClass = vrpc.create('TestClass')
       assert.ok(testClass)
@@ -90,6 +91,26 @@ describe('An instance of the VrpcLocal class', () => {
       })
       it('and overloads thereof', () => {
         assert.equal(vrpc.callStatic('TestClass', 'crazy', 'vrpc'), 'vrpc is crazy!')
+      })
+      it('should create a second instance', async () => {
+        anotherTestClass = vrpc.create(
+          'TestClass',
+          {
+            testEntry: [{
+              member1: 'anotherTestClass',
+              member2: 2,
+              member3: 2.0,
+              member4: [0, 1, 2, 3]
+            }]
+          }
+        )
+        assert.ok(anotherTestClass)
+      })
+      it('should be well separated from the first instance', async () => {
+        const registry = anotherTestClass.getRegistry()
+        assert.equal(registry.testEntry[0].member1, 'anotherTestClass')
+        const registry2 = testClass.getRegistry()
+        assert.deepEqual(registry2, {})
       })
     })
   })

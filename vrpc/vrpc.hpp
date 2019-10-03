@@ -730,10 +730,15 @@ namespace vrpc {
       this->do_call_function(json);
     }
 
+    std::shared_ptr<Function> clone() {
+      return this->do_clone();
+    }
+
   protected:
 
     virtual void do_bind_instance(const Value& instance) = 0;
     virtual void do_call_function(vrpc::json& json) = 0;
+    virtual std::shared_ptr<Function> do_clone() = 0;
   };
 
   template <typename Klass, typename Lambda, typename ...Args>
@@ -747,7 +752,12 @@ namespace vrpc {
         const Lambda& lambda
         ) : m_lambda(lambda) { }
 
-    virtual ~MemberFunction() { }
+    virtual ~MemberFunction() = default;
+
+    virtual std::shared_ptr<Function> do_clone() {
+      auto ptr = std::make_shared<MemberFunction>(m_lambda);
+      return std::static_pointer_cast<Function>(ptr);
+    }
 
     virtual void do_call_function(vrpc::json& json) {
       try {
@@ -776,7 +786,12 @@ namespace vrpc {
         const Lambda& lambda
         ) : m_lambda(lambda) { }
 
-    virtual ~VoidMemberFunction() { }
+    virtual ~VoidMemberFunction() = default;
+
+     virtual std::shared_ptr<Function> do_clone() {
+      auto ptr = std::make_shared<VoidMemberFunction>(m_lambda);
+      return std::static_pointer_cast<Function>(ptr);
+    }
 
     virtual void do_call_function(vrpc::json& json) {
       try {
@@ -802,7 +817,12 @@ namespace vrpc {
         const Lambda& lambda
         ) : m_lambda(lambda) { }
 
-    virtual ~StaticFunction() { }
+    virtual ~StaticFunction() = default;
+
+    virtual std::shared_ptr<Function> do_clone() {
+      auto ptr = std::make_shared<StaticFunction>(m_lambda);
+      return std::static_pointer_cast<Function>(ptr);
+    }
 
     virtual void do_call_function(vrpc::json& json) {
       try {
@@ -827,7 +847,12 @@ namespace vrpc {
         const Lambda& lambda
         ) : m_lambda(lambda) { }
 
-    virtual ~VoidStaticFunction() { }
+    virtual ~VoidStaticFunction() = default;
+
+    virtual std::shared_ptr<Function> do_clone() {
+      auto ptr = std::make_shared<StaticFunction>(m_lambda);
+      return std::static_pointer_cast<Function>(ptr);
+    }
 
     virtual void do_call_function(vrpc::json& json) {
       try {
@@ -854,6 +879,11 @@ namespace vrpc {
         ) : m_lambda(lambda) { }
 
     virtual ~ConstructorFunction() = default;
+
+    virtual std::shared_ptr<Function> do_clone() {
+      auto ptr = std::make_shared<ConstructorFunction>(m_lambda);
+      return std::static_pointer_cast<Function>(ptr);
+    }
 
     virtual void do_call_function(vrpc::json& json) {
       try {
@@ -896,8 +926,9 @@ namespace vrpc {
         const std::string instance_id = create_instance_id(ptr);
         // Bind member functions
         for (auto& i : rf.m_class_function_registry[class_name]) {
-          i.second->bind_instance(ptr);
-          rf.m_function_registry[instance_id][i.first] = i.second;
+          auto functionCallback = i.second->clone();
+          functionCallback->bind_instance(ptr);
+          rf.m_function_registry[instance_id][i.first] = functionCallback;
         }
         // Keep instance alive by saving the shared_ptr
         rf.m_instances[instance_id] = Value(ptr);

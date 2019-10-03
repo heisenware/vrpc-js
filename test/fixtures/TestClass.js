@@ -66,6 +66,11 @@ class TestClass {
     }
     return `${who} is crazy!`
   }
+
+  static async promisedEcho (message) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    return message
+  }
 }
 
 module.exports = TestClass

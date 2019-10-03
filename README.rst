@@ -10,7 +10,7 @@ Visit our website: https://vrpc.io
    :target: https://travis-ci.org/bheisen/vrpc
 .. |GitHub license| image:: https://img.shields.io/badge/license-MIT-blue.svg
    :target: https://raw.githubusercontent.com/bheisen/vrpc/master/LICENSE
-.. |Semver| image:: https://img.shields.io/SemVer/2.0.0.png
+.. |Semver| image:: https://img.shields.io/badge/semver-2.0.0-blue
    :target: https://semver.org/spec/v2.0.0.html
 .. |GitHub Releases| image:: https://img.shields.io/github/tag/bheisen/vrpc.svg
    :target: https://github.com/bheisen/vrpc/tag
