@@ -47,8 +47,15 @@ describe('An instance of the VrpcRemote class', () => {
     })
     let testClass
     it('should be able to create a TestClass proxy using its default constructor', async () => {
-      testClass = await vrpc.create({ agent: 'js', className: 'TestClass' })
+      testClass = await vrpc.create({
+        agent: 'js',
+        className: 'TestClass',
+        instance: 'testClass'
+      })
       assert.ok(testClass)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      const available = await await vrpc.getAvailableInstances('TestClass', 'js')
+      assert.ok(available.includes('testClass'))
     })
     describe('The corresponding TestClass proxy', () => {
       it('should have all bound functions as own methods', () => {

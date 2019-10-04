@@ -140,25 +140,29 @@ class VrpcAgent {
     // Publish class information
     const classes = VrpcAdapter.getClassesArray()
     classes.forEach(async klass => {
-      const json = {
-        class: klass,
-        instances: VrpcAdapter.getInstancesArray(klass),
-        memberFunctions: VrpcAdapter.getMemberFunctionsArray(klass),
-        staticFunctions: VrpcAdapter.getStaticFunctionsArray(klass)
-      }
-      try {
-        await this._mqttPublish(
-          `${this._baseTopic}/${klass}/__static__/__info__`,
-          JSON.stringify(json),
-          { qos: 1, retain: true }
-        )
-      } catch (err) {
-        this._log.error(
-          err,
-          `Problem during publishing class info: ${err.message}`
-        )
-      }
+      await this._publishClassInfoMessage(klass)
     })
+  }
+
+  async _publishClassInfoMessage (klass) {
+    const json = {
+      class: klass,
+      instances: VrpcAdapter.getInstancesArray(klass),
+      memberFunctions: VrpcAdapter.getMemberFunctionsArray(klass),
+      staticFunctions: VrpcAdapter.getStaticFunctionsArray(klass)
+    }
+    try {
+      await this._mqttPublish(
+        `${this._baseTopic}/${klass}/__static__/__info__`,
+        JSON.stringify(json),
+        { qos: 1, retain: true }
+      )
+    } catch (err) {
+      this._log.error(
+        err,
+        `Problem during publishing class info: ${err.message}`
+      )
+    }
   }
 
   _generateTopics () {
@@ -224,6 +228,10 @@ class VrpcAgent {
         // TODO handle instantiation errors
         const instanceId = json.data.r
         this._subscribeToMethodsOfNewInstance(klass, instanceId)
+        if (method === '__createNamed__') {
+          // Publish updated classInfo
+          await this._publishClassInfoMessage(klass)
+        }
       }
       await this._mqttPublish(json.sender, JSON.stringify(json), { qos: 1 })
     } catch (err) {

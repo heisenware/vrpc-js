@@ -226,9 +226,7 @@ class VrpcRemote {
           // Json properties: { class, instances, memberFunctions, staticFunctions }
           const json = JSON.parse(message.toString())
           this._createIfNotExist(domain, agent)
-          if (!this._domains[domain].agents[agent].classes[klass]) {
-            this._domains[domain].agents[agent].classes[klass] = json
-          }
+          this._domains[domain].agents[agent].classes[klass] = json
         }
       } else { // RPC message
         const { id, data } = JSON.parse(message.toString())
