@@ -8,10 +8,11 @@
   },
   "scripts": {
     "build": "ln -sf binding.gyp.no-auto binding.gyp && third_party/install.sh && node-gyp rebuild && rm binding.gyp",
-    "test": "npm run test:cpp && npm run test:js && npm run test:jsRemote",
+    "test": "npm run test:cpp && npm run test:js && npm run test:jsRemote && npm run test:life-cycles",
     "test:cpp": "build/Release/vrpc-test",
     "test:js": "./node_modules/.bin/mocha test/js",
     "test:jsRemote": "test/jsRemote/test.sh",
+    "test:life-cycles": "./node_modules/.bin/mocha test/life-cycles",
     "example": "node examples/Bar.js"
   },
   "bin": {

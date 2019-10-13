@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Added
+
+- implemented proper deletion of named and un-named instances for node.js
+- a new PRC message, indicating end of proxy
+- events for `VrpcRemote` indicating changes of remote agents or classes
+- initial set of javadoc-style public function documentation
+
+### Fixed
+
+- improper asynchronicity of `serve` method in `VrpcAgent`
+
+### Changed
+
+- property `class` to `className` in class info RPC message
+
+### Removed
+
+- special function `__deleteNamed__`, turned out that `__delete__` suffices
+
 ## [2.0.3] - 04 Oct 2019
 
 ### Fixed

@@ -25,12 +25,13 @@ describe('An instance of the VrpcRemote class', () => {
     assert.ok(vrpc)
   })
   it('should return available classes and functions', async () => {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    console.log('Domains:', await vrpc.getAvailableDomains())
-    console.log('Agents:', await vrpc.getAvailableAgents())
-    console.log('Classes:', await vrpc.getAvailableClasses('js'))
-    console.log('Member Functions:', await vrpc.getAvailableMemberFunctions('TestClass', 'js'))
-    console.log('Static Functions:', await vrpc.getAvailableStaticFunctions('TestClass', 'js'))
+    const availabilities = await vrpc.getAvailabilities()
+    console.log('Availabilities:', JSON.stringify(availabilities, null, 2))
+    // console.log('Domains:', await vrpc.getAvailableDomains())
+    // console.log('Agents:', await vrpc.getAvailableAgents())
+    // console.log('Classes:', await vrpc.getAvailableClasses('js'))
+    // console.log('Member Functions:', await vrpc.getAvailableMemberFunctions('TestClass', 'js'))
+    // console.log('Static Functions:', await vrpc.getAvailableStaticFunctions('TestClass', 'js'))
   })
   describe('The corresponding VrpcRemote instance', () => {
     it('should timeout if non-existing code is tried to be proxied', async () => {
@@ -242,13 +243,17 @@ describe('Another instance of the VrpcRemote class', () => {
         it('should return the correct registry as provided during construction', async () => {
           assert.deepEqual((await test1.getRegistry()), { test: [1, 2, 3] })
         })
-        it.skip('should be delete-able', async () => {
-          assert.equal(await vrpc.deleteInstance('test1'), true)
+        it('should be delete-able', async () => {
+          const deleted = await vrpc.delete({
+            className: 'TestClass',
+            instance: 'test1'
+          })
+          assert.strictEqual(deleted, 'test1')
           try {
             await vrpc.getInstance({ className: 'TestClass', instance: 'test1' })
             assert.fail()
           } catch (err) {
-            assert.equal(err.message, 'Instance with id: bad does not exist')
+            assert.equal(err.message, 'Instance with id: test1 does not exist')
           }
         })
       })

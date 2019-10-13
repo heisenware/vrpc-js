@@ -83,7 +83,6 @@ class VrpcAdapter {
     staticFunctions.push('__delete__')
     staticFunctions.push('__createNamed__')
     staticFunctions.push('__getNamed__')
-    staticFunctions.push('__deleteNamed__')
     let memberFunctions = VrpcAdapter._getMemberFunctions(Klass)
     if (onlyPublic) {
       memberFunctions = memberFunctions.filter(f => !f.startsWith('_'))
@@ -122,7 +121,18 @@ class VrpcAdapter {
         break
       // Special case: dtor
       case '__delete__':
-        // TODO: Implement
+        try {
+          const instanceId = wrappedArgs[0]
+          const entry = VrpcAdapter._instances.get(instanceId)
+          if (entry !== undefined) {
+            VrpcAdapter._instances.delete(instanceId)
+            data.r = instanceId
+          } else {
+            data.r = undefined
+          }
+        } catch (err) {
+          data.e = err.message
+        }
         break
         // Special case: named construction
       case '__createNamed__':
@@ -134,21 +144,17 @@ class VrpcAdapter {
         }
         break
       case '__getNamed__': // Special case: retrieval of known instance
-        const instanceId = wrappedArgs[0]
-        const instance = VrpcAdapter._getNamed(instanceId)
-        if (instance) data.r = instanceId
-        else data.e = `Instance with id: ${instanceId} does not exist`
-        break
-      // Special case: named deletion
-      case '__deleteNamed__':
         try {
-          data.r = VrpcAdapter._deleteNamed(targetId)
+          const instanceId = wrappedArgs[0]
+          const instance = VrpcAdapter._getNamed(instanceId)
+          if (instance) data.r = instanceId
+          else data.e = `Instance with id: ${instanceId} does not exist`
         } catch (err) {
           data.e = err.message
         }
         break
       // Regular function call
-      default:
+      default: {
         // Check whether targetId is a registered class
         const entry = VrpcAdapter._functionRegistry.get(targetId)
         if (entry !== undefined) { // entry is class -> function is static
@@ -184,6 +190,7 @@ class VrpcAdapter {
             }
           } else throw new Error(`Could not find function: ${method}`)
         }
+      }
     }
   }
 
@@ -229,16 +236,16 @@ class VrpcAdapter {
       const id = `__p__${method}-${cid}`
       json.data.r = id
       promise
-      .then(value => {
-        let data = { r: value }
-        const promiseJson = Object.assign({}, json, { data, id })
-        VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
-      })
-      .catch(err => {
-        const data = { e: err.message }
-        const promiseJson = Object.assign({}, json, { data, id })
-        VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
-      })
+        .then(value => {
+          const data = { r: value }
+          const promiseJson = Object.assign({}, json, { data, id })
+          VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
+        })
+        .catch(err => {
+          const data = { e: err.message }
+          const promiseJson = Object.assign({}, json, { data, id })
+          VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
+        })
     } catch (err) {
       json.data.e = err.message
     }
@@ -278,31 +285,29 @@ class VrpcAdapter {
     }
   }
 
-  static _deleteNamed (instanceId) {
+  static _delete (instanceId) {
     const entry = VrpcAdapter._instances.get(instanceId)
     if (entry !== undefined) {
       VrpcAdapter._instances.delete(instanceId)
       return true
-    } else {
-      // VrpcAdapter should not happen
-      return false
     }
+    return false
   }
 
   static _extractDataToArray (data) {
     return Object.keys(data).sort()
-    .filter(value => value[0] === '_')
-    .map(key => data[key])
+      .filter(value => value[0] === '_')
+      .map(key => data[key])
   }
 
   static _wrapCallbacks (json) {
     const args = VrpcAdapter._extractDataToArray(json.data)
-    let wrappedArgs = []
+    const wrappedArgs = []
     args.forEach(arg => {
       // Find those args that actually need to be function callbacks
       if (typeof arg === 'string' && arg.substr(0, 5) === '__f__') {
         wrappedArgs.push((...innerArgs) => {
-          let data = {}
+          const data = {}
           innerArgs.forEach((value, index) => {
             data[`_${index + 1}`] = value
           })

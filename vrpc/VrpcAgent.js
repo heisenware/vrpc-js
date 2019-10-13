@@ -41,14 +41,14 @@ class VrpcAgent {
   }
 
   constructor ({
-      domain,
-      agent,
-      username,
-      password,
-      token,
-      broker = 'mqtts://vrpc.io:8883',
-      log = console
-    } = {}
+    domain,
+    agent,
+    username,
+    password,
+    token,
+    broker = 'mqtts://vrpc.io:8883',
+    log = console
+  } = {}
   ) {
     this._username = username
     this._password = password
@@ -62,10 +62,13 @@ class VrpcAgent {
     }
     this._baseTopic = `${this._domain}/${this._agent}`
     VrpcAdapter.onCallback(this._handleVrpcCallback.bind(this))
+    // maps senderId to anonymous instanceIds
+    this._instances = new Map()
   }
 
   async serve () {
-    const md5 = crypto.createHash('md5').update(this._domain + this._agent).digest('hex').substr(0, 18)
+    const md5 = crypto.createHash('md5')
+      .update(this._domain + this._agent).digest('hex').substr(0, 18)
     let username = this._username
     let password = this._password
     if (this._token) {
@@ -102,6 +105,17 @@ class VrpcAgent {
     this._mqttPublish = promisify(this._client.publish.bind(this._client))
     this._mqttSubscribe = promisify(this._client.subscribe.bind(this._client))
     this._mqttUnsubscribe = promisify(this._client.unsubscribe.bind(this._client))
+    return this._ensureConnected()
+  }
+
+  async _ensureConnected () {
+    return new Promise((resolve) => {
+      if (this._client.connected) {
+        resolve()
+      } else {
+        this._client.once('connect', resolve)
+      }
+    })
   }
 
   async _handleVrpcCallback (jsonString, jsonObject) {
@@ -146,7 +160,7 @@ class VrpcAgent {
 
   async _publishClassInfoMessage (klass) {
     const json = {
-      class: klass,
+      className: klass,
       instances: VrpcAdapter.getInstancesArray(klass),
       memberFunctions: VrpcAdapter.getMemberFunctionsArray(klass),
       staticFunctions: VrpcAdapter.getStaticFunctionsArray(klass)
@@ -178,40 +192,54 @@ class VrpcAgent {
     return topics
   }
 
-  async end ({ unregister }) {
-    const classes = VrpcAdapter.getClassesArray()
-    for (const klass in classes) {
-      try {
-        const agentTopic = `${this._baseTopic}/__agent__/__static__/__info__`
-        if (unregister) {
+  async end ({ unregister = false } = {}) {
+    try {
+      const agentTopic = `${this._baseTopic}/__agent__/__static__/__info__`
+      await this._mqttPublish(
+        agentTopic,
+        JSON.stringify({
+          status: 'offline',
+          hostname: os.hostname()
+        }),
+        { qos: 1, retain: true }
+      )
+      if (unregister) {
+        await this._mqttPublish(agentTopic, null, { qos: 1, retain: true })
+        const classes = VrpcAdapter.getClassesArray()
+        for (const klass of classes) {
+          this._log.info(`Un-registering class: ${klass}`)
           const infoTopic = `${this._baseTopic}/${klass}/__static__/__info__`
           await this._mqttPublish(infoTopic, null, { qos: 1, retain: true })
-          await this._mqttPublish(agentTopic, null, { qos: 1, retain: true })
-        } else {
-          await this._mqttPublish(
-            agentTopic,
-            JSON.stringify({
-              status: 'offline',
-              hostname: os.hostname()
-            }),
-            { qos: 1, retain: true }
-          )
         }
-      } catch (err) {
-        this._log.error(
-          err,
-          `Problem during disconnecting agent: ${err.message}`
-        )
       }
+      return new Promise(resolve => this._client.end(resolve))
+    } catch (err) {
+      this._log.error(
+        err,
+        `Problem during disconnecting agent: ${err.message}`
+      )
     }
-    this._client.end()
   }
 
   async _handleMessage (topic, data) {
     try {
-      let json = JSON.parse(data.toString())
+      const json = JSON.parse(data.toString())
       this._log.debug(`Message arrived with topic: ${topic} and payload:`, json)
       const tokens = topic.split('/')
+      if (tokens.length === 4 && tokens[3] === '__info__') {
+        // Proxy notification
+        if (json.status === 'offline') {
+          const entry = this._instances.get(topic.slice(0, -9))
+          entry.forEach(instanceId => {
+            const json = { data: { _1: instanceId }, method: '__delete__' }
+            VrpcAdapter.call(json)
+            const { data: { r } } = json
+            if (r) this._log.info(`Deleted anonymous instance: ${r}`)
+          })
+          await this._mqttUnsubscribe(topic)
+          return
+        }
+      }
       if (tokens.length !== 5) {
         this._log.warn(`Ignoring message with invalid topic: ${topic}`)
         return
@@ -221,15 +249,32 @@ class VrpcAgent {
       const method = tokens[4]
       json.targetId = instance === '__static__' ? klass : instance
       json.method = method
+
+      // Special case: object deletion
+      if (method === '__delete__') {
+        this._unsubscribeMethodsOfDeletedInstance(klass, instance)
+      }
+
       VrpcAdapter.call(json) // json is mutated and contains return value
 
-      // Special case: object creation -> need to register subscriber
-      if (method === '__create__' || method === '__createNamed__') {
+      // Special case: was object creation or deletion
+      if (method === '__create__') {
+        // TODO handle instantiation errors
+        const instanceId = json.data.r
+        // TODO await this, too
+        this._subscribeToMethodsOfNewInstance(klass, instanceId)
+        await this._registerInstance(instanceId, json.sender)
+      } else if (method === '__createNamed__') {
         // TODO handle instantiation errors
         const instanceId = json.data.r
         this._subscribeToMethodsOfNewInstance(klass, instanceId)
-        if (method === '__createNamed__') {
-          // Publish updated classInfo
+        // Publish updated classInfo
+        await this._publishClassInfoMessage(klass)
+      } else if (method === '__delete__') {
+        const instanceId = json.data.r
+        const wasNamed = await this._unregisterInstance(instanceId, json.sender)
+        if (wasNamed) {
+          // Instance was a named one, let other know about its death
           await this._publishClassInfoMessage(klass)
         }
       }
@@ -239,12 +284,46 @@ class VrpcAgent {
     }
   }
 
+  async _registerInstance (instanceId, sender) {
+    const entry = this._instances.get(sender)
+    if (entry) { // already seen
+      entry.add(instanceId)
+    } else { // new instance
+      this._instances.set(sender, new Set([instanceId]))
+      await this._mqttSubscribe(`${sender}/__info__`)
+      this._log.info(`Tracking lifetime of proxy: ${sender}`)
+    }
+  }
+
+  async _unregisterInstance (instanceId, sender) {
+    const entry = this._instances.get(sender)
+    if (!entry || !entry.has(instanceId)) {
+      return true
+    }
+    entry.delete(instanceId)
+    if (entry.length === 0) {
+      this._instances.delete(sender)
+      await this._mqttUnsubscribe(`${sender}/__info__`)
+      this._log.info(`Stopped tracking lifetime of proxy: ${sender}`)
+    }
+    return false
+  }
+
   _subscribeToMethodsOfNewInstance (klass, instance) {
     const memberFunctions = VrpcAdapter.getMemberFunctionsArray(klass)
     memberFunctions.forEach(async method => {
       const topic = `${this._baseTopic}/${klass}/${instance}/${method}`
       await this._mqttSubscribe(topic)
       this._log.debug(`Subscribed to new topic after instantiation: ${topic}`)
+    })
+  }
+
+  _unsubscribeMethodsOfDeletedInstance (klass, instance) {
+    const memberFunctions = VrpcAdapter.getMemberFunctionsArray(klass)
+    memberFunctions.forEach(async method => {
+      const topic = `${this._baseTopic}/${klass}/${instance}/${method}`
+      await this._mqttUnsubscribe(topic)
+      this._log.debug(`Unsubscribed from topic after deletion: ${topic}`)
     })
   }
 

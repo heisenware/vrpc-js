@@ -125,7 +125,7 @@ response message.
     <domain>/<agent>/<klass>/__static__/__info__
 
     JSON PAYLOAD {
-      "class": "<class>",
+      "className": "<className>",
       "instances": "[<instance1>, <instance2>, ...]",
       "staticFunctions": "[<function1>, <function2>, ...]",
       "memberFunctions": "[<function1>, <function2>, ...]"
@@ -226,7 +226,6 @@ Those are the function to manage the lifetime of the remotely created objects:
 * `__delete__`
 * `__createNamed__`
 * `__getNamed__`
-* `__deleteNamed__`
 
 all of them use double underscores both as prefix and as postfix.
 
