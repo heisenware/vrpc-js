@@ -12,7 +12,7 @@
     "test:cpp": "build/Release/vrpc-test",
     "test:js": "./node_modules/.bin/mocha test/js",
     "test:jsRemote": "test/jsRemote/test.sh",
-    "test:life-cycles": "./node_modules/.bin/mocha test/life-cycles",
+    "test:life-cycles": "./node_modules/.bin/mocha test/life-cycles --exit --timeout 5000",
     "example": "node examples/Bar.js"
   },
   "bin": {

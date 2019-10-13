@@ -20,7 +20,7 @@ describe('An instance of the VrpcRemote class', () => {
     vrpc = new VrpcRemote({
       domain: 'test.vrpc',
       token: process.env.VRPC_TEST_TOKEN,
-      timeout: 1000
+      timeout: 1500
     })
     assert.ok(vrpc)
   })
@@ -43,7 +43,7 @@ describe('An instance of the VrpcRemote class', () => {
         })
         assert.fail()
       } catch (err) {
-        assert.equal(err.message, 'Proxy creation timed out (> 1000 ms)')
+        assert.equal(err.message, 'Proxy creation timed out (> 1500 ms)')
       }
     })
     let testClass
@@ -171,7 +171,7 @@ describe('An instance of the VrpcRemote class', () => {
           })
           assert.fail()
         } catch (err) {
-          assert.equal(err.message, 'Function call timed out (> 1000 ms)')
+          assert.equal(err.message, 'Function call timed out (> 1500 ms)')
         }
       })
     })
