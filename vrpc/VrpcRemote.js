@@ -424,11 +424,27 @@ class VrpcRemote extends EventEmitter {
           this._domains[domain].agents[agent].hostname = hostname
           this.emit('agent', { domain, agent, status, hostname })
         } else { // ClassInfo message
-          // Json properties: { class, instances, memberFunctions, staticFunctions }
+          // Json properties: { className, instances, memberFunctions, staticFunctions }
           const json = JSON.parse(message.toString())
           this._createIfNotExist(domain, agent)
           this._domains[domain].agents[agent].classes[klass] = json
-          this.emit('class', { domain, agent, ...json })
+          const {
+            className,
+            instances,
+            memberFunctions,
+            staticFunctions
+          } = json
+          this.emit(
+            'class',
+            {
+              domain,
+              agent,
+              className,
+              instances,
+              memberFunctions,
+              staticFunctions
+            }
+          )
         }
       } else { // RPC message
         const { id, data } = JSON.parse(message.toString())
