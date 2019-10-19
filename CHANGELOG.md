@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - property `class` to `className` in class info RPC message
 - renamed `callRemote` to `call` in `VrpcAdapter.js` and `addon.cpp`
 - made several functions public in VrpcAdapter for usage as local factory
+- adapted public interface of VrpcLocal to be in sync with VrpcRemote
 
 ### Removed
 
