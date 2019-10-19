@@ -2,8 +2,8 @@
 
 const EventEmitter = require('events')
 const { assert } = require('chai')
-const TestClass = require('../fixtures/TestClass')
-const VrpcAdapter = require('../../vrpc/VrpcAdapter')
+const TestClass = require('../../fixtures/TestClass')
+const { VrpcAdapter } = require('../../../index')
 
 /* global describe, it */
 

@@ -2,7 +2,7 @@
 
 const sinon = require('sinon')
 const { assert } = require('chai')
-const addon = require('../../build/Release/vrpc_test')
+const addon = require('../../../build/Release/vrpc_test')
 
 /* global describe, it */
 

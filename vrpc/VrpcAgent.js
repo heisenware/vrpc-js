@@ -209,7 +209,7 @@ class VrpcAgent {
         for (const klass of classes) {
           this._log.info(`Un-registering class: ${klass}`)
           const infoTopic = `${this._baseTopic}/${klass}/__static__/__info__`
-          await this._mqttPublish(infoTopic, null, { qos: 1, retain: true })
+          await this._mqttPublish(infoTopic, null, { qos: 1, retain: false })
         }
       }
       return new Promise(resolve => this._client.end(resolve))

@@ -86,8 +86,8 @@ class VrpcRemote extends EventEmitter {
     this._broker = broker
     this._timeout = timeout
     this._instance = crypto.randomBytes(2).toString('hex')
-    this._clientId = this._createClientId(this._instance)
-    this._proxyId = `${domain}/${os.hostname()}/${this._instance}`
+    this._mqttClientId = this._createClientId(this._instance)
+    this._vrpcClientId = `${domain}/${os.hostname()}/${this._instance}`
     this._domains = {}
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
@@ -205,8 +205,8 @@ class VrpcRemote extends EventEmitter {
       targetId: className,
       method: functionName,
       id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      sender: `${domain}/${os.hostname()}/${this._instance}`,
-      data: this._packData(functionName, ...args)
+      sender: this._vrpcClientId,
+      data: this._packData(className, functionName, ...args)
     }
     await this.connected()
     const topic = `${domain}/${agent}/${className}/__static__/${functionName}`
@@ -362,7 +362,7 @@ class VrpcRemote extends EventEmitter {
    */
   async end () {
     await this._mqttPublish(
-      `${this._proxyId}/__info__`,
+      `${this._vrpcClientId}/__info__`,
       JSON.stringify({ status: 'offline' })
     )
     return new Promise(resolve => this._client.end(resolve))
@@ -389,10 +389,10 @@ class VrpcRemote extends EventEmitter {
       password,
       clean: true,
       keepalive: 120,
-      clientId: this._clientId,
+      clientId: this._mqttClientId,
       rejectUnauthorized: false,
       will: {
-        topic: `${this._proxyId}/__info__`,
+        topic: `${this._vrpcClientId}/__info__`,
         payload: JSON.stringify({ status: 'offline' })
       }
     }
@@ -408,7 +408,7 @@ class VrpcRemote extends EventEmitter {
       const agent = this._agent === '*' ? '+' : this._agent
       this._client.subscribe(`${domain}/${agent}/+/__static__/__info__`)
       // Listen for remote function return values
-      this._client.subscribe(this._proxyId)
+      this._client.subscribe(this._vrpcClientId)
     })
 
     this._client.on('message', (topic, message) => {
@@ -504,7 +504,11 @@ class VrpcRemote extends EventEmitter {
   async _createProxy (domain, agent, className, data) {
     const instance = data.r
     const targetTopic = `${domain}/${agent}/${className}/${instance}`
-    const proxy = { _targetId: instance }
+    const proxyId = crypto.randomBytes(2).toString('hex')
+    const proxy = {
+      _targetId: instance,
+      _proxyId: proxyId
+    }
     let functions = this._domains[domain].agents[agent].classes[className].memberFunctions
     // Strip off argument signature
     functions = functions.map(name => {
@@ -522,8 +526,8 @@ class VrpcRemote extends EventEmitter {
             targetId: instance,
             method: name,
             id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-            sender: this._proxyId,
-            data: this._packData(name, ...args)
+            sender: this._vrpcClientId,
+            data: this._packData(proxyId, name, ...args)
           }
           await this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
           return this._handleAgentAnswer(json.id)
@@ -570,7 +574,7 @@ class VrpcRemote extends EventEmitter {
     })
   }
 
-  _packData (functionName, ...args) {
+  _packData (proxyId, functionName, ...args) {
     const data = {}
     args.forEach((value, index) => {
       // Check whether provided argument is a function
@@ -584,11 +588,8 @@ class VrpcRemote extends EventEmitter {
           index === 1 &&
           typeof args[0] === 'string'
         ) {
-          const id = `__f__${functionName}-${index}-${args[0]}`
+          const id = `__f__${proxyId}-${functionName}-${index}-${args[0]}`
           data[`_${index + 1}`] = id
-          if (this._eventEmitter.eventNames().includes(id)) {
-            throw new Error('Repeated event registration')
-          }
           this._eventEmitter.on(id, data => {
             const args = Object.keys(data).sort()
               .filter(value => value[0] === '_')
@@ -597,7 +598,7 @@ class VrpcRemote extends EventEmitter {
           })
         // Regular function callback
         } else {
-          const id = `__f__${functionName}-${index}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`
+          const id = `__f__${proxyId}-${functionName}-${index}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`
           data[`_${index + 1}`] = id
           this._eventEmitter.once(id, data => {
             const args = Object.keys(data).sort()
@@ -608,11 +609,8 @@ class VrpcRemote extends EventEmitter {
         }
       } else if (this._isEmitter(value)) {
         const { emitter, event } = value
-        const id = `__f__${functionName}-${index}-${event}`
+        const id = `__f__${proxyId}-${functionName}-${index}-${event}`
         data[`_${index + 1}`] = id
-        if (this._eventEmitter.eventNames().includes(id)) {
-          throw new Error('Repeated event registration')
-        }
         this._eventEmitter.on(id, data => {
           const args = Object.keys(data).sort()
             .filter(value => value[0] === '_')

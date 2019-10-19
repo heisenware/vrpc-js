@@ -4,9 +4,8 @@
 
 const { assert } = require('chai')
 const EventEmitter = require('events')
-const VrpcLocal = require('../../vrpc/VrpcLocal')
-const VrpcAdapter = require('../../vrpc/VrpcAdapter')
-const TestClass = require('../fixtures/TestClass')
+const { VrpcLocal } = require('../../../index')
+const addon = require('../../../build/Release/vrpc_test')
 
 const emitter = new EventEmitter()
 const newEntries = []
@@ -16,17 +15,15 @@ const removedEntries = []
 emitter.on('new', entry => newEntries.push(entry))
 emitter.on('removed', entry => removedEntries.push(entry))
 
-// Register TestClass fixture to the VrpcAdapter
-VrpcAdapter.register(TestClass)
-
 describe('An instance of the VrpcLocal class', () => {
   let vrpc
-  it('should be construct-able given a node.js VrpcAdapter', () => {
-    vrpc = new VrpcLocal(VrpcAdapter)
+  it('should be construct-able given a c++ native addon', () => {
+    vrpc = new VrpcLocal(addon)
     assert.ok(vrpc)
   })
   describe('The corresponding VrpcLocal instance', () => {
     let testClass
+    let anotherTestClass
     it('should be able to create a TestClass proxy using default constructor', () => {
       testClass = vrpc.create('TestClass')
       assert.ok(testClass)
@@ -39,8 +36,7 @@ describe('An instance of the VrpcLocal class', () => {
         assert.isFunction(testClass.notifyOnRemoved)
         assert.isFunction(testClass.addEntry)
         assert.isFunction(testClass.removeEntry)
-        assert.isFunction(testClass.waitForMe)
-        assert.isFunction(testClass.callMeBackLater)
+        assert.isFunction(testClass.callMeBack)
         assert.isNotFunction(testClass.crazy)
       })
       it('should return an empty object after calling getRegistry()', () => {
@@ -84,12 +80,10 @@ describe('An instance of the VrpcLocal class', () => {
           assert.equal(err.message, 'Can not remove non-existing category')
         }
       })
-      it('should properly forward promises', async () => {
-        assert.equal(101, await testClass.waitForMe(101))
-      })
-      it('should properly receive callbacks', async () => {
-        await testClass.callMeBackLater(sleepTime => {
+      it('should properly receive callbacks', (done) => {
+        testClass.callMeBack(sleepTime => {
           assert.equal(sleepTime, 100)
+          done()
         })
       })
       it('should be able to call a static function', () => {
@@ -97,6 +91,26 @@ describe('An instance of the VrpcLocal class', () => {
       })
       it('and overloads thereof', () => {
         assert.equal(vrpc.callStatic('TestClass', 'crazy', 'vrpc'), 'vrpc is crazy!')
+      })
+      it('should create a second instance', async () => {
+        anotherTestClass = vrpc.create(
+          'TestClass',
+          {
+            testEntry: [{
+              member1: 'anotherTestClass',
+              member2: 2,
+              member3: 2.0,
+              member4: [0, 1, 2, 3]
+            }]
+          }
+        )
+        assert.ok(anotherTestClass)
+      })
+      it('should be well separated from the first instance', async () => {
+        const registry = anotherTestClass.getRegistry()
+        assert.equal(registry.testEntry[0].member1, 'anotherTestClass')
+        const registry2 = testClass.getRegistry()
+        assert.deepEqual(registry2, {})
       })
     })
   })

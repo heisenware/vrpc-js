@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - improper asynchronicity of `serve` method in `VrpcAgent`
+- not working event handling using `on` when used on several named instance proxies
 
 ### Changed
 

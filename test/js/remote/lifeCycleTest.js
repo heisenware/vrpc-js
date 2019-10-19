@@ -4,15 +4,22 @@
 
 const { assert } = require('chai')
 const process = require('process')
-const { VrpcAdapter, VrpcAgent, VrpcRemote } = require('../../index')
+const EventEmitter = require('events')
+const { VrpcAdapter, VrpcAgent, VrpcRemote } = require('../../../index')
 
-class Foo {
+class Foo extends EventEmitter {
   constructor (foo) {
+    super()
     this._foo = foo
   }
 
   foo () {
     return this._foo
+  }
+
+  echo (value) {
+    this.emit('echo', value)
+    return value
   }
 }
 
@@ -106,16 +113,21 @@ describe('Agent Life-Cycle', () => {
 
 describe('Instance life-cycle', () => {
   let agent
-  let remote
+  before(async () => {
+    agent = new VrpcAgent({
+      domain: 'test.vrpc',
+      agent: 'nodeJsTestAgent',
+      token: process.env.VRPC_TEST_TOKEN,
+      broker: 'mqtts://vrpc.io:8883'
+    })
+    await agent.serve()
+  })
+  after(async () => {
+    await agent.end()
+  })
   describe('Instances up', () => {
+    let remote
     before(async () => {
-      agent = new VrpcAgent({
-        domain: 'test.vrpc',
-        agent: 'nodeJsTestAgent',
-        token: process.env.VRPC_TEST_TOKEN,
-        broker: 'mqtts://vrpc.io:8883'
-      })
-      await agent.serve()
       remote = new VrpcRemote({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
@@ -150,8 +162,9 @@ describe('Instance life-cycle', () => {
       assert.strictEqual(await foo3.foo(), 'foo-3')
     })
   })
-  describe('VrpcRemote up', () => {
+  describe('Instances attach', () => {
     const inst1 = {}
+    let remote
     before(async () => {
       remote = new VrpcRemote({
         domain: 'test.vrpc',
@@ -163,6 +176,9 @@ describe('Instance life-cycle', () => {
         inst1[className] = instances
       })
       await remote.connected()
+    })
+    after(async () => {
+      await remote.end()
     })
     it('should be possible to list and attach all instances', async () => {
       assert.deepEqual(inst1, { Foo: ['foo-1', 'foo-2'], Bar: ['bar-1'] })
@@ -190,5 +206,64 @@ describe('Instance life-cycle', () => {
       assert.deepEqual(inst1, { Foo: ['foo-1'], Bar: ['bar-1'] })
       assert.deepEqual(inst2, ['foo-1'])
     })
+  })
+})
+
+describe('Event Callbacks', () => {
+  let agent
+  let remote
+  const events = []
+  const otherEvents = []
+  before(async () => {
+    agent = new VrpcAgent({
+      domain: 'test.vrpc',
+      agent: 'nodeJsTestAgent',
+      token: process.env.VRPC_TEST_TOKEN,
+      broker: 'mqtts://vrpc.io:8883'
+    })
+    await agent.serve()
+    remote = new VrpcRemote({
+      domain: 'test.vrpc',
+      agent: 'nodeJsTestAgent',
+      token: process.env.VRPC_TEST_TOKEN,
+      broker: 'mqtts://vrpc.io:8883'
+    })
+    await remote.connected()
+  })
+  after(async () => {
+    await remote.end()
+    await agent.end()
+  })
+  it('should receive events on fresh instance', async () => {
+    const foo = await remote.create({
+      className: 'Foo',
+      instance: 'foo'
+    })
+    let ret = await foo.echo(0)
+    assert.strictEqual(ret, 0)
+    await foo.on('echo', value => events.push(value))
+    ret = await foo.echo(1)
+    assert.strictEqual(ret, 1)
+    ret = await foo.echo(2)
+    assert.strictEqual(ret, 2)
+    assert.deepEqual(events, [1, 2])
+    await foo.removeAllListeners('echo')
+  })
+  it('should further receive events on another instance', async () => {
+    const anotherFoo = await remote.create({
+      className: 'Foo',
+      instance: 'foo'
+    })
+    let ret = await anotherFoo.echo(3)
+    assert.strictEqual(ret, 3)
+    await anotherFoo.on('echo', value => otherEvents.push(value))
+    ret = await anotherFoo.echo(4)
+    assert.strictEqual(ret, 4)
+    ret = await anotherFoo.echo(5)
+    assert.strictEqual(ret, 5)
+    assert.deepEqual(otherEvents, [4, 5])
+  })
+  it('should not have received further events on the original instance', () => {
+    assert.deepEqual(events, [1, 2])
   })
 })
