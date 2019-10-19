@@ -93,7 +93,7 @@ namespace vrpc_bindings {
     return *utf8Buffer;
   }
 
-  void callRemote(const FunctionCallbackInfo<Value>& args) {
+  void call(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
     // Expect one argument and parse it to std::string
@@ -203,7 +203,7 @@ namespace vrpc_bindings {
     NODE_SET_METHOD(exports, "loadBindings", loadBindings);
     NODE_SET_METHOD(exports, "getMemberFunctions", getMemberFunctions);
     NODE_SET_METHOD(exports, "getStaticFunctions", getStaticFunctions);
-    NODE_SET_METHOD(exports, "callRemote", callRemote);
+    NODE_SET_METHOD(exports, "call", call);
     NODE_SET_METHOD(exports, "onCallback", onCallback);
   }
 

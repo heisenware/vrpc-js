@@ -16,11 +16,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - improper asynchronicity of `serve` method in `VrpcAgent`
-- not working event handling using `on` when used on several named instance proxies
+- broken event handling using `on` when used on several named instance proxies
 
 ### Changed
 
 - property `class` to `className` in class info RPC message
+- renamed `callRemote` to `call` in `VrpcAdapter.js` and `addon.cpp`
+- made several functions public in VrpcAdapter for usage as local factory
 
 ### Removed
 

@@ -232,7 +232,7 @@ class VrpcAgent {
           const entry = this._instances.get(topic.slice(0, -9))
           entry.forEach(instanceId => {
             const json = { data: { _1: instanceId }, method: '__delete__' }
-            VrpcAdapter.call(json)
+            VrpcAdapter._call(json)
             const { data: { r } } = json
             if (r) this._log.info(`Deleted anonymous instance: ${r}`)
           })
@@ -255,7 +255,7 @@ class VrpcAgent {
         this._unsubscribeMethodsOfDeletedInstance(klass, instance)
       }
 
-      VrpcAdapter.call(json) // json is mutated and contains return value
+      VrpcAdapter._call(json) // json is mutated and contains return value
 
       // Special case: was object creation or deletion
       if (method === '__create__') {

@@ -27,10 +27,10 @@ describe('The nodejs VrpcAdapter', () => {
     VrpcAdapter.onCallback(handleCallback)
   })
 
-  describe.skip('should properly handle illegal arguments to callRemote', () => {
+  describe.skip('should properly handle illegal arguments to call', () => {
     it('no argument', () => {
       assert.throws(
-        () => VrpcAdapter.callRemote(),
+        () => VrpcAdapter.call(),
         Error,
         'Wrong number of arguments, expecting exactly one'
       )
@@ -38,7 +38,7 @@ describe('The nodejs VrpcAdapter', () => {
 
     it('wrong type', () => {
       assert.throws(
-        () => VrpcAdapter.callRemote(15),
+        () => VrpcAdapter.call(15),
         Error,
         'Wrong argument type, expecting string'
       )
@@ -46,7 +46,7 @@ describe('The nodejs VrpcAdapter', () => {
 
     it('correct string type, but empty', () => {
       assert.throws(
-        () => VrpcAdapter.callRemote(''),
+        () => VrpcAdapter.call(''),
         Error,
         'Failed converting argument to valid and non-empty string'
       )
@@ -54,7 +54,7 @@ describe('The nodejs VrpcAdapter', () => {
 
     it('correct string type, but not JSON parsable', () => {
       assert.throws(
-        () => VrpcAdapter.callRemote('bad;'),
+        () => VrpcAdapter.call('bad;'),
         Error,
         '[json.exception.parse_error.101] parse error at line 1, column 1: syntax error while parsing value - invalid literal; last read: \'b\''
       )
@@ -67,7 +67,7 @@ describe('The nodejs VrpcAdapter', () => {
       method: '__create__',
       data: {} // No data => default ctor
     }
-    const ret = JSON.parse(VrpcAdapter.callRemote(JSON.stringify(json)))
+    const ret = JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isString(ret.data.r)
     assert.property(ret, 'targetId')
@@ -81,7 +81,7 @@ describe('The nodejs VrpcAdapter', () => {
       method: 'hasCategory',
       data: { _1: 'test' }
     }
-    const ret = JSON.parse(VrpcAdapter.callRemote(JSON.stringify(json)))
+    const ret = JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isBoolean(ret.data.r)
     assert.isFalse(ret.data.r)
@@ -96,7 +96,7 @@ describe('The nodejs VrpcAdapter', () => {
       data: {}
     }
     assert.throws(
-      () => VrpcAdapter.callRemote(JSON.stringify(json)),
+      () => VrpcAdapter.call(JSON.stringify(json)),
       Error,
       'Could not find function: not_there'
     )
@@ -109,7 +109,7 @@ describe('The nodejs VrpcAdapter', () => {
       data: {}
     }
     assert.throws(
-      () => VrpcAdapter.callRemote(JSON.stringify(json)),
+      () => VrpcAdapter.call(JSON.stringify(json)),
       Error,
       'Could not find targetId: wrong'
     )
@@ -121,7 +121,7 @@ describe('The nodejs VrpcAdapter', () => {
       method: 'waitForMe',
       data: { _1: 101 }
     }
-    const { data } = JSON.parse(VrpcAdapter.callRemote(JSON.stringify(json)))
+    const { data } = JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
     if (data.r.substr(0, 5) === '__p__') {
       eventEmitter.once(data.r, promiseData => {
         assert.equal(promiseData.r, 101)
@@ -138,7 +138,7 @@ describe('The nodejs VrpcAdapter', () => {
       data: { _1: callbackId }
     }
     let count = 0
-    const { data } = JSON.parse(VrpcAdapter.callRemote(JSON.stringify(json)))
+    const { data } = JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
     const promiseId = data.r
     if (data.r.substr(0, 5) === '__p__') {
       eventEmitter.once(promiseId, data => {

@@ -21,10 +21,10 @@ describe('The native addon', () => {
     addon.onCallback(handleCallback)
   })
 
-  describe('should properly handle illegal arguments to callRemote', () => {
+  describe('should properly handle illegal arguments to call', () => {
     it('no argument', () => {
       assert.throws(
-        () => addon.callRemote(),
+        () => addon.call(),
         Error,
         'Wrong number of arguments, expecting exactly one'
       )
@@ -32,7 +32,7 @@ describe('The native addon', () => {
 
     it('wrong type', () => {
       assert.throws(
-        () => addon.callRemote(15),
+        () => addon.call(15),
         Error,
         'Wrong argument type, expecting string'
       )
@@ -40,7 +40,7 @@ describe('The native addon', () => {
 
     it('correct string type, but empty', () => {
       assert.throws(
-        () => addon.callRemote(''),
+        () => addon.call(''),
         Error,
         'Failed converting argument to valid and non-empty string'
       )
@@ -48,7 +48,7 @@ describe('The native addon', () => {
 
     it('correct string type, but not JSON parsable', () => {
       assert.throws(
-        () => addon.callRemote('bad;'),
+        () => addon.call('bad;'),
         Error,
         '[json.exception.parse_error.101] parse error at line 1, column 1: syntax error while parsing value - invalid literal; last read: \'b\''
       )
@@ -61,7 +61,7 @@ describe('The native addon', () => {
       method: '__create__',
       data: {} // No data => default ctor
     }
-    const ret = JSON.parse(addon.callRemote(JSON.stringify(json)))
+    const ret = JSON.parse(addon.call(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isString(ret.data.r)
     assert.property(ret, 'targetId')
@@ -75,7 +75,7 @@ describe('The native addon', () => {
       method: 'hasCategory',
       data: { _1: 'test' }
     }
-    const ret = JSON.parse(addon.callRemote(JSON.stringify(json)))
+    const ret = JSON.parse(addon.call(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isBoolean(ret.data.r)
     assert.isFalse(ret.data.r)
@@ -89,7 +89,7 @@ describe('The native addon', () => {
       method: 'not_there',
       data: {}
     }
-    const ret = JSON.parse(addon.callRemote(JSON.stringify(json)))
+    const ret = JSON.parse(addon.call(JSON.stringify(json)))
     assert.equal(ret.data.e, 'Could not find function: not_there')
   })
 
@@ -99,7 +99,7 @@ describe('The native addon', () => {
       method: 'not_there',
       data: {}
     }
-    const ret = JSON.parse(addon.callRemote(JSON.stringify(json)))
+    const ret = JSON.parse(addon.call(JSON.stringify(json)))
     assert.equal(ret.data.e, 'Could not find targetId: wrong')
   })
 
@@ -110,7 +110,7 @@ describe('The native addon', () => {
       data: { _1: 'callback-1' }
     }
     callback = sinon.spy()
-    addon.callRemote(JSON.stringify(json))
+    addon.call(JSON.stringify(json))
     assert(callback.calledOnce)
   })
 })
