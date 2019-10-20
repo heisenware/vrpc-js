@@ -80,7 +80,7 @@ namespace vrpc_bindings {
       return std::string();
     }
 
-    String::Utf8Value utf8Buffer(args[0]);
+    String::Utf8Value utf8Buffer(isolate, args[0]);
     if (utf8Buffer.length() == 0) {
        isolate->ThrowException(Exception::TypeError(
         String::NewFromUtf8(
