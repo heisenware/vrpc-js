@@ -1,6 +1,6 @@
 # VRPC Remote protocol
 
-All remote agents and proxies are MQTT clients to a single logical broker.
+All VRPC agents and clients are MQTT clients to a single logical broker.
 They use the MQTT 3.11 standard to realize all RPC functionality.
 
 Instead of being message oriented, VRPC uses a protocol on top of MQTT
@@ -157,7 +157,7 @@ response message.
     by **publishing** to the topic that was provided in the
     `<sender>` property.
 
-## Proxy Details
+## Client Details
 
 ### Initialization time
 

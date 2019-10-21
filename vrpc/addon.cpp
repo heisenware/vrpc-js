@@ -133,6 +133,43 @@ namespace vrpc_bindings {
     }
   }
 
+  void getClasses(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    std::string ret;
+    try {
+      auto classes = vrpc::LocalFactory::get_classes();
+      ret = vrpc::json(classes).dump();
+    } catch (const std::exception& e) {
+        isolate->ThrowException(Exception::Error(
+          String::NewFromUtf8(isolate, e.what()))
+        );
+        return;
+    }
+    Local<String> localString = String::NewFromUtf8(isolate, ret.c_str());
+    args.GetReturnValue().Set(localString);
+  }
+
+  void getInstances(const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+
+    // Expect one argument and parse it to std::string
+    std::string arg = singleArgToString(args);
+    if (arg.empty()) return;
+
+    std::string ret;
+    try {
+      auto instances = vrpc::LocalFactory::get_instances(arg);
+      ret = vrpc::json(instances).dump();
+    } catch (const std::exception& e) {
+        isolate->ThrowException(Exception::Error(
+          String::NewFromUtf8(isolate, e.what()))
+        );
+        return;
+    }
+    Local<String> localString = String::NewFromUtf8(isolate, ret.c_str());
+    args.GetReturnValue().Set(localString);
+  }
+
   void getMemberFunctions(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
@@ -143,9 +180,7 @@ namespace vrpc_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_member_functions(arg);
-      vrpc::json j;
-      j["functions"] = functions;
-      ret = j.dump();
+      ret = vrpc::json(functions).dump();
     } catch (const std::exception& e) {
       isolate->ThrowException(Exception::Error(
         String::NewFromUtf8(isolate, e.what())));
@@ -165,9 +200,7 @@ namespace vrpc_bindings {
     std::string ret;
     try {
       auto functions = vrpc::LocalFactory::get_static_functions(arg);
-      vrpc::json j;
-      j["functions"] = functions;
-      ret = j.dump();
+      ret = vrpc::json(functions).dump();
     } catch (const std::exception& e) {
         isolate->ThrowException(Exception::Error(
           String::NewFromUtf8(isolate, e.what()))
@@ -201,6 +234,8 @@ namespace vrpc_bindings {
 
   void Init(Local<Object> exports) {
     NODE_SET_METHOD(exports, "loadBindings", loadBindings);
+    NODE_SET_METHOD(exports, "getClasses", getClasses);
+    NODE_SET_METHOD(exports, "getInstances", getInstances);
     NODE_SET_METHOD(exports, "getMemberFunctions", getMemberFunctions);
     NODE_SET_METHOD(exports, "getStaticFunctions", getStaticFunctions);
     NODE_SET_METHOD(exports, "call", call);

@@ -55,6 +55,13 @@ class VrpcLocal {
     })
   }
 
+  /**
+   * Creates an instance of the specified class.
+   *
+   * @param {string} className Name of the class to create an instance of
+   * @param  {...any} args Arguments to provide to the constructor
+   * @return Proxy to the created instance
+   */
   create (className, ...args) {
     if (typeof className === 'string') {
       return this._create({ className, args })
@@ -75,6 +82,21 @@ class VrpcLocal {
     return this._createProxy(className, json)
   }
 
+  delete ({ className, instance }) {
+    let targetId
+    if (typeof (instance) === 'string') {
+      targetId = instance
+    } else if (typeof (instance) === 'object') {
+      targetId = instance._targetId
+    }
+    const json = {
+      targetId: className,
+      method: '__delete__',
+      data: { _1: targetId }
+    }
+    return JSON.parse(this._adapter.call(JSON.stringify(json))).data.r
+  }
+
   callStatic (className, functionName, ...args) {
     const json = {
       targetId: className,
@@ -82,6 +104,45 @@ class VrpcLocal {
       data: this._packData(className, functionName, ...args)
     }
     return JSON.parse(this._adapter.call(JSON.stringify(json))).data.r
+  }
+
+  /**
+   * Retrieves an array of all available classes (names only)
+   *
+   * @return Array of class names
+   */
+  getAvailableClasses () {
+    return JSON.parse(this._adapter.getClasses())
+  }
+
+  /**
+   * Provides the names of all currently running instances.
+   *
+   * @param {string} className Name of class to retrieve the instances for
+   * @return Array of instance names
+   */
+  getAvailableInstances (className) {
+    return JSON.parse(this._adapter.getInstances(className))
+  }
+
+  /**
+   * Provides all available member functions of the specified class.
+   *
+   * @param {string} className Name of class to provide member functions for
+   * @return Array of member function names
+   */
+  getAvailableMemberFunctions (className) {
+    return JSON.parse(this._adapter.getMemberFunctions(className))
+  }
+
+  /**
+   * Provides all available static functions of a registered class.
+   *
+   * @param {string} className Name of class to provide static functions for
+   * @return Array of static function names
+   */
+  getAvailableStaticFunctions (className) {
+    return JSON.parse(this._adapter.getStaticFunctions(className))
   }
 
   // private:
@@ -109,7 +170,7 @@ class VrpcLocal {
       _targetId: instanceId,
       _proxyId: proxyId
     }
-    let functions = JSON.parse(this._adapter.getMemberFunctions(className)).functions
+    let functions = JSON.parse(this._adapter.getMemberFunctions(className))
     // Strip off argument signature
     functions = functions.map(name => {
       const pos = name.indexOf('-')

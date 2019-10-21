@@ -248,7 +248,7 @@ describe('Another instance of the VrpcRemote class', () => {
             className: 'TestClass',
             instance: 'test1'
           })
-          assert.strictEqual(deleted, 'test1')
+          assert.isTrue(deleted)
           try {
             await vrpc.getInstance({ className: 'TestClass', instance: 'test1' })
             assert.fail()

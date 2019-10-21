@@ -10,8 +10,8 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
        ________\///________\///________\///__\///___________________\/////////__
 
 
-Non-intrusively binds any JS code and provides access in form of asynchronous
-remote procedural callbacks (RPC).
+Non-intrusively binds code and provides access in form of asynchronous remote
+procedure calls (RPC).
 Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
 
 
@@ -77,9 +77,6 @@ class VrpcAdapter {
     })
   }
 
-  // TODO add white- and black-list based filtering
-  // TODO add namespaces
-
   /**
    * Registers a class to be remotely constructable and callable.
    *
@@ -116,133 +113,20 @@ class VrpcAdapter {
     )
   }
 
-  /**
-   * Retrieves an array of all previously registered classes (names only)
-   *
-   * @return Array of class names
-   */
-  static getClassesArray () {
-    return Array.from(VrpcAdapter._functionRegistry.keys())
-  }
-
-  /**
-   * Provides the names of all currently running instances.
-   *
-   * @param {string} className Name of class to retrieve the instances for
-   * @return Array of instance names
-   */
-  static getInstancesArray (className) {
-    const instances = []
-    VrpcAdapter._instances.forEach((value, key) => {
-      if (value.className === className) instances.push(key)
-    })
-    return instances
-  }
-
-  /**
-   * Provides all available member functions of a registered class.
-   *
-   * @param {string} className Name of class to provide member functions for
-   * @return Array of member function names
-   */
-  static getMemberFunctionsArray (className) {
-    const entry = VrpcAdapter._functionRegistry.get(className)
-    if (entry) return entry.memberFunctions
-    return []
-  }
-
-  /**
-   * Provides all available static functions of a registered class.
-   *
-   * @param {string} className Name of class to provide static functions for
-   * @return Array of static function names
-   */
-  static getStaticFunctionsArray (className) {
-    const entry = VrpcAdapter._functionRegistry.get(className)
-    if (entry) return entry.staticFunctions
-    return []
-  }
-
-  /**
-   * Creates an anonymous instance of a previously registered class.
-   *
-   * @param {string} className Name of the class to create an instance of
-   * @param  {...any} args Any arguments to provide to the constructor
-   * @return {Object} Instance of the class
-   */
-  static create (className, ...args) {
-    if (typeof className === 'object') {
-      const { instance, args } = className
-      return VrpcAdapter.createNamed(className.className, instance, ...args)
-    }
-    const { Klass, withNew, schema } = VrpcAdapter._getClassEntry(className)
-    if (schema !== null) {
-      VrpcAdapter._validate(schema, ...args)
-    }
-    if (withNew) return new Klass(...args)
-    return Klass(...args)
-  }
-
-  /**
-   * Creates a named instance of a previously registered class.
-   *
-   * @param {string} className Name of the class to create an instance for
-   * @param {string} instanceId Name of the instance
-   * @param  {...any} args Any arguments to provide to the constructor
-   * @return {Object} Instance of the class
-   */
-  static createNamed (className, instanceId, ...args) {
-    let instance = VrpcAdapter.getInstance(instanceId)
-    if (instance !== undefined) {
-      return instance
-    }
-    instance = VrpcAdapter.create(className, ...args)
-    VrpcAdapter._instances.set(instanceId, { className, instance })
-    return instance
-  }
-
-  /**
-   * Provides a specific instanced previously created.
-   *
-   * @param {string} instanceId Name of the instance
-   * @return {Object} Instance related to this name
-   */
-  static getInstance (instanceId) {
-    const entry = VrpcAdapter._instances.get(instanceId)
-    if (entry !== undefined) {
-      return entry.instance
-    }
-  }
-
-  /**
-   * Deletes (i.e. sets free for garbage collection) a specific instance.
-   *
-   * @param {string} instanceId Name of the instance
-   * @return True if instance could be found, false otherwise
-   */
-  static delete (instanceId) {
-    const entry = VrpcAdapter._instances.get(instanceId)
-    if (entry !== undefined) {
-      VrpcAdapter._instances.delete(instanceId)
-      return true
-    }
-    return false
+  static getClasses () {
+    return JSON.stringify(VrpcAdapter._getClassesArray())
   }
 
   static getMemberFunctions (className) {
-    return JSON.stringify({
-      functions: VrpcAdapter.getMemberFunctionsArray(className)
-    })
+    return JSON.stringify(VrpcAdapter._getMemberFunctionsArray(className))
   }
 
   static getStaticFunctions (className) {
-    return JSON.stringify({
-      functions: VrpcAdapter.getStaticFunctionsArray(className)
-    })
+    return JSON.stringify(VrpcAdapter._getStaticFunctionsArray(className))
   }
 
-  static onCallback (callback) {
-    VrpcAdapter._callback = callback
+  static getInstances (className) {
+    return JSON.stringify(VrpcAdapter._getInstancesArray(className))
   }
 
   static call (jsonString) {
@@ -251,15 +135,97 @@ class VrpcAdapter {
     return JSON.stringify(json)
   }
 
-  // private:
-
-  static _validate (schema, params) {
-    if (!VrpcAdapter._ajv) {
-      VrpcAdapter._ajv = new Ajv()
-    }
-    const valid = VrpcAdapter._ajv.validate(schema, params)
-    if (!valid) throw new Error(VrpcAdapter._ajv.errorsText())
+  static onCallback (callback) {
+    VrpcAdapter._callback = callback
   }
+
+  // convenience interface if used in parallel - as local factory and from remote
+
+  /**
+   * Creates an un-managed, anonymous instance
+   *
+   * @param {string} className Name of the class to create an instance of
+   * @param  {...any} args  Arguments to provide to the constructor
+   * @return The real instance (not a proxy!)
+   */
+  static create (className, ...args) {
+    if (typeof className === 'string') {
+      return VrpcAdapter._create(className, ...args)
+    }
+    if (typeof className === 'object') {
+      if (className.instance) {
+        return VrpcAdapter._createNamed(
+          className.className,
+          className.instance,
+          ...className.args
+        )
+      }
+      return VrpcAdapter._create(className.className, ...className.args)
+    }
+  }
+
+  /**
+   * Creates a managed named instance
+   *
+   * @param {string} className Name of the class to create an instance of
+   * @param {string} instance Name of the instance
+   * @param  {...any} args Arguments to provide to the constructor
+   * @return The real instance (not a proxy!)
+   */
+  static createNamed (className, instance, ...args) {
+    return VrpcAdapter._createNamed(className, instance, ...args)
+  }
+
+  static delete (instance) {
+    return VrpcAdapter._delete(instance)
+  }
+
+  static getInstance (instance) {
+    const entry = VrpcAdapter._instances.get(instance)
+    if (entry) return entry.instance
+    throw new Error(`Could not find instance: ${instance}`)
+  }
+
+  /**
+   * Retrieves an array of all available classes (names only)
+   *
+   * @return Array of class names
+   */
+  static getAvailableClasses () {
+    return VrpcAdapter._getClassesArray()
+  }
+
+  /**
+   * Provides the names of all currently running instances.
+   *
+   * @param {string} className Name of class to retrieve the instances for
+   * @return Array of instance names
+   */
+  static getAvailableInstances (className) {
+    return VrpcAdapter._getInstancesArray(className)
+  }
+
+  /**
+   * Provides all available member functions of the specified class.
+   *
+   * @param {string} className Name of class to provide member functions for
+   * @return Array of member function names
+   */
+  static getAvailableMemberFunctions (className) {
+    return VrpcAdapter._getMemberFunctionsArray(className)
+  }
+
+  /**
+   * Provides all available static functions of a registered class.
+   *
+   * @param {string} className Name of class to provide static functions for
+   * @return Array of static function names
+   */
+  static getAvailableStaticFunctions (className) {
+    return VrpcAdapter._getStaticFunctionsArray(className)
+  }
+
+  // private:
 
   static _call (json) {
     const { targetId, method, data } = json
@@ -269,7 +235,7 @@ class VrpcAdapter {
       // Special case: ctor
       case '__create__':
         try {
-          const instance = VrpcAdapter.create(targetId, ...wrappedArgs)
+          const instance = VrpcAdapter._create(targetId, ...wrappedArgs)
           const instanceId = shortid.generate()
           VrpcAdapter._instances.set(instanceId, { targetId, instance })
           data.r = instanceId
@@ -281,13 +247,7 @@ class VrpcAdapter {
       case '__delete__':
         try {
           const instanceId = wrappedArgs[0]
-          const entry = VrpcAdapter._instances.get(instanceId)
-          if (entry !== undefined) {
-            VrpcAdapter._instances.delete(instanceId)
-            data.r = instanceId
-          } else {
-            data.r = undefined
-          }
+          data.r = VrpcAdapter._delete(instanceId)
         } catch (err) {
           data.e = err.message
         }
@@ -295,7 +255,7 @@ class VrpcAdapter {
         // Special case: named construction
       case '__createNamed__':
         try {
-          VrpcAdapter.createNamed(targetId, ...wrappedArgs)
+          VrpcAdapter._createNamed(targetId, ...wrappedArgs)
           data.r = wrappedArgs[0] // First argument is instanceId
         } catch (err) {
           data.e = err.message
@@ -304,8 +264,8 @@ class VrpcAdapter {
       case '__getNamed__': // Special case: retrieval of known instance
         try {
           const instanceId = wrappedArgs[0]
-          const instance = VrpcAdapter.getInstance(instanceId)
-          if (instance) data.r = instanceId
+          const entry = VrpcAdapter._instances.get(instanceId)
+          if (entry) data.r = instanceId
           else data.e = `Instance with id: ${instanceId} does not exist`
         } catch (err) {
           data.e = err.message
@@ -350,6 +310,42 @@ class VrpcAdapter {
         }
       }
     }
+  }
+
+  static _create (className, ...args) {
+    const { Klass, withNew, schema } = VrpcAdapter._getClassEntry(className)
+    if (schema !== null) {
+      VrpcAdapter._validate(schema, ...args)
+    }
+    if (withNew) return new Klass(...args)
+    return Klass(...args)
+  }
+
+  static _createNamed (className, instanceId, ...args) {
+    const entry = VrpcAdapter._instances.get(instanceId)
+    if (!entry) {
+      const instance = VrpcAdapter._create(className, ...args)
+      VrpcAdapter._instances.set(instanceId, { className, instance })
+      return instance
+    }
+    return entry.instance
+  }
+
+  static _delete (instanceId) {
+    const entry = VrpcAdapter._instances.get(instanceId)
+    if (entry) {
+      VrpcAdapter._instances.delete(instanceId)
+      return true
+    }
+    return false
+  }
+
+  static _validate (schema, params) {
+    if (!VrpcAdapter._ajv) {
+      VrpcAdapter._ajv = new Ajv()
+    }
+    const valid = VrpcAdapter._ajv.validate(schema, params)
+    if (!valid) throw new Error(VrpcAdapter._ajv.errorsText())
   }
 
   static _wrapCallbacks (json) {
@@ -448,6 +444,30 @@ class VrpcAdapter {
     } while (klass_ && klass_.name)
     // Filter out all duplicates
     return Array.from(new Set(fs))
+  }
+
+  static _getClassesArray () {
+    return Array.from(VrpcAdapter._functionRegistry.keys())
+  }
+
+  static _getInstancesArray (className) {
+    const instances = []
+    VrpcAdapter._instances.forEach((value, key) => {
+      if (value.className === className) instances.push(key)
+    })
+    return instances
+  }
+
+  static _getMemberFunctionsArray (className) {
+    const entry = VrpcAdapter._functionRegistry.get(className)
+    if (entry) return entry.memberFunctions
+    return []
+  }
+
+  static _getStaticFunctionsArray (className) {
+    const entry = VrpcAdapter._functionRegistry.get(className)
+    if (entry) return entry.staticFunctions
+    return []
   }
 }
 

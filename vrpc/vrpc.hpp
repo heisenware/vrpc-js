@@ -47,6 +47,7 @@ SOFTWARE.
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <set>
 #include <sstream>
 #include <tuple>
 #include <typeindex>
@@ -906,6 +907,7 @@ namespace vrpc {
     typedef std::unordered_map<std::string, Value > StringAnyMap;
     typedef std::unordered_map<std::string, std::shared_ptr<Function> > StringFunctionMap;
     typedef std::unordered_map<std::string, StringFunctionMap> FunctionRegistry;
+    typedef std::unordered_map<std::string, std::string > NamedInstances;
 
     // Maps: className => functionName => functionCallback
     FunctionRegistry m_class_function_registry;
@@ -913,33 +915,17 @@ namespace vrpc {
     FunctionRegistry m_function_registry;
     // Maps: instanceId => instanceObj
     StringAnyMap m_instances;
+    // Maps: instanceId => className
+    NamedInstances m_named_instances;
 
   public:
 
     template <typename Klass, typename ...Args>
     static void register_constructor(const std::string& class_name) {
-      auto func = [ = ](Args... args){
-        LocalFactory& rf = detail::init<LocalFactory>();
-        // Create instance
-        auto ptr = std::shared_ptr<Klass>(new Klass(args...));
-        // Generate instance_id
-        const std::string instance_id = create_instance_id(ptr);
-        // Bind member functions
-        for (auto& i : rf.m_class_function_registry[class_name]) {
-          auto functionCallback = i.second->clone();
-          functionCallback->bind_instance(ptr);
-          rf.m_function_registry[instance_id][i.first] = functionCallback;
-        }
-        // Keep instance alive by saving the shared_ptr
-        rf.m_instances[instance_id] = Value(ptr);
-        return instance_id;
-      };
-      auto funcT = std::make_shared<ConstructorFunction<decltype(func), Args...>>(func);
-      const std::string func_name("__create__" + vrpc::get_signature<Args...>());
-      detail::init<LocalFactory>().m_function_registry[class_name][func_name] =
-          std::static_pointer_cast<Function>(funcT);
-      _VRPC_DEBUG << "Registered: " << class_name
-          << "::" << func_name << std::endl;
+      LocalFactory::inject_create_function<Klass, Args...>(class_name);
+      LocalFactory::inject_create_named_function<Klass, Args...>(class_name);
+      LocalFactory::inject_get_named_function<Klass>(class_name);
+      LocalFactory::inject_delete_function<Klass>(class_name);
     }
 
     template <typename Klass, typename Func, Func f, typename ...Args >
@@ -1004,18 +990,26 @@ namespace vrpc {
 
     static std::vector<std::string> get_classes() {
       std::vector<std::string> classes;
-      for (const auto& i : detail::init<LocalFactory>().m_class_function_registry) {
-        classes.push_back(i.first);
+      for (const auto& kv : detail::init<LocalFactory>().m_class_function_registry) {
+        classes.push_back(kv.first);
       }
       return classes;
+    }
+
+    static std::vector<std::string> get_instances(const std::string& class_name) {
+      std::vector<std::string> instances;
+      for (const auto& kv : detail::init<LocalFactory>().m_named_instances) {
+        if (kv.second == class_name) instances.push_back(kv.first);
+      }
+      return instances;
     }
 
     static std::vector<std::string> get_member_functions(const std::string& class_name) {
       std::vector<std::string> functions;
       const auto& it = detail::init<LocalFactory>().m_class_function_registry.find(class_name);
       if (it != detail::init<LocalFactory>().m_class_function_registry.end()) {
-        for (const auto& i : it->second) {
-          functions.push_back(i.first);
+        for (const auto& kv : it->second) {
+          functions.push_back(kv.first);
         }
       }
       return functions;
@@ -1027,8 +1021,8 @@ namespace vrpc {
       std::vector<std::string> functions;
       const auto& it = detail::init<LocalFactory>().m_function_registry.find(class_name);
       if (it != detail::init<LocalFactory>().m_function_registry.end()) {
-        for (const auto& i : it->second) {
-          functions.push_back(i.first);
+        for (const auto& kv : it->second) {
+          functions.push_back(kv.first);
         }
       }
       return functions;
@@ -1089,6 +1083,91 @@ namespace vrpc {
       ss << reinterpret_cast<std::uintptr_t> (ptr.get());
       return ss.str();
     }
+
+    template <typename Klass, typename ...Args>
+      static void inject_create_function(const std::string& class_name) {
+        auto func = [ = ](Args... args){
+          LocalFactory& rf = detail::init<LocalFactory>();
+          // Create instance
+          auto ptr = std::shared_ptr<Klass>(new Klass(args...));
+          // Generate instance_id
+          const std::string instance_id = create_instance_id(ptr);
+          // Bind member functions
+          for (auto& i : rf.m_class_function_registry[class_name]) {
+            auto functionCallback = i.second->clone();
+            functionCallback->bind_instance(ptr);
+            rf.m_function_registry[instance_id][i.first] = functionCallback;
+          }
+          // Keep instance alive by saving the shared_ptr
+          rf.m_instances[instance_id] = Value(ptr);
+          return instance_id;
+        };
+        auto funcT = std::make_shared<ConstructorFunction<decltype(func), Args...>>(func);
+        const std::string func_name("__create__" + vrpc::get_signature<Args...>());
+        detail::init<LocalFactory>().m_function_registry[class_name][func_name] =
+            std::static_pointer_cast<Function>(funcT);
+        _VRPC_DEBUG << "Registered: " << class_name << "::" << func_name << std::endl;
+      }
+
+      template <typename Klass, typename ...Args>
+      static void inject_create_named_function(const std::string& class_name) {
+        auto func = [ = ](const std::string& instance_id, Args... args){
+          LocalFactory& rf = detail::init<LocalFactory>();
+          const auto& it = rf.m_instances.find(instance_id);
+          if (it != rf.m_instances.end()) return instance_id;
+          // Create instance
+          auto ptr = std::shared_ptr<Klass>(new Klass(args...));
+          // Bind member functions
+          for (auto& i : rf.m_class_function_registry[class_name]) {
+            auto functionCallback = i.second->clone();
+            functionCallback->bind_instance(ptr);
+            rf.m_function_registry[instance_id][i.first] = functionCallback;
+          }
+          // Keep instance alive by saving the shared_ptr
+          rf.m_instances[instance_id] = Value(ptr);
+          // Store named instance
+          rf.m_named_instances.insert({instance_id, class_name});
+          return instance_id;
+        };
+        auto funcT = std::make_shared<ConstructorFunction<decltype(func), const std::string&, Args...>>(func);
+        const std::string func_name("__createNamed__" + vrpc::get_signature<std::string, Args...>());
+        detail::init<LocalFactory>().m_function_registry[class_name][func_name] =
+            std::static_pointer_cast<Function>(funcT);
+        _VRPC_DEBUG << "Registered: " << class_name << "::" << func_name << std::endl;
+      }
+
+      template <typename Klass>
+      static void inject_get_named_function(const std::string& class_name) {
+        auto func = [ = ](const std::string& instance_id){
+          LocalFactory& rf = detail::init<LocalFactory>();
+          const auto& it = rf.m_instances.find(instance_id);
+          if (it != rf.m_instances.end()) return instance_id;
+          throw std::runtime_error("Instance with id: " + instance_id + " does not exist");
+        };
+        auto funcT = std::make_shared<ConstructorFunction<decltype(func), const std::string& >>(func);
+        const std::string func_name("__getNamed__" + vrpc::get_signature<std::string>());
+        detail::init<LocalFactory>().m_function_registry[class_name][func_name] =
+            std::static_pointer_cast<Function>(funcT);
+        _VRPC_DEBUG << "Registered: " << class_name << "::" << func_name << std::endl;
+      }
+
+      template <typename Klass>
+      static void inject_delete_function(const std::string& class_name) {
+        auto func = [ = ](const std::string& instance_id){
+          LocalFactory& rf = detail::init<LocalFactory>();
+          const auto& it = rf.m_instances.find(instance_id);
+          if (it == rf.m_instances.end()) return false;
+          rf.m_function_registry.erase(instance_id);
+          rf.m_instances.erase(instance_id);
+          rf.m_named_instances.erase(instance_id);
+          return true;
+        };
+        auto funcT = std::make_shared<ConstructorFunction<decltype(func), const std::string& >>(func);
+        const std::string func_name("__delete__" + vrpc::get_signature<std::string>());
+        detail::init<LocalFactory>().m_function_registry[class_name][func_name] =
+            std::static_pointer_cast<Function>(funcT);
+        _VRPC_DEBUG << "Registered: " << class_name << "::" << func_name << std::endl;
+      }
   };
 
   namespace detail {

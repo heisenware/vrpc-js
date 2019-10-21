@@ -10,8 +10,8 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
        ________\///________\///________\///__\///___________________\/////////__
 
 
-Non-intrusively binds any JS code and provides access in form of asynchronous
-remote procedural callbacks (RPC).
+Non-intrusively binds code and provides access in form of asynchronous remote
+procedure calls (RPC).
 Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
 
 
@@ -139,7 +139,7 @@ class VrpcRemote extends EventEmitter {
    * @param {string} instance The instance to be retrieved
    * @param {string} agent Agent name. If not provided class default is used.
    * @param {string} domain Domain name. If not provided class default is used.
-   * @return {Promise} Resolves to an object reflecting the remotely existing instance.
+   * @return Proxy object reflecting the remotely existing instance.
    */
   async getInstance ({
     className,
@@ -191,7 +191,7 @@ class VrpcRemote extends EventEmitter {
    * @param {Array} args Positional arguments of the static function call
    * @param {string} agent Agent name. If not provided class default is used.
    * @param {string} domain Domain name. If not provided class default is used.
-   * @return {Promise} Resolves to the called function's return value
+   * @return Return value of the remotely called function
    */
   async callStatic ({
     className,
@@ -532,9 +532,7 @@ class VrpcRemote extends EventEmitter {
           await this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
           return this._handleAgentAnswer(json.id)
         } catch (err) {
-          if (err.message !== 'Repeated event registration') {
-            throw new Error(`VRPC encountered error while trying a remote function call: ${err.message}`)
-          }
+          throw new Error(`Could not remotely call "${name}" because: ${err.message}`)
         }
       }
     })

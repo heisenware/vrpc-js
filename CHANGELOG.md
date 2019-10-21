@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - a new PRC message, indicating end of proxy
 - events for `VrpcRemote` indicating changes of remote agents or classes
 - initial set of javadoc-style public function documentation
+- full adapter interface to c++ implementation
 
 ### Fixed
 
