@@ -128,7 +128,6 @@ class VrpcAgent {
     // return JSON.parse(VrpcAdapter.getStaticFunctions(className))
   }
 
-
   async _ensureConnected () {
     return new Promise((resolve) => {
       if (this._client.connected) {
@@ -248,7 +247,7 @@ class VrpcAgent {
       this._log.debug(`Message arrived with topic: ${topic} and payload:`, json)
       const tokens = topic.split('/')
       if (tokens.length === 4 && tokens[3] === '__info__') {
-        // Proxy notification
+        // Client went offline
         if (json.status === 'offline') {
           const entry = this._instances.get(topic.slice(0, -9))
           entry.forEach(instanceId => {
