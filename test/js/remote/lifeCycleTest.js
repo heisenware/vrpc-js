@@ -23,6 +23,13 @@ class Foo extends EventEmitter {
   }
 }
 
+class MiniFoo extends Foo {
+  constructor (value) {
+    super(value)
+    this._miniFoo = value
+  }
+}
+
 class Bar {
   constructor (bar) {
     this._bar = bar
@@ -34,6 +41,7 @@ class Bar {
 }
 
 VrpcAdapter.register(Foo)
+VrpcAdapter.register(MiniFoo)
 VrpcAdapter.register(Bar)
 
 describe('Agent Life-Cycle', () => {
@@ -181,7 +189,7 @@ describe('Instance life-cycle', () => {
       await remote.end()
     })
     it('should be possible to list and attach all instances', async () => {
-      assert.deepEqual(inst1, { Foo: ['foo-1', 'foo-2'], Bar: ['bar-1'] })
+      assert.deepEqual(inst1, { Foo: ['foo-1', 'foo-2'], Bar: ['bar-1'], MiniFoo: [] })
       const inst2 = await remote.getAvailableInstances('Foo')
       assert.deepEqual(inst2, ['foo-1', 'foo-2'])
       const foo1 = await remote.getInstance({
@@ -203,7 +211,7 @@ describe('Instance life-cycle', () => {
     it('should be possible to delete instances', async () => {
       await remote.delete({ className: 'Foo', instance: 'foo-2' })
       const inst2 = await remote.getAvailableInstances('Foo')
-      assert.deepEqual(inst1, { Foo: ['foo-1'], Bar: ['bar-1'] })
+      assert.deepEqual(inst1, { Foo: ['foo-1'], Bar: ['bar-1'], MiniFoo: [] })
       assert.deepEqual(inst2, ['foo-1'])
     })
   })
@@ -211,9 +219,11 @@ describe('Instance life-cycle', () => {
 
 describe('Event Callbacks', () => {
   let agent
-  let remote
-  const events = []
-  const otherEvents = []
+  const miniFooEvents = []
+  const events1 = []
+  const otherEvents1 = []
+  const events2 = []
+  const otherEvents2 = []
   before(async () => {
     agent = new VrpcAgent({
       domain: 'test.vrpc',
@@ -222,48 +232,117 @@ describe('Event Callbacks', () => {
       broker: 'mqtts://vrpc.io:8883'
     })
     await agent.serve()
-    remote = new VrpcRemote({
-      domain: 'test.vrpc',
-      agent: 'nodeJsTestAgent',
-      token: process.env.VRPC_TEST_TOKEN,
-      broker: 'mqtts://vrpc.io:8883'
-    })
-    await remote.connected()
   })
   after(async () => {
-    await remote.end()
     await agent.end()
   })
-  it('should receive events on fresh instance', async () => {
-    const foo = await remote.create({
-      className: 'Foo',
-      instance: 'foo'
+  describe('on the same client', () => {
+    let remote
+    before(async () => {
+      remote = new VrpcRemote({
+        domain: 'test.vrpc',
+        agent: 'nodeJsTestAgent',
+        token: process.env.VRPC_TEST_TOKEN,
+        broker: 'mqtts://vrpc.io:8883'
+      })
+      await remote.connected()
     })
-    let ret = await foo.echo(0)
-    assert.strictEqual(ret, 0)
-    await foo.on('echo', value => events.push(value))
-    ret = await foo.echo(1)
-    assert.strictEqual(ret, 1)
-    ret = await foo.echo(2)
-    assert.strictEqual(ret, 2)
-    assert.deepEqual(events, [1, 2])
-    await foo.removeAllListeners('echo')
-  })
-  it('should further receive events on another instance', async () => {
-    const anotherFoo = await remote.create({
-      className: 'Foo',
-      instance: 'foo'
+    after(async () => {
+      await remote.end()
     })
-    let ret = await anotherFoo.echo(3)
-    assert.strictEqual(ret, 3)
-    await anotherFoo.on('echo', value => otherEvents.push(value))
-    ret = await anotherFoo.echo(4)
-    assert.strictEqual(ret, 4)
-    ret = await anotherFoo.echo(5)
-    assert.strictEqual(ret, 5)
-    assert.deepEqual(otherEvents, [4, 5])
+    it('should receive events on fresh instance', async () => {
+      const foo = await remote.create({
+        className: 'Foo',
+        instance: 'foo'
+      })
+      let ret = await foo.echo(0)
+      assert.strictEqual(ret, 0)
+      await foo.on('echo', value => events1.push(value))
+      ret = await foo.echo(1)
+      assert.strictEqual(ret, 1)
+      ret = await foo.echo(2)
+      assert.strictEqual(ret, 2)
+      assert.deepEqual(events1, [1, 2])
+      await foo.removeAllListeners('echo')
+    })
+    it('should further receive events on another instance', async () => {
+      const anotherFoo = await remote.create({
+        className: 'Foo',
+        instance: 'foo'
+      })
+      let ret = await anotherFoo.echo(3)
+      assert.strictEqual(ret, 3)
+      await anotherFoo.on('echo', value => otherEvents1.push(value))
+      ret = await anotherFoo.echo(4)
+      assert.strictEqual(ret, 4)
+      ret = await anotherFoo.echo(5)
+      assert.strictEqual(ret, 5)
+      assert.deepEqual(otherEvents1, [4, 5])
+    })
+    it('should not have received further events on the original instance', () => {
+      assert.deepEqual(events1, [1, 2])
+    })
+    it('should receive events on deep derived instance', async () =>{
+      const miniFoo = await remote.create({
+        className: 'MiniFoo',
+        instance: 'miniFoo'
+      })
+      let ret = await miniFoo.echo(0)
+      assert.strictEqual(ret, 0)
+      await miniFoo.on('echo', value => miniFooEvents.push(value))
+      ret = await miniFoo.echo(1)
+      assert.strictEqual(ret, 1)
+      ret = await miniFoo.echo(2)
+      assert.strictEqual(ret, 2)
+      assert.deepEqual(miniFooEvents, [1, 2])
+      await miniFoo.removeAllListeners('echo')
+    })
   })
-  it('should not have received further events on the original instance', () => {
-    assert.deepEqual(events, [1, 2])
+  describe('on another client', () => {
+    let remote
+    before(async () => {
+      remote = new VrpcRemote({
+        domain: 'test.vrpc',
+        agent: 'nodeJsTestAgent',
+        token: process.env.VRPC_TEST_TOKEN,
+        broker: 'mqtts://vrpc.io:8883'
+      })
+      await remote.connected()
+    })
+    after(async () => {
+      await remote.end()
+    })
+    it('should receive events on fresh instance', async () => {
+      const foo = await remote.create({
+        className: 'Foo',
+        instance: 'foo'
+      })
+      let ret = await foo.echo(0)
+      assert.strictEqual(ret, 0)
+      await foo.on('echo', value => events2.push(value))
+      ret = await foo.echo(1)
+      assert.strictEqual(ret, 1)
+      ret = await foo.echo(2)
+      assert.strictEqual(ret, 2)
+      assert.deepEqual(events2, [1, 2])
+      await foo.removeAllListeners('echo')
+    })
+    it('should further receive events on another instance', async () => {
+      const anotherFoo = await remote.create({
+        className: 'Foo',
+        instance: 'foo'
+      })
+      let ret = await anotherFoo.echo(3)
+      assert.strictEqual(ret, 3)
+      await anotherFoo.on('echo', value => otherEvents2.push(value))
+      ret = await anotherFoo.echo(4)
+      assert.strictEqual(ret, 4)
+      ret = await anotherFoo.echo(5)
+      assert.strictEqual(ret, 5)
+      assert.deepEqual(otherEvents2, [4, 5])
+    })
+    it('should not have received further events on the original instance', () => {
+      assert.deepEqual(events2, [1, 2])
+    })
   })
 })
