@@ -63,21 +63,21 @@ describe('The nodejs VrpcAdapter', () => {
 
   it('should be able to instantiate a TestClass using plain json', () => {
     const json = {
-      targetId: 'TestClass',
+      context: 'TestClass',
       method: '__create__',
       data: {} // No data => default ctor
     }
     const ret = JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isString(ret.data.r)
-    assert.property(ret, 'targetId')
+    assert.property(ret, 'context')
     assert.property(ret, 'method')
     instanceId = ret.data.r
   })
 
   it('should be able to call member function given valid instanceId', () => {
     const json = {
-      targetId: instanceId,
+      context: instanceId,
       method: 'hasCategory',
       data: { _1: 'test' }
     }
@@ -85,13 +85,13 @@ describe('The nodejs VrpcAdapter', () => {
     assert.property(ret, 'data')
     assert.isBoolean(ret.data.r)
     assert.isFalse(ret.data.r)
-    assert.property(ret, 'targetId')
+    assert.property(ret, 'context')
     assert.property(ret, 'method')
   })
 
   it('should correctly handle call to non-existing function', () => {
     const json = {
-      targetId: instanceId,
+      context: instanceId,
       method: 'not_there',
       data: {}
     }
@@ -102,22 +102,22 @@ describe('The nodejs VrpcAdapter', () => {
     )
   })
 
-  it('should correctly handle call to non-existing targetId', () => {
+  it('should correctly handle call to non-existing context', () => {
     const json = {
-      targetId: 'wrong',
+      context: 'wrong',
       method: 'not_there',
       data: {}
     }
     assert.throws(
       () => VrpcAdapter.call(JSON.stringify(json)),
       Error,
-      'Could not find targetId: wrong'
+      'Could not find context: wrong'
     )
   })
 
   it('should properly work with functions returning a promise', (done) => {
     const json = {
-      targetId: instanceId,
+      context: instanceId,
       method: 'waitForMe',
       data: { _1: 101 }
     }
@@ -133,7 +133,7 @@ describe('The nodejs VrpcAdapter', () => {
   it('should properly trigger callbacks', (done) => {
     const callbackId = '__f__callback-1'
     const json = {
-      targetId: instanceId,
+      context: instanceId,
       method: 'callMeBackLater',
       data: { _1: callbackId }
     }

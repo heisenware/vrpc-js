@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - Agent Info: `<domain>/<agent>/__info__`
   - Class Info: `<domain>/<agent>/<class>/__info__`
   - Client Info: `<domain>/<host>/<random>/__info__`
+- renamed `targetId` to `context`
 
 ## [2.1.0-alpha.0] - 11 Nov 2019
 

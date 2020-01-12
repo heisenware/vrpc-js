@@ -75,7 +75,7 @@ class VrpcLocal {
 
   getInstance ({ className, instance }) {
     const json = {
-      targetId: className,
+      context: className,
       method: '__getNamed__',
       data: { _1: instance }
     }
@@ -83,23 +83,23 @@ class VrpcLocal {
   }
 
   delete ({ className, instance }) {
-    let targetId
+    let context
     if (typeof (instance) === 'string') {
-      targetId = instance
+      context = instance
     } else if (typeof (instance) === 'object') {
-      targetId = instance._targetId
+      context = instance._targetId
     }
     const json = {
-      targetId: className,
+      context: className,
       method: '__delete__',
-      data: { _1: targetId }
+      data: { _1: context }
     }
     return JSON.parse(this._adapter.call(JSON.stringify(json))).data.r
   }
 
   callStatic (className, functionName, ...args) {
     const json = {
-      targetId: className,
+      context: className,
       method: functionName,
       data: this._packData(className, functionName, ...args)
     }
@@ -154,7 +154,7 @@ class VrpcLocal {
       data[`_${index + offset}`] = value
     })
     const json = {
-      targetId: className,
+      context: className,
       method: instance ? '__createNamed__' : '__create__',
       data
     }
@@ -183,7 +183,7 @@ class VrpcLocal {
     uniqueFuncs.forEach(name => {
       proxy[name] = (...args) => {
         const json = {
-          targetId: instanceId,
+          context: instanceId,
           method: name,
           data: this._packData(proxyId, name, ...args)
         }

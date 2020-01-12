@@ -122,7 +122,7 @@ class VrpcRemote extends EventEmitter {
       data[`_${index + offset}`] = value
     })
     const json = {
-      targetId: className,
+      context: className,
       method: instance ? '__createNamed__' : '__create__',
       id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       sender: `${domain}/${os.hostname()}/${this._instance}`,
@@ -148,7 +148,7 @@ class VrpcRemote extends EventEmitter {
     domain = this._domain
   }) {
     const json = {
-      targetId: className,
+      context: className,
       method: '__getNamed__',
       id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       sender: `${domain}/${os.hostname()}/${this._instance}`,
@@ -164,18 +164,18 @@ class VrpcRemote extends EventEmitter {
     agent = this._agent,
     domain = this._domain
   }) {
-    let targetId
+    let context
     if (typeof (instance) === 'string') {
-      targetId = instance
+      context = instance
     } else if (typeof (instance) === 'object') {
-      targetId = instance._targetId
+      context = instance._targetId
     }
     const json = {
-      targetId: className,
+      context: className,
       method: '__delete__',
       id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       sender: `${domain}/${os.hostname()}/${this._instance}`,
-      data: { _1: targetId }
+      data: { _1: context }
     }
     await this.connected()
     const topic = `${domain}/${agent}/${className}/__static__/__delete__`
@@ -202,7 +202,7 @@ class VrpcRemote extends EventEmitter {
   } = {}) {
     if (domain === '*') throw new Error('You must specify a domain')
     const json = {
-      targetId: className,
+      context: className,
       method: functionName,
       id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       sender: this._vrpcClientId,
@@ -524,7 +524,7 @@ class VrpcRemote extends EventEmitter {
       proxy[name] = async (...args) => {
         try {
           const json = {
-            targetId: instance,
+            context: instance,
             method: name,
             id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
             sender: this._vrpcClientId,

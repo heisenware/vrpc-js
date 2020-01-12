@@ -23,7 +23,7 @@ two arguments):
 
 ```json
 {
-  "targetId": "<targetId>",
+  "context": "<context>",
   "method": "<method>",
   "data": {
     "_1": "<first arg>",
@@ -38,7 +38,7 @@ General RPC **response** payload pattern:
 
 ```json
 {
-  "targetId": "<targetId>",
+  "context": "<context>",
   "method": "<method>",
   "data": {
     "_1": "<first arg>",
@@ -53,11 +53,11 @@ General RPC **response** payload pattern:
 
 > **NOTE 1**
 >
->- if `<method>` refers to a member function the `<targetId>` must reflect the
+>- if `<method>` refers to a member function the `<context>` must reflect the
 >  corresponding **instance name**
->- if `<method>` refers to a static method the `<targetId>` must reflect the
+>- if `<method>` refers to a static method the `<context>` must reflect the
 >  corresponding **class name**
->- if `<method>` refers to a global method the `<targetId>` must have the value
+>- if `<method>` refers to a global method the `<context>` must have the value
 >  `__global__`
 
 > **NOTE 2**

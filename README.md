@@ -58,9 +58,9 @@ dynamic linkage), executable or source package.
 
 - [NodeJS Agent Example](docs/examples/NodeAgentExample.md)
 
-### Calling code remotely from NodeJS (proxy)
+### Calling code remotely from NodeJS (client)
 
-- [NodeJS Remote Proxy Example](docs/examples/NodeProxyExample.md)
+- [NodeJS Remote Client Example](docs/examples/NodeClientExample.md)
 
 ## Reference Documentation
 

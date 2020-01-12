@@ -228,16 +228,16 @@ class VrpcAdapter {
   // private:
 
   static _call (json) {
-    const { targetId, method, data } = json
+    const { context, method, data } = json
     const wrappedArgs = VrpcAdapter._wrapCallbacks(json)
     // VrpcAdapter._log.debug(`Calling function: ${method} with payload: ${data}`)
     switch (method) {
       // Special case: ctor
       case '__create__':
         try {
-          const instance = VrpcAdapter._create(targetId, ...wrappedArgs)
+          const instance = VrpcAdapter._create(context, ...wrappedArgs)
           const instanceId = shortid.generate()
-          VrpcAdapter._instances.set(instanceId, { targetId, instance })
+          VrpcAdapter._instances.set(instanceId, { context, instance })
           data.r = instanceId
         } catch (err) {
           data.e = err.message
@@ -255,7 +255,7 @@ class VrpcAdapter {
         // Special case: named construction
       case '__createNamed__':
         try {
-          VrpcAdapter._createNamed(targetId, ...wrappedArgs)
+          VrpcAdapter._createNamed(context, ...wrappedArgs)
           data.r = wrappedArgs[0] // First argument is instanceId
         } catch (err) {
           data.e = err.message
@@ -273,8 +273,8 @@ class VrpcAdapter {
         break
       // Regular function call
       default: {
-        // Check whether targetId is a registered class
-        const entry = VrpcAdapter._functionRegistry.get(targetId)
+        // Check whether context is a registered class
+        const entry = VrpcAdapter._functionRegistry.get(context)
         if (entry !== undefined) { // entry is class -> function is static
           const { Klass } = entry
           // TODO Think about whether to do live checking (like here) or
@@ -291,9 +291,9 @@ class VrpcAdapter {
             }
           } else throw new Error(`Could not find function: ${method}`)
         } else { // is not static
-          const entry = VrpcAdapter._instances.get(targetId)
+          const entry = VrpcAdapter._instances.get(context)
           if (entry === undefined) {
-            throw new Error(`Could not find targetId: ${targetId}`)
+            throw new Error(`Could not find context: ${context}`)
           }
           const { instance } = entry
           if (VrpcAdapter._isFunction(instance[method])) {

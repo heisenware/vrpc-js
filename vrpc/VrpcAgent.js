@@ -267,7 +267,7 @@ class VrpcAgent {
       const klass = tokens[2]
       const instance = tokens[3]
       const method = tokens[4]
-      json.targetId = instance === '__static__' ? klass : instance
+      json.context = instance === '__static__' ? klass : instance
       json.method = method
 
       // Special case: object deletion

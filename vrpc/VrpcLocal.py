@@ -75,7 +75,7 @@ class VrpcLocal(object):
 
     def create(self, class_name, *args):
         json_string = {
-            'targetId': class_name,
+            'context': class_name,
             'method': '__create__',
             'data': {}
         }
@@ -102,7 +102,7 @@ class VrpcLocal(object):
 
     def call_static(self, class_name, function_name, *args):
         json_string = {
-            'targetId': class_name,
+            'context': class_name,
             'method': function_name,
             'data': {}
         }
@@ -128,7 +128,7 @@ class VrpcLocal(object):
     def _make_function(self, instance_id, function, *args):
         def f(self, *args):
             json_string = {
-                'targetId': instance_id,
+                'context': instance_id,
                 'method': function,
                 'data': self._packData(function, *args)
             }

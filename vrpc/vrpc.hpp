@@ -1036,13 +1036,13 @@ namespace vrpc {
     }
 
     static void call(vrpc::json& json) {
-      const std::string& target_id = json["targetId"];
+      const std::string& context = json["context"];
       std::string function = json["method"];
       vrpc::json& args = json["data"];
       function += vrpc::get_signature(args);
       _VRPC_DEBUG << "Calling function: " << function
           << " with payload: " << args << std::endl;
-      auto it_t = detail::init<LocalFactory>().m_function_registry.find(target_id);
+      auto it_t = detail::init<LocalFactory>().m_function_registry.find(context);
       if (it_t != detail::init<LocalFactory>().m_function_registry.end()) {
         auto it_f = it_t->second.find(function);
         if (it_f != it_t->second.end()) {
@@ -1051,7 +1051,7 @@ namespace vrpc {
           json["data"]["e"] = "Could not find function: " + function;
         }
       } else {
-        json["data"]["e"] = "Could not find targetId: " + target_id;
+        json["data"]["e"] = "Could not find context: " + context;
       }
     }
 
