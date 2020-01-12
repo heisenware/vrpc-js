@@ -26,7 +26,7 @@ describe('An instance of the VrpcRemote class', () => {
   })
   it('should return available classes and functions', async () => {
     const availabilities = await vrpc.getAvailabilities()
-    // console.log('Availabilities:', JSON.stringify(availabilities, null, 2))
+    console.log('Availabilities:', JSON.stringify(availabilities, null, 2))
     // console.log('Domains:', await vrpc.getAvailableDomains())
     // console.log('Agents:', await vrpc.getAvailableAgents())
     // console.log('Classes:', await vrpc.getAvailableClasses('js'))
