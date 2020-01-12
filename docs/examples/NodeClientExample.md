@@ -15,7 +15,7 @@ In order to follow this example from scratch, make sure you ran through the
 *NodeAgent* example and have the agent online.
 
 Once done, start with a new
-directory (e.g. `vrpc-node-proxy-example`), cd into it and run:
+directory (e.g. `vrpc-node-client-example`), cd into it and run:
 
 ```bash
 npm init -f -y
@@ -24,9 +24,9 @@ npm install vrpc
 
 ---
 
-## STEP A: Create a proxy token
+## STEP A: Create a client token
 
-Using the VRPC app (https://vrpc.io/app), create a proxy **access token** by
+Using the VRPC app (https://vrpc.io/app), create a client **access token** by
 navigating to the *Access Control* tab. Add a new **role** which allows wildcard
 access to the `Bar` class for your domain and the agent name you started the
 NodeAgent with (if you followed the tutorial it will be named `barAgent`).
@@ -40,7 +40,7 @@ it as token in the program depicted below.
 Let's write a little program that is capable to remotely call the functions
 as registered by the `barAgent`.
 
-The only VRPC component needed is the `VrpcRemoteProxy`.
+The only VRPC component needed is the `VrpcRemote` client.
 
 *index.js*
 
@@ -48,9 +48,9 @@ The only VRPC component needed is the `VrpcRemoteProxy`.
 const { VrpcRemote } = require('vrpc')
 
 const vrpcRemote = new VrpcRemote({
-  agent: '<yourAgent>',
   domain: '<yourDomain>',
-  token: '<yourProxyToken>'
+  agent: '<yourAgent>',
+  token: '<yourClientToken>'
 })
 
 async function main () {
@@ -94,7 +94,7 @@ async function main () {
     console.log(`So sad, the ${age} year old ${brand} from ${country} is empty.`)
   })
   await bar.removeBottle('rum')
-  // This disconnects the proxy (= stops putting work on NodeJS' event loop)
+  // This disconnects the client (= stops putting work on NodeJS' event loop)
   await vrpcRemote.end()
 }
 

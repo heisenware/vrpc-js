@@ -13,8 +13,10 @@ General topic pattern:
 ```
 
 > **NOTE**
-> - if `<method>` refers to a static method `<instance>` must have value `__static__`
-> - if `<method>` refers to a global method `<instance>` must have value `__static__` and `<class> ` must have value `__global__`
+> - if `<method>` refers to a static method `<instance>` must have value
+>   `__static__`
+> - if `<method>` refers to a global method `<instance>` must have value
+>   `__static__` and `<class> ` must have value `__global__`
 
 General RPC **request** payload pattern (here shown for a function called with
 two arguments):
@@ -51,9 +53,12 @@ General RPC **response** payload pattern:
 
 > **NOTE 1**
 >
-> - if `<method>` refers to a member function the `<targetId>` must reflect the corresponding **instance name**
-> - if `<method>` refers to a static method the `<targetId>` must reflect the corresponding **class name**
-> - if `<method>` refers to a global method the `<targetId>` must have the value `__global__`
+>- if `<method>` refers to a member function the `<targetId>` must reflect the
+>  corresponding **instance name**
+>- if `<method>` refers to a static method the `<targetId>` must reflect the
+>  corresponding **class name**
+>- if `<method>` refers to a global method the `<targetId>` must have the value
+>  `__global__`
 
 > **NOTE 2**
 >
