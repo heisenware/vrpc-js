@@ -84,7 +84,7 @@ class VrpcAgent {
       clientId: `vrpca${md5}`,
       rejectUnauthorized: false,
       will: {
-        topic: `${this._baseTopic}/__agent__/__static__/__info__`,
+        topic: `${this._baseTopic}/__info__`,
         payload: JSON.stringify({
           status: 'offline',
           hostname: os.hostname()
@@ -164,7 +164,7 @@ class VrpcAgent {
     }
     // Publish agent online
     await this._mqttPublish(
-      `${this._baseTopic}/__agent__/__static__/__info__`,
+      `${this._baseTopic}/__info__`,
       JSON.stringify({
         status: 'online',
         hostname: os.hostname()
@@ -187,7 +187,7 @@ class VrpcAgent {
     }
     try {
       await this._mqttPublish(
-        `${this._baseTopic}/${klass}/__static__/__info__`,
+        `${this._baseTopic}/${klass}/__info__`,
         JSON.stringify(json),
         { qos: 1, retain: true }
       )
@@ -214,7 +214,7 @@ class VrpcAgent {
 
   async end ({ unregister = false } = {}) {
     try {
-      const agentTopic = `${this._baseTopic}/__agent__/__static__/__info__`
+      const agentTopic = `${this._baseTopic}/__info__`
       await this._mqttPublish(
         agentTopic,
         JSON.stringify({
@@ -228,7 +228,7 @@ class VrpcAgent {
         const classes = this._getClasses()
         for (const klass of classes) {
           this._log.info(`Un-registering class: ${klass}`)
-          const infoTopic = `${this._baseTopic}/${klass}/__static__/__info__`
+          const infoTopic = `${this._baseTopic}/${klass}/__info__`
           await this._mqttPublish(infoTopic, null, { qos: 1, retain: false })
         }
       }
@@ -311,7 +311,7 @@ class VrpcAgent {
     } else { // new instance
       this._instances.set(sender, new Set([instanceId]))
       await this._mqttSubscribe(`${sender}/__info__`)
-      this._log.info(`Tracking lifetime of proxy: ${sender}`)
+      this._log.info(`Tracking lifetime of client: ${sender}`)
     }
   }
 
@@ -324,7 +324,7 @@ class VrpcAgent {
     if (entry.length === 0) {
       this._instances.delete(sender)
       await this._mqttUnsubscribe(`${sender}/__info__`)
-      this._log.info(`Stopped tracking lifetime of proxy: ${sender}`)
+      this._log.info(`Stopped tracking lifetime of client: ${sender}`)
     }
     return false
   }

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Changed
+
+- topic structure of info messages
+  - Agent Info: `<domain>/<agent>/__info__`
+  - Class Info: `<domain>/<agent>/<class>/__info__`
+  - Client Info: `<domain>/<host>/<random>/__info__`
+
 ## [2.1.0-alpha.0] - 11 Nov 2019
 
 ### Added

@@ -406,46 +406,47 @@ class VrpcRemote extends EventEmitter {
       // This will give us an overview of all remotely available classes
       const domain = this._domain === '*' ? '+' : this._domain
       const agent = this._agent === '*' ? '+' : this._agent
-      this._client.subscribe(`${domain}/${agent}/+/__static__/__info__`)
-      // Listen for remote function return values
+      // Agent info
+      this._client.subscribe(`${domain}/${agent}/__info__`)
+      // Class info
+      this._client.subscribe(`${domain}/${agent}/+/__info__`)
+      // RPC responses
       this._client.subscribe(this._vrpcClientId)
     })
 
     this._client.on('message', (topic, message) => {
       if (message.length === 0) return
       const tokens = topic.split('/')
-      const [domain, agent, klass, instance, func] = tokens
-      if (func === '__info__' && instance === '__static__') {
-        // AgentInfo message
-        if (klass === '__agent__') {
-          const { status, hostname } = JSON.parse(message.toString())
-          this._createIfNotExist(domain, agent)
-          this._domains[domain].agents[agent].status = status
-          this._domains[domain].agents[agent].hostname = hostname
-          this.emit('agent', { domain, agent, status, hostname })
-        } else { // ClassInfo message
-          // Json properties: { className, instances, memberFunctions, staticFunctions }
-          const json = JSON.parse(message.toString())
-          this._createIfNotExist(domain, agent)
-          this._domains[domain].agents[agent].classes[klass] = json
-          const {
+      const [domain, agent, klass, instance] = tokens
+      // AgentInfo message
+      if (klass === '__info__') {
+        const { status, hostname } = JSON.parse(message.toString())
+        this._createIfNotExist(domain, agent)
+        this._domains[domain].agents[agent].status = status
+        this._domains[domain].agents[agent].hostname = hostname
+        this.emit('agent', { domain, agent, status, hostname })
+      } else if (instance === '__info__') { // ClassInfo message
+        // Json properties: { className, instances, memberFunctions, staticFunctions }
+        const json = JSON.parse(message.toString())
+        this._createIfNotExist(domain, agent)
+        this._domains[domain].agents[agent].classes[klass] = json
+        const {
+          className,
+          instances,
+          memberFunctions,
+          staticFunctions
+        } = json
+        this.emit(
+          'class',
+          {
+            domain,
+            agent,
             className,
             instances,
             memberFunctions,
             staticFunctions
-          } = json
-          this.emit(
-            'class',
-            {
-              domain,
-              agent,
-              className,
-              instances,
-              memberFunctions,
-              staticFunctions
-            }
-          )
-        }
+          }
+        )
       } else { // RPC message
         const { id, data } = JSON.parse(message.toString())
         this._eventEmitter.emit(id, data)
