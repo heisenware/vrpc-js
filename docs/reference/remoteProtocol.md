@@ -12,6 +12,10 @@ General topic pattern:
 <domain>/<agent>/<class>/<instance>/<method>
 ```
 
+> **NOTE**
+> - if `<method>` refers to a static method `<instance>` must have value `__static__`
+> - if `<method>` refers to a global method `<instance>` must have value `__static__` and `<class> ` must have value `__global__`
+
 General RPC **request** payload pattern (here shown for a function called with
 two arguments):
 
@@ -45,46 +49,39 @@ General RPC **response** payload pattern:
 }
 ```
 
----
-**NOTE 1**
+> **NOTE 1**
+>
+> - if `<method>` refers to a member function the `<targetId>` must reflect the corresponding **instance name**
+> - if `<method>` refers to a static method the `<targetId>` must reflect the corresponding **class name**
+> - if `<method>` refers to a global method the `<targetId>` must have the value `__global__`
 
-If `<method>` refers to a static function the `<targetId>` must be the
-corresponding **class name**. In case `<method>` refers to a member function the
-`<targetId>` must reflect the corresponding **instance name**.
+> **NOTE 2**
+>
+> If VRPC is used for language binding use cases (i.e. not remotely), the last
+> two properties (`<id>` and `<sender>`) are omitted from the call.
 
----
-**NOTE 2**
+> **NOTE 3**
+>
+> For all languages supporting function overloading, `<method>` will carry
+> the full signature in form of:
+>
+> ```xml
+> <methodName>[-<typename arg1>[<typename arg2>][...]]]
+> ```
+>
+> where `typename` can be one of:
+>
+> * null
+> * object
+> * array
+> * string
+> * boolean
+> * number
 
-If VRPC is used for language binding use cases, the last two properties
-(`<id>` and `<sender>`) are omitted from the call.
-
----
-**NOTE 3**
-
-For all languages supporting function overloading, `<method>` will carry
-the full signature in form of:
-
-```xml
-<functionName>[-<typename arg1>[<typename arg2>][...]]]
-```
-
-where `typename` can be one of:
-
-* null
-* object
-* array
-* string
-* boolean
-* discarded
-* number
-
----
-**NOTE 4**
-
-In case of an successful RPC call the property `data.e` MUST NOT exist in the
-response message.
-
----
+> **NOTE 4**
+>
+> In case of an successful RPC call the property `data.e` MUST NOT exist in the
+> response message.
 
 
 ## Agent Details
@@ -104,7 +101,7 @@ response message.
 3. VRPC **publishes** the (retained) agent info message:
 
     ```xml
-    <domain>/<agent>/__agent__/__static__/__info__
+    <domain>/<agent>/__info__
 
     JSON PAYLOAD {
       status: 'online'
@@ -122,7 +119,7 @@ response message.
 5. VRPC then **publishes** a class info message for each registered class:
 
     ```
-    <domain>/<agent>/<klass>/__static__/__info__
+    <domain>/<agent>/<class>/__info__
 
     JSON PAYLOAD {
       "className": "<className>",
@@ -137,20 +134,20 @@ response message.
 *  After **receiving** an RPC message on topic:
 
     ```xml
-    <domain>/<agent>/<klass>/__static__/__create__
+    <domain>/<agent>/<class>/__static__/__create__
     ```
 
     VRPC creates and names a new instance, iterates all of its member functions
     and **subscribes** to each one using:
 
     ```xml
-    <domain>/<agent>/<klass>/<instance>/<method>
+    <domain>/<agent>/<class>/<instance>/<method>
     ```
 
 *  After **receiving** an RPC message on topic
 
     ```xml
-    <domain>/<agent>/<klass>/<instance>/<method>
+    <domain>/<agent>/<class>/<instance>/<method>
     ```
 
     VRPC executes the RPC call and then replies to the sender instance
@@ -167,25 +164,25 @@ response message.
 2.  VRPC generates an MQTT client ID like so:
 
     ```xml
-    vrpcp<instance>X<processInfo>
+    vrpcp<random>X<processInfo>
     ```
-    where `<instance>` are 4 random characters and `<processInfo>` is a 13
+    where `<random>` are 4 random characters and `<processInfo>` is a 13
     character long string composed of host specific properties (i.e. stays the
     same on the same host)
 
 3.  VRPC then listens for available classes by **subscribing** to
 
     ```xml
-    <domain>/+/+/__static__/__info__
+    <domain>/+/+/__info__
     ```
 
 4.  And to RPC responses by **subscribing** to
 
       ```xml
-      <domain>/<host>/<instance>
+      <domain>/<host>/<random>
       ```
 
-    which can be regarded as proxy ID. This information
+    which can be regarded as VRPC client ID. This information
     is packed into the `<sender>` property of the RPC payload.
 
 ### Runtime
@@ -193,18 +190,19 @@ response message.
 * VRPC **publishes** a single message per RPC request to
 
   ```xml
-  <domain>/<agent>/<klass>/<instance>/<method>
+  <domain>/<agent>/<class>/<instance>/<method>
   ```
 
-  where `<instance>` is replaced with `__static__` in case of static function
+  where `<instance>` is replaced with `__static__` in case of static method
+  calls, and `<class>` is replaced with `__global__` in case of global method
   calls.
 
-* In case an argument of the remotely called function is of *function* type
+* In case an argument of the remotely called method is of *function* type
   (i.e. a callback), the corresponding data argument will be a string that
   reads:
 
   ```xml
-  __f__<functionName>-<index>-<event|invokeId>
+  __f__<methodName>-<index>-<event|invokeId>
   ```
 
   Depending on the callback type (continuous or re-registered) either the
@@ -213,7 +211,7 @@ response message.
 
 ## Adapter Details
 
-With respect to the remote procedural calls the Adapter is a passive component.
+With respect to the remote procedure calls the Adapter is a passive component.
 Besides registering the to-be-remotified functions, the user does not directly
 interact with this component. It however intercepts the regular RPC traffic
 in two distinct ways.
