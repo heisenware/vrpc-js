@@ -25,7 +25,7 @@ with step 1.
 If you already have an account, simply skip this step.
 
 If not, quickly create a new one by clicking on "CREATE A NEW ACCOUNT"
-under https://vrpc.io/app. It takes less than a minute and the only thing
+under https://app.vrpc.io. It takes less than a minute and the only thing
 required is your name and a valid email address.
 
 ## STEP B: Create a free domain

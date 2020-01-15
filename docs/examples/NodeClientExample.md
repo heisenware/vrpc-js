@@ -26,7 +26,7 @@ npm install vrpc
 
 ## STEP A: Create a client token
 
-Using the VRPC app (https://vrpc.io/app), create a client **access token** by
+Using the VRPC app (https://app.vrpc.io), create a client **access token** by
 navigating to the *Access Control* tab. Add a new **role** which allows wildcard
 access to the `Bar` class for your domain and the agent name you started the
 NodeAgent with (if you followed the tutorial it will be named `barAgent`).
