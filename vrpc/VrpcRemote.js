@@ -41,6 +41,7 @@ const os = require('os')
 const crypto = require('crypto')
 const mqtt = require('mqtt')
 const EventEmitter = require('events')
+const randombytes = require('randombytes')
 
 /**
  * Allows to work with code that is made available through one or more agents.
@@ -85,7 +86,7 @@ class VrpcRemote extends EventEmitter {
     this._domain = domain
     this._broker = broker
     this._timeout = timeout
-    this._instance = crypto.randomBytes(2).toString('hex')
+    this._instance = randombytes(2).toString('hex')
     this._mqttClientId = this._createClientId(this._instance)
     this._vrpcClientId = `${domain}/${os.hostname()}/${this._instance}`
     this._domains = {}
@@ -554,7 +555,7 @@ class VrpcRemote extends EventEmitter {
   async _createProxy (domain, agent, className, data) {
     const instance = data.r
     const targetTopic = `${domain}/${agent}/${className}/${instance}`
-    const proxyId = crypto.randomBytes(2).toString('hex')
+    const proxyId = randombytes(2).toString('hex')
     const proxy = {
       _targetId: instance,
       _proxyId: proxyId
