@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - VRPC and MQTT clientId generation when used in browser context
 
+### Changed
+
+- asynchronous timeout implementation on VrpcRemote
+
 ## [2.1.0-alpha.1] - 19 Feb 2019
 
 ### Changed

@@ -591,17 +591,8 @@ class VrpcRemote extends EventEmitter {
   }
 
   async _handleAgentAnswer (id) {
-    return new Promise((resolve, reject) => {
-      const msg = `Function call timed out (> ${this._timeout} ms)`
-      const timer = setTimeout(
-        () => {
-          this._eventEmitter.removeAllListeners(id)
-          reject(new Error(msg))
-        },
-        this._timeout
-      )
+    const answer = new Promise((resolve, reject) => {
       this._eventEmitter.once(id, data => {
-        clearTimeout(timer)
         if (data.e) {
           reject(new Error(data.e))
         } else {
@@ -621,6 +612,19 @@ class VrpcRemote extends EventEmitter {
         }
       })
     })
+    return this._raceAgainstTime(answer)
+  }
+
+  _raceAgainstTime (promise, ms = this._timeout) {
+    // Create a promise that rejects in <ms> milliseconds
+    const timeout = new Promise((resolve, reject) => {
+      const id = setTimeout(() => {
+        clearTimeout(id)
+        reject(new Error(`Function call timed out (> ${ms} ms)`))
+      }, ms)
+    })
+    // Returns a race between our timeout and the passed in promise
+    return Promise.race([promise, timeout])
   }
 
   _packData (proxyId, functionName, ...args) {
