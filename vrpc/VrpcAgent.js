@@ -1,5 +1,4 @@
 const os = require('os')
-const { promisify } = require('util')
 const mqtt = require('mqtt')
 const crypto = require('crypto')
 const { ArgumentParser } = require('argparse')
@@ -62,8 +61,9 @@ class VrpcAgent {
     }
     this._baseTopic = `${this._domain}/${this._agent}`
     VrpcAdapter.onCallback(this._handleVrpcCallback.bind(this))
-    // maps senderId to anonymous instanceIds
-    this._instances = new Map()
+    // maps clientId to instanceId
+    this._unnamedInstances = new Map()
+    this._namedInstances = new Map()
   }
 
   async serve () {
@@ -102,10 +102,44 @@ class VrpcAgent {
     this._client.on('reconnect', this._handleReconnect.bind(this))
     this._client.on('error', this._handleError.bind(this))
     this._client.on('message', this._handleMessage.bind(this))
-    this._mqttPublish = promisify(this._client.publish.bind(this._client))
-    this._mqttSubscribe = promisify(this._client.subscribe.bind(this._client))
-    this._mqttUnsubscribe = promisify(this._client.unsubscribe.bind(this._client))
     return this._ensureConnected()
+  }
+
+  async _mqttPublish (topic, message, options) {
+    return new Promise((resolve) => {
+      this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
+        if (err) {
+          this._log.warn(`Could not publish MQTT message because: ${err.message}`)
+        }
+        resolve()
+      })
+    })
+  }
+
+  async _mqttSubscribe (topic, options) {
+    return new Promise((resolve) => {
+      this._client.subscribe(topic, { qos: 1, ...options }, (err, granted) => {
+        if (err) {
+          this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
+        } else {
+          if (granted.length === 0) {
+            this._log.warn(`No permission for subscribing to topic: ${topic}`)
+          }
+        }
+        resolve()
+      })
+    })
+  }
+
+  async _mqttUnsubscribe (topic, options) {
+    return new Promise((resolve) => {
+      this._client.unsubscribe(topic, options, (err) => {
+        if (err) {
+          this._log.warn(`Could not unsubscribe from topic: ${topic} because: ${err.message}`)
+        }
+        resolve()
+      })
+    })
   }
 
   _getClasses () {
@@ -169,7 +203,7 @@ class VrpcAgent {
         status: 'online',
         hostname: os.hostname()
       }),
-      { qos: 1, retain: true }
+      { retain: true }
     )
     // Publish class information
     const classes = this._getClasses()
@@ -189,7 +223,7 @@ class VrpcAgent {
       await this._mqttPublish(
         `${this._baseTopic}/${klass}/__info__`,
         JSON.stringify(json),
-        { qos: 1, retain: true }
+        { retain: true }
       )
     } catch (err) {
       this._log.error(
@@ -221,15 +255,14 @@ class VrpcAgent {
           status: 'offline',
           hostname: os.hostname()
         }),
-        { qos: 1, retain: true }
+        { retain: true }
       )
       if (unregister) {
-        await this._mqttPublish(agentTopic, null, { qos: 1, retain: true })
+        await this._mqttPublish(agentTopic, null, { retain: true })
         const classes = this._getClasses()
         for (const klass of classes) {
-          this._log.info(`Un-registering class: ${klass}`)
           const infoTopic = `${this._baseTopic}/${klass}/__info__`
-          await this._mqttPublish(infoTopic, null, { qos: 1, retain: false })
+          await this._mqttPublish(infoTopic, null, { retain: true })
         }
       }
       return new Promise(resolve => this._client.end(resolve))
@@ -246,85 +279,139 @@ class VrpcAgent {
       const json = JSON.parse(data.toString())
       this._log.debug(`Message arrived with topic: ${topic} and payload:`, json)
       const tokens = topic.split('/')
+      const [,, klass, instance, method] = tokens
+
+      // Special case: clientInfo message
       if (tokens.length === 4 && tokens[3] === '__info__') {
-        // Client went offline
-        if (json.status === 'offline') {
-          const entry = this._instances.get(topic.slice(0, -9))
-          entry.forEach(instanceId => {
-            const json = { data: { _1: instanceId }, method: '__delete__' }
-            VrpcAdapter._call(json)
-            const { data: { r } } = json
-            if (r) this._log.info(`Deleted anonymous instance: ${r}`)
-          })
-          await this._mqttUnsubscribe(topic)
-          return
-        }
+        this._handleClientInfoMessage(topic, json)
+        return
       }
+
+      // Anything else must follow RPC protocol
       if (tokens.length !== 5) {
         this._log.warn(`Ignoring message with invalid topic: ${topic}`)
         return
       }
-      const klass = tokens[2]
-      const instance = tokens[3]
-      const method = tokens[4]
+
+      // Prepare RPC json
       json.context = instance === '__static__' ? klass : instance
       json.method = method
 
-      // Special case: object deletion
-      if (method === '__delete__') {
-        this._unsubscribeMethodsOfDeletedInstance(klass, instance)
-      }
+      // Mutates json and adds return value
+      VrpcAdapter._call(json)
 
-      VrpcAdapter._call(json) // json is mutated and contains return value
-
-      // Special case: was object creation or deletion
-      if (method === '__create__') {
-        // TODO handle instantiation errors
-        const instanceId = json.data.r
-        // TODO await this, too
-        this._subscribeToMethodsOfNewInstance(klass, instanceId)
-        await this._registerInstance(instanceId, json.sender)
-      } else if (method === '__createNamed__') {
-        // TODO handle instantiation errors
-        const instanceId = json.data.r
-        this._subscribeToMethodsOfNewInstance(klass, instanceId)
-        // Publish updated classInfo
-        await this._publishClassInfoMessage(klass)
-      } else if (method === '__delete__') {
-        const instanceId = json.data.r
-        const wasNamed = await this._unregisterInstance(instanceId, json.sender)
-        if (wasNamed) {
-          // Instance was a named one, let other know about its death
-          await this._publishClassInfoMessage(klass)
+      // Intersecting life-cycle functions
+      switch (method) {
+        case '__create__': {
+          // TODO handle instantiation errors
+          const instanceId = json.data.r
+          // TODO await this
+          this._subscribeToMethodsOfNewInstance(klass, instanceId)
+          await this._registerUnnamedInstance(instanceId, json.sender)
+          break
+        }
+        case '__createNamed__': {
+          // TODO handle instantiation errors
+          const instanceId = json.data.r
+          if (!this._hasNamedInstance(instanceId)) {
+            await this._publishClassInfoMessage(klass)
+            this._subscribeToMethodsOfNewInstance(klass, instanceId)
+          }
+          await this._registerNamedInstance(instanceId, json.sender)
+          break
+        }
+        case '__getNamed__': {
+          const { data: { _1, e }, sender } = json
+          if (!e) await this._registerNamedInstance(_1, sender)
+          break
+        }
+        case '__delete__': {
+          const { data: { _1 }, sender } = json
+          this._unsubscribeMethodsOfDeletedInstance(klass, instance)
+          const wasNamed = await this._unregisterInstance(_1, sender)
+          if (wasNamed) { // let other clients know about its death
+            await this._publishClassInfoMessage(klass)
+          }
+          break
         }
       }
-      await this._mqttPublish(json.sender, JSON.stringify(json), { qos: 1 })
+      await this._mqttPublish(json.sender, JSON.stringify(json))
     } catch (err) {
       this._log.error(err, `Problem while handling incoming message: ${err.message}`)
     }
   }
 
-  async _registerInstance (instanceId, sender) {
-    const entry = this._instances.get(sender)
-    if (entry) { // already seen
-      entry.add(instanceId)
-    } else { // new instance
-      this._instances.set(sender, new Set([instanceId]))
-      await this._mqttSubscribe(`${sender}/__info__`)
-      this._log.info(`Tracking lifetime of client: ${sender}`)
+  _handleClientInfoMessage (topic, json) {
+    // Client went offline
+    const clientId = topic.slice(0, -9)
+    if (json.status === 'offline') {
+      const entry = this._unnamedInstances.get(clientId)
+      if (entry) { // anonymous
+        entry.forEach(instanceId => {
+          const json = { data: { _1: instanceId }, method: '__delete__' }
+          VrpcAdapter._call(json)
+          const { data: { r } } = json
+          if (r) this._log.info(`Deleted unnamed instance: ${instanceId}`)
+        })
+      }
+      VrpcAdapter._unregisterEventListeners(clientId)
     }
   }
 
-  async _unregisterInstance (instanceId, sender) {
-    const entry = this._instances.get(sender)
-    if (!entry || !entry.has(instanceId)) {
+  async _registerUnnamedInstance (instanceId, clientId) {
+    const entry = this._unnamedInstances.get(clientId)
+    if (entry) { // already seen
+      entry.add(instanceId)
+    } else { // new instance
+      this._unnamedInstances.set(clientId, new Set([instanceId]))
+      if (!this._namedInstances.has(clientId)) {
+        await this._mqttSubscribe(`${clientId}/__info__`)
+      }
+      this._log.info(`Tracking lifetime of client: ${clientId}`)
+    }
+  }
+
+  async _registerNamedInstance (instanceId, clientId) {
+    const entry = this._namedInstances.get(clientId)
+    if (entry) { // already seen
+      entry.add(instanceId)
+    } else { // new instance
+      this._namedInstances.set(clientId, new Set([instanceId]))
+      if (!this._unnamedInstances.has(clientId)) {
+        await this._mqttSubscribe(`${clientId}/__info__`)
+      }
+      this._log.debug(`Tracking lifetime of client: ${clientId}`)
+    }
+  }
+
+  _hasNamedInstance (instanceId) {
+    for (const [, instances] of this._namedInstances) {
+      if (instances.has(instanceId)) return true
+    }
+    return false
+  }
+
+  async _unregisterInstance (instanceId, clientId) {
+    const entryUnnamed = this._unnamedInstances.get(clientId)
+    if (!entryUnnamed || !entryUnnamed.has(instanceId)) { // named
+      const entryNamed = this._namedInstances.get(clientId)
+      if (!entryNamed || !entryNamed.has(instanceId)) {
+        this._log.warn(`Failed un-registering not registered instance: ${instanceId} on client: ${clientId}`)
+        return false
+      }
+      entryNamed.delete(instanceId)
+      if (entryNamed.length === 0) {
+        this._namedInstances.delete(clientId)
+        await this._mqttUnsubscribe(`${clientId}/__info__`)
+        this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
+      }
       return true
     }
-    entry.delete(instanceId)
-    if (entry.length === 0) {
-      this._instances.delete(sender)
-      await this._mqttUnsubscribe(`${sender}/__info__`)
-      this._log.info(`Stopped tracking lifetime of client: ${sender}`)
+    entryUnnamed.delete(instanceId)
+    if (entryUnnamed.length === 0) {
+      this._unnamedInstances.delete(clientId)
+      await this._mqttUnsubscribe(`${clientId}/__info__`)
+      this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
     }
     return false
   }
@@ -352,7 +439,7 @@ class VrpcAgent {
   }
 
   _handleError (err) {
-    this._log.error(err, `MQTT triggered error: ${err.message}`)
+    this._log.error(`MQTT triggered error: ${err.message}`)
   }
 }
 module.exports = VrpcAgent

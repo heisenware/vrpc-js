@@ -7,9 +7,9 @@ bindingFile="../../fixtures/binding.js"
 
 $executable -d test.vrpc -a js -f $bindingFile -t $VRPC_TEST_TOKEN & agent_pid=$!
 sleep 6
-../../../node_modules/.bin/mocha vrpcRemoteTest.js --exit & mocha_pid=$!
+../../../node_modules/.bin/mocha vrpcRemoteTest.js --timeout 30000 --exit & mocha_pid=$!
 EXIT_CODE=$?
-sleep 8
+sleep 30
 kill -9 "$agent_pid" > /dev/null 2>&1
 kill -9 "$mocha_pid" > /dev/null 2>&1
 exit $EXIT_CODE

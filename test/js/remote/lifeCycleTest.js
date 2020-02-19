@@ -44,6 +44,7 @@ VrpcAdapter.register(Foo)
 VrpcAdapter.register(MiniFoo)
 VrpcAdapter.register(Bar)
 
+// Top Level
 describe('Agent Life-Cycle', () => {
   let agent
   let remote
@@ -65,60 +66,60 @@ describe('Agent Life-Cycle', () => {
       })
     })
     it('VrpcRemote should see the agent online', (done) => {
-      remote.on('agent', ({ domain, agent, status }) => {
+      const testFunc = ({ domain, agent, status }) => {
         if (domain === 'test.vrpc' &&
         agent === 'nodeJsTestAgent' &&
         status === 'online') {
-          remote.removeAllListeners('agent')
+          remote.removeListener('agent', testFunc)
           done()
         }
-      })
+      }
+      remote.on('agent', testFunc)
     })
   })
 
   describe('Agent down (and unregister)', () => {
     it('VrpcRemote should see the agent offline', async () => {
       const promise = new Promise(resolve => {
-        remote.on('agent', ({ domain, agent, status }) => {
+        const testFunc = ({ domain, agent, status }) => {
           if (domain === 'test.vrpc' &&
           agent === 'nodeJsTestAgent' &&
           status === 'offline') {
-            remote.removeAllListeners('agent')
+            remote.removeListener('agent', testFunc)
             resolve()
           }
-        })
+        }
+        remote.on('agent', testFunc)
       })
       await agent.end({ unregister: true })
       await remote.end()
       await promise
     })
-    it('VrpcRemote should not see the agent online', async () => {
-      remote = new VrpcRemote({
+    it('a new VrpcRemote should not see the agent online', async () => {
+      const remoteInner = new VrpcRemote({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
         token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
       const promise = new Promise((resolve, reject) => {
-        remote.on('agent', ({ domain, agent, status }) => {
+        remoteInner.on('agent', ({ domain, agent, status }) => {
           if (domain === 'test.vrpc' &&
           agent === 'nodeJsTestAgent' &&
           status === 'offline') {
             reject(new Error('Agent should have been unregistered'))
           }
         })
-        setTimeout(() => {
-          remote.removeAllListeners('agent')
-          resolve()
-        }, 500)
+        setTimeout(resolve, 500)
       })
-      await remote.connected()
+      await remoteInner.connected()
       await promise
-      await remote.end()
+      await remoteInner.end()
     })
   })
 })
 
+// Top Level
 describe('Instance life-cycle', () => {
   let agent
   before(async () => {
@@ -180,7 +181,7 @@ describe('Instance life-cycle', () => {
         token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
-      remote.on('class', ({ domain, agent, className, instances }) => {
+      remote.on('class', ({ className, instances }) => {
         inst1[className] = instances
       })
       await remote.connected()
@@ -217,6 +218,7 @@ describe('Instance life-cycle', () => {
   })
 })
 
+// Top Level
 describe('Event Callbacks', () => {
   let agent
   const miniFooEvents = []
@@ -295,7 +297,6 @@ describe('Event Callbacks', () => {
       ret = await miniFoo.echo(2)
       assert.strictEqual(ret, 2)
       assert.deepEqual(miniFooEvents, [1, 2])
-      await miniFoo.removeAllListeners('echo')
     })
   })
   describe('on another client', () => {
@@ -311,6 +312,18 @@ describe('Event Callbacks', () => {
     })
     after(async () => {
       await remote.end()
+    })
+    it('should not receive events from old client and instance', async () => {
+      const miniFoo = await remote.create({
+        className: 'MiniFoo',
+        instance: 'miniFoo'
+      })
+      let ret = await miniFoo.echo(0)
+      assert.strictEqual(ret, 0)
+      await miniFoo.on('echo', value => miniFooEvents.push(value))
+      ret = await miniFoo.echo(3)
+      assert.strictEqual(ret, 3)
+      assert.deepEqual(miniFooEvents, [1, 2, 3])
     })
     it('should receive events on fresh instance', async () => {
       const foo = await remote.create({

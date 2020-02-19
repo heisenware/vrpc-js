@@ -340,6 +340,16 @@ class VrpcAdapter {
     return false
   }
 
+  static _unregisterEventListeners (clientId) {
+    const listeners = VrpcAdapter._listeners[clientId]
+    if (listeners) {
+      listeners.forEach(({ i, e, f }) => {
+        VrpcAdapter.getInstance(i).removeListener(e, f)
+        console.log(`Removed listener from client: ${clientId}, instance: ${i}, event: ${e}`)
+      })
+    }
+  }
+
   static _validate (schema, params) {
     if (!VrpcAdapter._ajv) {
       VrpcAdapter._ajv = new Ajv()
@@ -354,14 +364,25 @@ class VrpcAdapter {
     args.forEach(arg => {
       // Find those args that actually need to be function callbacks
       if (typeof arg === 'string' && arg.substr(0, 5) === '__f__') {
-        wrappedArgs.push((...innerArgs) => {
+        const f = (...innerArgs) => {
           const data = {}
           innerArgs.forEach((value, index) => {
             data[`_${index + 1}`] = value
           })
-          const callbackJson = Object.assign({}, json, { data, id: arg })
+          const callbackJson = JSON.parse(JSON.stringify(json)) // deep copy
+          callbackJson.data = data
+          callbackJson.id = arg
           VrpcAdapter._callback(JSON.stringify(callbackJson), callbackJson)
-        })
+        }
+        // Check whether injected callback is an EventEmitter registration
+        if (json.method === 'on' && typeof args[0] === 'string') {
+          const e = args[0]
+          const i = json.context
+          VrpcAdapter._listeners[json.sender]
+            ? VrpcAdapter._listeners[json.sender].push({ i, e, f })
+            : VrpcAdapter._listeners[json.sender] = [{ i, e, f }]
+        }
+        wrappedArgs.push(f)
       // Leave the others untouched
       } else {
         wrappedArgs.push(arg)
@@ -475,5 +496,6 @@ class VrpcAdapter {
 VrpcAdapter._functionRegistry = new Map()
 VrpcAdapter._instances = new Map()
 VrpcAdapter._correlationId = 0
+VrpcAdapter._listeners = {}
 
 module.exports = VrpcAdapter

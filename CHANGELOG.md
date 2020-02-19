@@ -14,6 +14,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - Client Info: `<domain>/<host>/<random>/__info__`
 - renamed `targetId` to `context`
 
+### Added
+
+**NodeJs: VrpcRemote**
+
+- possibility to hand-over custom log-object
+- handler for mqtt errors resulting in error log messages
+- log notification in case of non-permitted sub/pubs
+
+**NodeJs: VrpcAgent, VrpcAdapter**
+
+- Automatic un-subscription of event-listeners belonging to dead clients
+- log notification in case of non-permitted sub/pubs
+
+### Fixed
+
+- proper waiting until all INFO messages arrived
+- automatic un-subscription of dead-client events
+
+
 ## [2.1.0-alpha.0] - 11 Nov 2019
 
 ### Added

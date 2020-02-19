@@ -11,7 +11,7 @@
     "test": "npm run test:cpp && npm run test:jsLocal && npm run test:jsRemote",
     "test:cpp": "build/Release/vrpc-test",
     "test:jsLocal": "./node_modules/.bin/mocha test/js/local/*.js --exit",
-    "test:jsRemote": "./node_modules/.bin/mocha test/js/remote/lifeCycleTest.js --exit && test/js/remote/test.sh",
+    "test:jsRemote": "./node_modules/.bin/mocha test/js/remote/lifeCycleTest.js --timeout 30000 --exit && test/js/remote/test.sh",
     "example": "node examples/Bar.js"
   },
   "bin": {
