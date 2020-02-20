@@ -47,7 +47,6 @@
     "argparse": "^1.0.10",
     "caller": "^1.0.1",
     "mqtt": "^3.0.0",
-    "randombytes": "^2.1.0",
     "shortid": "^2.2.14"
   }
 }

@@ -335,7 +335,15 @@ class VrpcAgent {
           break
         }
       }
-      await this._mqttPublish(json.sender, JSON.stringify(json))
+      let jsonString
+      try {
+        jsonString = JSON.stringify(json)
+      } catch (err) {
+        this._log.debug(`Failed serialization of return value for: ${json.context}::${json.method}, because: ${err.message}`)
+        json.data.r = '__vrpc::not-serializable__'
+        jsonString = JSON.stringify(json)
+      }
+      await this._mqttPublish(json.sender, jsonString)
     } catch (err) {
       this._log.error(err, `Problem while handling incoming message: ${err.message}`)
     }
@@ -351,7 +359,7 @@ class VrpcAgent {
           const json = { data: { _1: instanceId }, method: '__delete__' }
           VrpcAdapter._call(json)
           const { data: { r } } = json
-          if (r) this._log.info(`Deleted unnamed instance: ${instanceId}`)
+          if (r) this._log.debug(`Deleted unnamed instance: ${instanceId}`)
         })
       }
       VrpcAdapter._unregisterEventListeners(clientId)

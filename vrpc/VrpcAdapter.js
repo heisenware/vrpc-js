@@ -345,7 +345,6 @@ class VrpcAdapter {
     if (listeners) {
       listeners.forEach(({ i, e, f }) => {
         VrpcAdapter.getInstance(i).removeListener(e, f)
-        console.log(`Removed listener from client: ${clientId}, instance: ${i}, event: ${e}`)
       })
     }
   }
@@ -369,10 +368,9 @@ class VrpcAdapter {
           innerArgs.forEach((value, index) => {
             data[`_${index + 1}`] = value
           })
-          const callbackJson = JSON.parse(JSON.stringify(json)) // deep copy
-          callbackJson.data = data
-          callbackJson.id = arg
-          VrpcAdapter._callback(JSON.stringify(callbackJson), callbackJson)
+          const callbackJson = Object.assign({}, json, { data, id: arg })
+          const callbackJsonString = VrpcAdapter._stringifySafely(callbackJson)
+          VrpcAdapter._callback(callbackJsonString, callbackJson)
         }
         // Check whether injected callback is an EventEmitter registration
         if (json.method === 'on' && typeof args[0] === 'string') {
@@ -400,16 +398,30 @@ class VrpcAdapter {
         .then(value => {
           const data = { r: value }
           const promiseJson = Object.assign({}, json, { data, id })
-          VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
+          const promiseJsonString = VrpcAdapter._stringifySafely(promiseJson)
+          VrpcAdapter._callback(promiseJsonString, promiseJson)
         })
         .catch(err => {
           const data = { e: err.message }
           const promiseJson = Object.assign({}, json, { data, id })
-          VrpcAdapter._callback(JSON.stringify(promiseJson), promiseJson)
+          const promiseJsonString = VrpcAdapter._stringifySafely(promiseJson)
+          VrpcAdapter._callback(promiseJsonString, promiseJson)
         })
     } catch (err) {
       json.data.e = err.message
     }
+  }
+
+  static _stringifySafely (json) {
+    let jsonString
+    try {
+      jsonString = JSON.stringify(json)
+    } catch (err) {
+      this._log.debug(`Failed serialization of return value for: ${json.context}::${json.method}, because: ${err.message}`)
+      json.data.r = '__vrpc::not-serializable__'
+      jsonString = JSON.stringify(json)
+    }
+    return jsonString
   }
 
   static _extractDataToArray (data) {

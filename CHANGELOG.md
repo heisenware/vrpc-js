@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- VRPC and MQTT clientId generation when used in browser context
+- failures on un-serializable return values
 
 ### Changed
 
