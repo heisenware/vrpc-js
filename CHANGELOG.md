@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.1.0-alpha.2] - 20 Feb 2019
+## [unreleased] - 20 Feb 2020
+
+### Changed
+
+- shortened MQTT keepalive interval (now 30s) to play nice with websocket timeouts
+- validity year for all licence statements
+
+## [2.1.0-alpha.2] - 20 Feb 2020
 
 ### Fixed
 
@@ -14,7 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - asynchronous timeout implementation on VrpcRemote
 
-## [2.1.0-alpha.1] - 19 Feb 2019
+## [2.1.0-alpha.1] - 19 Feb 2020
 
 ### Changed
 
@@ -43,7 +50,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - automatic un-subscription of dead-client events
 
 
-## [2.1.0-alpha.0] - 11 Nov 2019
+## [2.1.0-alpha.0] - 11 Nov 2020
 
 ### Added
 
@@ -69,13 +76,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - special function `__deleteNamed__`, turned out that `__delete__` suffices
 
-## [2.0.3] - 04 Oct 2019
+## [2.0.3] - 04 Oct 2020
 
 ### Fixed
 
 - missing instances when calling `VrpcRemote.getAvailableInstances()`
 
-## [2.0.2] - 03 Oct 2019
+## [2.0.2] - 03 Oct 2020
 
 ### Fixed
 
@@ -86,7 +93,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - improved possibility to retrieve availabilities in `VrpcRemote.js`
 
-## [2.0.1] - 22 Jun 2019
+## [2.0.1] - 22 Jun 2020
 
 ### Fixed
 
@@ -97,7 +104,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - wrong function calls (including incorrect signature) lead to RPC error instead
   of runtime exception in C++
 
-## [2.0.0] - 15 Jun 2019
+## [2.0.0] - 15 Jun 2020
 
 ### Added
 
@@ -112,7 +119,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - sending multiple agent-info messages if several classes were registered
 - incorrect internal correlationId in node.js remote-proxy
 
-## [2.0.0-alpha.8] - 12 May 2019
+## [2.0.0-alpha.8] - 12 May 2020
 
 ### Added
 
@@ -130,20 +137,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Removed the need of automatically building native add-on during vrpc installation
 
 
-## [2.0.0-alpha.7] - 01 Apr 2019
+## [2.0.0-alpha.7] - 01 Apr 2020
 
 ### Fixed
 
 - Protecting yet another linux-only piece of code from windows compiler
 
-## [2.0.0-alpha.6] - 01 Apr 2019
+## [2.0.0-alpha.6] - 01 Apr 2020
 
 ### Fixed
 
 - Protected dlfcn.h header from being compiled by windows
 - Callback multiplication upon re-registering with same event name
 
-## [2.0.0-alpha.5] - 17 Mar 2019
+## [2.0.0-alpha.5] - 17 Mar 2020
 
 ### Added
 
@@ -166,13 +173,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Renamed all topicPrefix to domain
 - Commandline options of vrpc-agent-js and default settings
 
-## [2.0.0-alpha.4] - 02 Jan 2019
+## [2.0.0-alpha.4] - 02 Jan 2020
 
 ### Fixed
 
 - Exchanged md4 with md5 hashing fixing missing browser support
 
-## [2.0.0-alpha.3] - 01 Jan 2019
+## [2.0.0-alpha.3] - 01 Jan 2020
 
 ### Changed
 
@@ -219,13 +226,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Renamed VrpcFactory to VrpcAdapter
 - Renamed vrpc_local.py to VrpcLocal.py
 
-## [1.1.7] - 31 Mar 2019
+## [1.1.7] - 31 Mar 2020
 
 ### Fixed
 
   - Re-registration problem for emitter based callbacks resulting in multiplied callbacks
 
-## [1.1.6] - 31 Mar 2019
+## [1.1.6] - 31 Mar 2020
 
   - Nothing changed, this tag is identical to 1.1.5 for a technical issue during
     publishing

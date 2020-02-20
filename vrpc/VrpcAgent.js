@@ -78,7 +78,7 @@ class VrpcAgent {
     const options = {
       username,
       password,
-      keepalive: 120,
+      keepalive: 30,
       clean: true,
       connectTimeout: 10 * 1000,
       clientId: `vrpca${md5}`,

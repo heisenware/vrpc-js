@@ -16,7 +16,7 @@ Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-Copyright (c) 2018 - 2019 Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
+Copyright (c) 2018 - 2020 Dr. Burkhard C. Heisen <burkhard.heisen@xsmail.com>.
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
 of this software and associated  documentation files (the "Software"), to deal
@@ -392,7 +392,7 @@ class VrpcRemote extends EventEmitter {
       username,
       password,
       clean: true,
-      keepalive: 120,
+      keepalive: 30,
       clientId: this._mqttClientId,
       rejectUnauthorized: false,
       will: {
