@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Changed
+
+- API for [NodeJs]VrpcRemote::getInstance and [NodeJs]VrpcRemote::delete
+  Provisioning of instanceId only is acceptable now, explicit context is
+  optional. Old API usage is still supported, but generates a deprecation report
+
 ## [2.1.0-alpha.3] - 20 Feb 2020
 
 ### Changed
