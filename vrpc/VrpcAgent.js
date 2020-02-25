@@ -363,6 +363,7 @@ class VrpcAgent {
         })
       }
       VrpcAdapter._unregisterEventListeners(clientId)
+      this._mqttUnsubscribe(`${clientId}/__info__`)
     }
   }
 

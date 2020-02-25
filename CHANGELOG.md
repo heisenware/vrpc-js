@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - old API usage is still supported, but generates a deprecation report
 - automatic schema validation now injects schema defaults [NodeJS]
 
+### Fixed
+
+- missing topic un-subscription after client death [NodeJS]
+
 ## [2.1.0-alpha.3] - 20 Feb 2020
 
 ### Changed
