@@ -5,73 +5,25 @@ is comprised of header and source files and using more advanced language
 data-types and constructs. By going through it, you will hopefully notice
 that creating VRPC bindings still remains a trivial task...
 
----
-**NOTE**
-
-In order to follow this example from scratch, first download
-the correct C++ agent for your platform from https://vrpc.io/web/download.
-
-Save the tarball in a new directory (e.g.
-`vrpc-cpp-agent-example2`), and unpack it using:
-
-```bash
-tar -xzf vrpc-cpp-agent-<platform>.tar.gz
-```
-
-then rename the resultant directory to `third_party`, i.e.
-
-```bash
-mv <platform> third_party
-```
-Finally create a directory `src` and you are good to go.
-
-If you start with VRPC the first time please see steps A-C before proceeding
-with step 1.
-
----
-
-## STEP A: Create a free VRPC account
-
-If you already have an account, simply skip this step.
-
-If not, quickly create a new one by clicking on "CREATE A NEW ACCOUNT"
-under https://app.vrpc.io. It takes less than a minute and the only thing
-required is your name and a valid email address.
-
-## STEP B: Create a free domain
-
-If you already have a domain, simply skip this step.
-
-If not, navigate to the domain tab in your VRPC app and click *ADD DOMAIN*,
-choose a free domain and hit *Start 30 days trial* button.
-
-## STEP C: Test VRPC installation and connectivity
-
-For any agent to work, you must provide it with a valid domain and agent
-token. You get an agent token from your VRPC app under the account tab.
-
-Simply copy the *adminToken* or create a new one (recommended) and use this.
-
-Having that you are ready to test:
-
-```bash
-./vrpc-test-agent -a test -d <yourDomain> -t <yourToken>
-```
-
-In case of success you should see an output similar to this:
-
-```bash
-Domain          : <yourDomain>
-Agent ID        : test
-Broker URL      : ssl://vrpc.io:8883
-------------------
-Persistance     :
-Clean Session   : 1
-Connect Timeout : 10
-Keep Alive      : 120
-Server Auth     : 0
-Connecting to the MQTT server... [OK]
-```
+> **NOTE**
+>
+>
+> In order to follow this example from scratch, first download
+> the correct C++ agent for your platform from https://vrpc.io/web/download.
+>
+> Save the tarball in a new directory (e.g.
+> `vrpc-cpp-agent-example2`), and unpack it using:
+>
+> ```bash
+> tar -xzf vrpc-cpp-agent-<platform>.tar.gz
+> ```
+>
+> then rename the resultant directory to `third_party`, i.e.
+>
+> ```bash
+> mv <platform> third_party
+> ```
+> Finally create a directory `src` and you are good to go.
 
 ## STEP 1: C++ code that should be bound
 
@@ -168,7 +120,7 @@ namespace bar {
   }
 
   void Bar::prepareDrink(const std::function<void (int)>& done) const {
-    const int seconds = rand() % 4;
+    const int seconds = 2;
     std::this_thread::sleep_for(std::chrono::seconds(seconds));
     done(seconds);
   }
@@ -185,6 +137,7 @@ We are going to produce an executable that starts an agent and sits waiting
 until it receives remote requests to call functions. Hence, we have to provide
 a `main.cpp` file.
 
+*src/main.cpp*
 ```cpp
 #include <vrpc.hpp>
 #include <vrpc_agent.hpp>
@@ -271,13 +224,11 @@ make
 ```
 your agent should build and should be immediately ready to use.
 
-Try it by typing:
+Try it by using the free `public.vrpc` domain and type:
 
 ```bash
-./vrpc-bar-agent -a test -d <yourDomain> -t <yourToken>
+./vrpc-bar-agent -d public.vrpc -a $(hostname)
 ```
-
-(see steps A-C if you don't know that your domain or your token is)
 
 If you see the line
 ```
@@ -285,3 +236,66 @@ Connecting to the MQTT server... [OK]
 ```
 
 appearing in your terminal, you made it and your C++ code is remotely callable!
+
+Continue with e.g. with the `NodeClientExample` to finally call your C++ code
+via the internet and by using Javascript.
+
+> **NOTE**
+>
+> As you are using the free but public `public.vrpc` domain your code
+> may be executed by anyone that uses your agent name
+> (which is named after your hostname in this example).
+> While convenient for quick testing or examples like this, it's obviously
+> not an option for production settings. Please refer to the optional steps A-C
+> if you want to make the communication between your agents and clients private.
+
+
+# Optional steps to make your communication private
+
+## STEP A: Create a free VRPC account
+
+If you already have an account, simply skip this step.
+
+If not, quickly create a new one by clicking on "CREATE A NEW ACCOUNT"
+under https://app.vrpc.io. It takes less than a minute and the only thing
+required is your name and a valid email address.
+
+## STEP B: Create a free domain
+
+If you already have a domain, simply skip this step.
+
+If not, navigate to the `Domains` tab in your VRPC app and click *ADD DOMAIN*,
+choose a free domain and hit *Start 30 days trial* button.
+
+## STEP C: Test VRPC installation and connectivity
+
+For any agent to work, you must provide it with a valid domain and agent
+token. You get an agent token from your VRPC app using the `Access Control` tab.
+
+Simply copy the *defaultAgentToken* or create a new one and use this.
+
+Having that you are ready to make the communication to your agent private:
+
+```bash
+./vrpc-test-agent -d <yourDomain> -a $(hostname) -t <yourToken>
+```
+
+In case of success you should see an output similar to this:
+
+```bash
+Domain          : <yourDomain>
+Agent ID        : <yourAgent>
+Broker URL      : ssl://vrpc.io:8883
+------------------
+Persistance     :
+Clean Session   : 1
+Connect Timeout : 10
+Keep Alive      : 120
+Server Auth     : 0
+Connecting to the MQTT server... [OK]
+```
+
+Now, your agent code runs under your private domain and anyone wanting to
+communicate to it needs to be in the same domain and having a valid access
+token to do so. With the vrpc.io app you may even generate access tokens
+with detailed access rights down to a per-function level.
