@@ -137,49 +137,70 @@ class VrpcRemote extends EventEmitter {
   }
 
   /**
-   * Get a remotely existing instance by name.
+   * Get a remotely existing instance.
    *
-   * @param {string} className Name of the instance's class
+   * Either provide a string only, then VRPC tries to find the instance using
+   * client information, or provide an object with explicit meta data.
+   *
    * @param {string} instance The instance to be retrieved
-   * @param {string} agent Agent name. If not provided class default is used.
-   * @param {string} domain Domain name. If not provided class default is used.
+   * @param {object} options Explicitly define domain, agent and class
+   * @param {string} options.className Name of the instance's class
+   * @param {string} options.agent Agent name. If not provided class default is used.
+   * @param {string} options.domain Domain name. If not provided class default is used.
    * @return Proxy object reflecting the remotely existing instance.
    */
-  async getInstance ({
-    className,
-    instance,
-    agent = this._agent,
-    domain = this._domain
-  }) {
+  async getInstance (instance, options) {
+    let instanceData = { domain: this._domain, agent: this._agent }
+    if (typeof instance === 'string') {
+      instanceData = await this._getInstanceData(instance)
+      if (options) instanceData = { ...options, ...instanceData }
+      else if (!instanceData) throw new Error(`Could not find instance: ${instance}`)
+    } else { // deprecate this
+      this._log.warn('This API usage will be deprecated, use "getInstance(instance, options)" instead')
+      instanceData = { ...instanceData, ...instance }
+    }
+    const { domain, agent, className, instance: instanceString } = instanceData
     const json = {
       context: className,
       method: '__getNamed__',
       id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       sender: `${domain}/${os.hostname()}/${this._instance}`,
-      data: { _1: instance }
+      data: { _1: instanceString }
     }
     await this.connected()
     return this._getProxy(domain, agent, className, json)
   }
 
-  async delete ({
-    className,
-    instance,
-    agent = this._agent,
-    domain = this._domain
-  }) {
-    let context
-    if (typeof (instance) === 'string') {
-      context = instance
-    } else if (typeof (instance) === 'object') {
-      context = instance._targetId
+  /**
+   * Delete a remotely existing instance.
+   *
+   * Either provide a string only, then VRPC tries to find the instance using
+   * client information, or provide an object with explicit meta data.
+   *
+   * @param {string} instance The instance to be deleted
+   * @param {object} options Explicitly define domain, agent and class
+   * @param {string} options.className Name of the instance's class
+   * @param {string} options.agent Agent name. If not provided class default is used.
+   * @param {string} options.domain Domain name. If not provided class default is used.
+   * @return true if successful, false otherwise
+   */
+  async delete (instance, options) {
+    let instanceData = { domain: this._domain, agent: this._agent }
+    if (typeof instance === 'string') {
+      instanceData = await this._getInstanceData(instance)
+      if (options) instanceData = { ...options, ...instanceData }
+      else if (!instanceData) throw new Error(`Could not find instance: ${instance}`)
+    } else { // deprecate this
+      this._log.warn('This API usage will be deprecated, use "delete(instance, options)" instead')
+      instanceData = { ...instanceData, ...instance }
     }
+    const { domain, agent, className, instance: instanceString } = instanceData
     const json = {
       context: className,
       method: '__delete__',
       id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       sender: `${domain}/${os.hostname()}/${this._instance}`,
-      data: { _1: context }
+      data: { _1: instanceString }
     }
     await this.connected()
     const topic = `${domain}/${agent}/${className}/__static__/__delete__`
@@ -697,6 +718,26 @@ class VrpcRemote extends EventEmitter {
       typeof variable.emitter === 'object' &&
       typeof variable.emitter.emit === 'function'
     )
+  }
+
+  async _getInstanceData (instance) {
+    await this.connected()
+    // loop domains
+    for (const domain in this._domains) {
+      const { agents } = this._domains[domain]
+      if (!agents) break
+      for (const agent in agents) {
+        const { classes, status } = agents[agent]
+        if (!classes || status === 'offline') break
+        for (const className in classes) {
+          const { instances } = classes[className]
+          if (!instances) break
+          if (instances.includes(instance)) {
+            return { domain, agent, className, instance }
+          }
+        }
+      }
+    }
   }
 }
 

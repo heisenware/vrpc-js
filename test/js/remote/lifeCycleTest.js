@@ -198,16 +198,18 @@ describe('Instance life-cycle', () => {
         instance: 'foo-1'
       })
       assert.strictEqual(await foo1.foo(), 'foo-1')
-      const foo2 = await remote.getInstance({
-        className: 'Foo',
-        instance: 'foo-2'
-      })
+      const foo2 = await remote.getInstance('foo-2')
       assert.strictEqual(await foo2.foo(), 'foo-2')
       const bar1 = await remote.getInstance({
         className: 'Bar',
         instance: 'bar-1'
       })
       assert.strictEqual(await bar1.bar(), 'bar-1')
+      try {
+        await remote.getInstance('no-exist')
+        assert.isTrue(false)
+      } catch (err) {
+      }
     })
     it('should be possible to delete instances', async () => {
       await remote.delete({ className: 'Foo', instance: 'foo-2' })
