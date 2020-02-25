@@ -351,7 +351,7 @@ class VrpcAdapter {
 
   static _validate (schema, params) {
     if (!VrpcAdapter._ajv) {
-      VrpcAdapter._ajv = new Ajv()
+      VrpcAdapter._ajv = new Ajv({ useDefaults: true })
     }
     const valid = VrpcAdapter._ajv.validate(schema, params)
     if (!valid) throw new Error(VrpcAdapter._ajv.errorsText())

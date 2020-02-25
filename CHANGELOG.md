@@ -8,9 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-- API for [NodeJs]VrpcRemote::getInstance and [NodeJs]VrpcRemote::delete
-  Provisioning of instanceId only is acceptable now, explicit context is
-  optional. Old API usage is still supported, but generates a deprecation report
+- API for VrpcRemote::getInstance and VrpcRemote::delete [NodeJS]
+  - provisioning of instanceId only is acceptable now, explicit context is
+    optional.
+  - old API usage is still supported, but generates a deprecation report
+- automatic schema validation now injects schema defaults [NodeJS]
 
 ## [2.1.0-alpha.3] - 20 Feb 2020
 
