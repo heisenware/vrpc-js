@@ -75,9 +75,7 @@ async function main () {
 
   console.log('I would go for a "Dark and Stormy", please.')
   try {
-    // NOTE: We await twice here, firstly the network call and secondly
-    // the returned promise
-    const ms = await await bar.prepareDrink('rum', (answer) => {
+    const ms = await bar.prepareDrink('rum', (answer) => {
       console.log(answer)
     })
     console.log(`Cool, that took only ${ms / 1000} seconds to prepare!`)

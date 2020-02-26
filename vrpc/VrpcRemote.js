@@ -108,8 +108,7 @@ class VrpcRemote extends EventEmitter {
    * @param {string} agent Agent name. If not provided class default is used.
    * @param {string} domain Domain name. If not provided class default is used.
    * @return {Promise} Resolves to an object reflecting a proxy to the original
-   * one handled by the agent. NOTE: You need to call all functions using
-   * "await", asynchronous functions must be called using an "await await".
+   * one handled by the agent.
    */
   async create ({
     className,
@@ -456,6 +455,13 @@ class VrpcRemote extends EventEmitter {
         // Json properties: { className, instances, memberFunctions, staticFunctions }
         const json = JSON.parse(message.toString())
         this._createIfNotExist(domain, agent)
+        const oldClassInfo = this._domains[domain].agents[agent].classes[klass]
+        const newInstances = json.instances
+        const oldInstances = oldClassInfo ? oldClassInfo.instances : []
+        const removed = oldInstances.filter(x => !newInstances.includes(x))
+        const added = newInstances.filter(x => !oldInstances.includes(x))
+        if (removed.length !== 0) this.emit('instanceGone', removed)
+        if (added.length !== 0) this.emit('instanceNew', added)
         this._domains[domain].agents[agent].classes[klass] = json
         const {
           className,
@@ -592,8 +598,9 @@ class VrpcRemote extends EventEmitter {
     // Build proxy
     uniqueFuncs.forEach(name => {
       proxy[name] = async (...args) => {
+        let json
         try {
-          const json = {
+          json = {
             context: instance,
             method: name,
             id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
@@ -601,9 +608,14 @@ class VrpcRemote extends EventEmitter {
             data: this._packData(proxyId, name, ...args)
           }
           await this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
-          return this._handleAgentAnswer(json.id)
         } catch (err) {
           throw new Error(`Could not remotely call "${name}" because: ${err.message}`)
+        }
+        try {
+          const ret = await this._handleAgentAnswer(json.id)
+          return ret
+        } catch (err) {
+          throw new Error(err.message)
         }
       }
     })

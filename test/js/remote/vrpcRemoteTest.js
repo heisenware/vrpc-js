@@ -55,7 +55,7 @@ describe('An instance of the VrpcRemote class', () => {
       })
       assert.ok(testClass)
       await new Promise(resolve => setTimeout(resolve, 300))
-      const available = await await vrpc.getAvailableInstances('TestClass', 'js')
+      const available = await vrpc.getAvailableInstances('TestClass', 'js')
       assert.ok(available.includes('testClass'))
     })
     describe('The corresponding TestClass proxy', () => {
@@ -105,7 +105,7 @@ describe('An instance of the VrpcRemote class', () => {
         assert.isFalse(await testClass.hasCategory('test'))
         assert.lengthOf(removedEntries, 1)
       })
-      it('should trigger and exception on further attempts to remove an entry', async () => {
+      it('should trigger an exception on further attempts to remove an entry', async () => {
         try {
           await testClass.removeEntry('test')
           assert.isTrue(false)
@@ -114,16 +114,16 @@ describe('An instance of the VrpcRemote class', () => {
         }
       })
       it('should properly forward promises', async () => {
-        assert.equal(101, await await testClass.waitForMe(101))
+        assert.equal(101, await testClass.waitForMe(101))
       })
       it('should properly receive callbacks', async () => {
-        await await testClass.callMeBackLater(sleepTime => {
+        await testClass.callMeBackLater(sleepTime => {
           assert.equal(sleepTime, 100)
         })
       })
       it('should be able to catch an asynchronous exception', async () => {
         try {
-          await await testClass.willThrowLater()
+          await testClass.willThrowLater()
           assert.isTrue(false)
         } catch (err) {
           assert.equal(err.message, 'Some test error')
@@ -152,7 +152,7 @@ describe('An instance of the VrpcRemote class', () => {
       })
       it('and async versions thereof', async () => {
         assert.equal(
-          await await vrpc.callStatic({
+          await vrpc.callStatic({
             agent: 'js',
             className: 'TestClass',
             functionName: 'promisedEcho',

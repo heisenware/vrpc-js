@@ -72,7 +72,7 @@ describe('An instance of the VrpcLocal class', () => {
         assert.isFalse(testClass.hasCategory('test'))
         assert.lengthOf(removedEntries, 1)
       })
-      it('should trigger and exception on further attempts to remove an entry', () => {
+      it('should trigger an exception on further attempts to remove an entry', () => {
         try {
           testClass.removeEntry('test')
           assert.isTrue(false)

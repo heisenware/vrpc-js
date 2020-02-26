@@ -149,6 +149,10 @@ describe('Instance life-cycle', () => {
       await remote.end()
     })
     it('should be possible to start several instances', async () => {
+      const newInstances = []
+      remote.on('instanceNew', (instances) => {
+        newInstances.push(...instances)
+      })
       await remote.create({
         className: 'Foo',
         instance: 'foo-1',
@@ -169,6 +173,7 @@ describe('Instance life-cycle', () => {
         args: ['foo-3']
       })
       assert.strictEqual(await foo3.foo(), 'foo-3')
+      assert.deepStrictEqual(newInstances, ['foo-1', 'foo-2', 'bar-1'])
     })
   })
   describe('Instances attach', () => {
@@ -212,10 +217,15 @@ describe('Instance life-cycle', () => {
       }
     })
     it('should be possible to delete instances', async () => {
+      const removed = []
+      remote.on('instanceGone', (instances) => {
+        removed.push(...instances)
+      })
       await remote.delete({ className: 'Foo', instance: 'foo-2' })
       const inst2 = await remote.getAvailableInstances('Foo')
       assert.deepEqual(inst1, { Foo: ['foo-1'], Bar: ['bar-1'], MiniFoo: [] })
       assert.deepEqual(inst2, ['foo-1'])
+      assert.deepStrictEqual(removed, ['foo-2'])
     })
   })
 })
