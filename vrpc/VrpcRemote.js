@@ -96,7 +96,101 @@ class VrpcRemote extends EventEmitter {
     if (this._log.constructor && this._log.constructor.name === 'Console') {
       this._log.debug = () => {}
     }
-    this._init()
+  }
+
+  async connect () {
+    if (this._client && this._client.connected) return
+    let username = this._username
+    let password = this._password
+    if (this._token) {
+      username = '__token__'
+      password = this._token
+    }
+    const options = {
+      username,
+      password,
+      clean: true,
+      keepalive: 30,
+      clientId: this._mqttClientId,
+      rejectUnauthorized: false,
+      will: {
+        topic: `${this._vrpcClientId}/__info__`,
+        payload: JSON.stringify({ status: 'offline' })
+      }
+    }
+    this._client = mqtt.connect(this._broker, options)
+
+    this._client.on('error', (err) => {
+      this.emit('error', err)
+      this._log.error(`Encountered MQTT connection issue: ${err}`)
+    })
+
+    this._client.on('connect', () => {
+      // This will give us an overview of all remotely available classes
+      const domain = this._domain === '*' ? '+' : this._domain
+      const agent = this._agent === '*' ? '+' : this._agent
+      // Agent info
+      this._mqttSubscribe(`${domain}/${agent}/__info__`)
+      // Class info
+      this._mqttSubscribe(`${domain}/${agent}/+/__info__`)
+      // RPC responses
+      this._mqttSubscribe(this._vrpcClientId)
+      this.emit('connect')
+    })
+
+    this._client.on('message', (topic, message) => {
+      if (message.length === 0) return
+      const tokens = topic.split('/')
+      const [domain, agent, klass, instance] = tokens
+      // AgentInfo message
+      if (klass === '__info__') {
+        const { status, hostname } = JSON.parse(message.toString())
+        this._createIfNotExist(domain, agent)
+        this._domains[domain].agents[agent].status = status
+        this._domains[domain].agents[agent].hostname = hostname
+        this.emit('agent', { domain, agent, status, hostname })
+      // ClassInfo message
+      } else if (instance === '__info__') {
+        // Json properties: { className, instances, memberFunctions, staticFunctions }
+        const json = JSON.parse(message.toString())
+        this._createIfNotExist(domain, agent)
+        const oldClassInfo = this._domains[domain].agents[agent].classes[klass]
+        const newInstances = json.instances || []
+        const oldInstances = oldClassInfo ? oldClassInfo.instances : []
+        const removed = oldInstances.filter(x => !newInstances.includes(x))
+        const added = newInstances.filter(x => !oldInstances.includes(x))
+        this._domains[domain].agents[agent].classes[klass] = json
+        const {
+          className,
+          instances,
+          memberFunctions,
+          staticFunctions
+        } = json
+        if (removed.length !== 0) this.emit('instanceGone', removed, { agent, className })
+        if (added.length !== 0) this.emit('instanceNew', added, { agent, className })
+        this.emit(
+          'class',
+          {
+            domain,
+            agent,
+            className,
+            instances,
+            memberFunctions,
+            staticFunctions
+          }
+        )
+      // RPC message
+      } else {
+        const { id, data } = JSON.parse(message.toString())
+        this._eventEmitter.emit(id, data)
+      }
+    })
+    return new Promise(resolve => this._client.once('connect', resolve))
+  }
+
+  async connected () {
+    this._log.warn('connected(): This API usage will be deprecated, use "connect()" instead')
+    return this.connect()
   }
 
   /**
@@ -131,7 +225,6 @@ class VrpcRemote extends EventEmitter {
       sender: `${domain}/${os.hostname()}/${this._instance}`,
       data
     }
-    await this.connected()
     return this._getProxy(domain, agent, className, json)
   }
 
@@ -151,7 +244,7 @@ class VrpcRemote extends EventEmitter {
   async getInstance (instance, options) {
     let instanceData = { domain: this._domain, agent: this._agent }
     if (typeof instance === 'string') {
-      instanceData = await this._getInstanceData(instance)
+      instanceData = this._getInstanceData(instance)
       if (options) instanceData = { ...options, ...instanceData }
       else if (!instanceData) throw new Error(`Could not find instance: ${instance}`)
     } else { // deprecate this
@@ -166,7 +259,6 @@ class VrpcRemote extends EventEmitter {
       sender: `${domain}/${os.hostname()}/${this._instance}`,
       data: { _1: instanceString }
     }
-    await this.connected()
     return this._getProxy(domain, agent, className, json)
   }
 
@@ -186,7 +278,7 @@ class VrpcRemote extends EventEmitter {
   async delete (instance, options) {
     let instanceData = { domain: this._domain, agent: this._agent }
     if (typeof instance === 'string') {
-      instanceData = await this._getInstanceData(instance)
+      instanceData = this._getInstanceData(instance)
       if (options) instanceData = { ...options, ...instanceData }
       else if (!instanceData) throw new Error(`Could not find instance: ${instance}`)
     } else { // deprecate this
@@ -201,7 +293,6 @@ class VrpcRemote extends EventEmitter {
       sender: `${domain}/${os.hostname()}/${this._instance}`,
       data: { _1: instanceString }
     }
-    await this.connected()
     const topic = `${domain}/${agent}/${className}/__static__/__delete__`
     await this._mqttPublish(topic, JSON.stringify(json))
     return this._handleAgentAnswer(json)
@@ -232,7 +323,6 @@ class VrpcRemote extends EventEmitter {
       sender: this._vrpcClientId,
       data: this._packData(className, functionName, ...args)
     }
-    await this.connected()
     const topic = `${domain}/${agent}/${className}/__static__/${functionName}`
     await this._mqttPublish(topic, JSON.stringify(json))
     return this._handleAgentAnswer(json)
@@ -242,25 +332,23 @@ class VrpcRemote extends EventEmitter {
    * Retrieves all domains, agents, instances, classes, member and static
    * functions potentially available for remote control.
    *
-   * @return {Promise} Resolves to an object with structure:
+   * @return {Object} Object with structure:
    * <domain>.agents.<agent>.classes.<className>.instances: []
    * <domain>.agents.<agent>.classes.<className>.memberFunctions: []
    * <domain>.agents.<agent>.classes.<className>.staticFunctions: []
    * <domain>.agents.<agent>.status: 'offline'|'online'
    * <domain>.agents.<agent>.hostname: <hostname>
    */
-  async getAvailabilities () {
-    await this.connected()
+  getAvailabilities () {
     return this._domains
   }
 
   /**
    * Retrieves all domains on which agents can be remote controlled.
    *
-   * @return {Promise} Resolves to an array of domain names.
+   * @return {Array} Array of domain names.
    */
-  async getAvailableDomains () {
-    await this.connected()
+   getAvailableDomains () {
     return Object.keys(this._domains)
   }
 
@@ -268,11 +356,10 @@ class VrpcRemote extends EventEmitter {
    * Retrieves all available agents on specific domain.
    *
    * @param {string} domain Domain name. If not provided class default is used.
-   * @return {Promise} Resolves to an array of agent names.
+   * @return {Array} Array of agent names.
    */
-  async getAvailableAgents (domain = this._domain) {
+  getAvailableAgents (domain = this._domain) {
     if (domain === '*') throw new Error('Domain must be specified')
-    await this.connected()
     return this._domains[domain]
       ? Object.keys(this._domains[domain].agents)
       : []
@@ -283,12 +370,11 @@ class VrpcRemote extends EventEmitter {
    *
    * @param {string} agent Agent name. If not provided class default is used.
    * @param {string} domain Domain name. If not provided class default is used.
-   * @return {Promise} Resolves to an array of class names.
+   * @return {Array} Array of class names.
    */
-  async getAvailableClasses (agent = this._agent, domain = this._domain) {
+  getAvailableClasses (agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
-    await this.connected()
     return this._domains[domain]
       ? this._domains[domain].agents[agent]
         ? Object.keys(this._domains[domain].agents[agent].classes)
@@ -302,12 +388,11 @@ class VrpcRemote extends EventEmitter {
    * @param {string} className Class name.
    * @param {string} agent Agent name. If not provided class default is used.
    * @param {string} domain Domain name. If not provided class default is used.
-   * @return {Promise} Resolves to an array of instance names.
+   * @return {Array} Array of instance names.
    */
-  async getAvailableInstances (className, agent = this._agent, domain = this._domain) {
+   getAvailableInstances (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
-    await this.connected()
     return this._domains[domain]
       ? this._domains[domain].agents[agent]
         ? this._domains[domain].agents[agent].classes[className]
@@ -323,12 +408,11 @@ class VrpcRemote extends EventEmitter {
    * @param {string} className Class name.
    * @param {string} agent Agent name. If not provided class default is used.
    * @param {string} domain Domain name. If not provided class default is used.
-   * @return {Promise} Resolves to an array of member function names.
+   * @return {Array} Array of member function names.
    */
-  async getAvailableMemberFunctions (className, agent = this._agent, domain = this._domain) {
+  getAvailableMemberFunctions (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
-    await this.connected()
     return this._domains[domain]
       ? this._domains[domain].agents[agent]
         ? this._domains[domain].agents[agent].classes[className]
@@ -344,12 +428,11 @@ class VrpcRemote extends EventEmitter {
    * @param {string} className Class name.
    * @param {string} agent Agent name. If not provided class default is used.
    * @param {string} domain Domain name. If not provided class default is used.
-   * @return {Promise} Resolves to an array of static function names.
+   * @return {Array} Array of static function names.
    */
-  async getAvailableStaticFunctions (className, agent = this._agent, domain = this._domain) {
+  getAvailableStaticFunctions (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
-    await this.connected()
     return this._domains[domain]
       ? this._domains[domain].agents[agent]
         ? this._domains[domain].agents[agent].classes[className]
@@ -401,92 +484,6 @@ class VrpcRemote extends EventEmitter {
     return `vrpcp${instance}X${md5}` // 5 + 4 + 1 + 13 = 23 (max clientId)
   }
 
-  _init () {
-    let username = this._username
-    let password = this._password
-    if (this._token) {
-      username = '__token__'
-      password = this._token
-    }
-    const options = {
-      username,
-      password,
-      clean: true,
-      keepalive: 30,
-      clientId: this._mqttClientId,
-      rejectUnauthorized: false,
-      will: {
-        topic: `${this._vrpcClientId}/__info__`,
-        payload: JSON.stringify({ status: 'offline' })
-      }
-    }
-    this._client = mqtt.connect(this._broker, options)
-
-    this._client.on('error', (err) => {
-      this._log.error(`Encountered MQTT connection issue: ${err}`)
-    })
-
-    this._client.on('connect', () => {
-      // This will give us an overview of all remotely available classes
-      const domain = this._domain === '*' ? '+' : this._domain
-      const agent = this._agent === '*' ? '+' : this._agent
-      // Agent info
-      this._mqttSubscribe(`${domain}/${agent}/__info__`)
-      // Class info
-      this._mqttSubscribe(`${domain}/${agent}/+/__info__`)
-      // RPC responses
-      this._mqttSubscribe(this._vrpcClientId)
-    })
-
-    this._client.on('message', (topic, message) => {
-      if (message.length === 0) return
-      const tokens = topic.split('/')
-      const [domain, agent, klass, instance] = tokens
-      // AgentInfo message
-      if (klass === '__info__') {
-        this._lastInfoReceived = Date.now()
-        const { status, hostname } = JSON.parse(message.toString())
-        this._createIfNotExist(domain, agent)
-        this._domains[domain].agents[agent].status = status
-        this._domains[domain].agents[agent].hostname = hostname
-        this.emit('agent', { domain, agent, status, hostname })
-      } else if (instance === '__info__') { // ClassInfo message
-        this._lastInfoReceived = Date.now()
-        // Json properties: { className, instances, memberFunctions, staticFunctions }
-        const json = JSON.parse(message.toString())
-        this._createIfNotExist(domain, agent)
-        const oldClassInfo = this._domains[domain].agents[agent].classes[klass]
-        const newInstances = json.instances
-        const oldInstances = oldClassInfo ? oldClassInfo.instances : []
-        const removed = oldInstances.filter(x => !newInstances.includes(x))
-        const added = newInstances.filter(x => !oldInstances.includes(x))
-        if (removed.length !== 0) this.emit('instanceGone', removed)
-        if (added.length !== 0) this.emit('instanceNew', added)
-        this._domains[domain].agents[agent].classes[klass] = json
-        const {
-          className,
-          instances,
-          memberFunctions,
-          staticFunctions
-        } = json
-        this.emit(
-          'class',
-          {
-            domain,
-            agent,
-            className,
-            instances,
-            memberFunctions,
-            staticFunctions
-          }
-        )
-      } else { // RPC message
-        const { id, data } = JSON.parse(message.toString())
-        this._eventEmitter.emit(id, data)
-      }
-    })
-  }
-
   async _mqttPublish (topic, message, options) {
     return new Promise((resolve) => {
       this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
@@ -530,26 +527,6 @@ class VrpcRemote extends EventEmitter {
     }
     if (!this._domains[domain].agents[agent]) {
       this._domains[domain].agents[agent] = { classes: {} }
-    }
-  }
-
-  async connected () {
-    if (this._client.connected) return
-    return new Promise((resolve) => {
-      this._client.once('connect', () => {
-        setImmediate(async () => {
-          await this._waitUntilInfoMessagesAreReceived()
-          resolve()
-        })
-      })
-    })
-  }
-
-  async _waitUntilInfoMessagesAreReceived () {
-    this._lastInfoReceived = 0
-    while (this._lastInfoReceived < 20 || Date.now() - this._lastInfoReceived <= 200) {
-      await new Promise(resolve => setTimeout(resolve, 100))
-      if (this._lastInfoReceived < 20) this._lastInfoReceived += 1
     }
   }
 
@@ -647,18 +624,6 @@ class VrpcRemote extends EventEmitter {
     })
   }
 
-  _raceAgainstTime (promise, ms = this._timeout) {
-    // Create a promise that rejects in <ms> milliseconds
-    const timeout = new Promise((resolve, reject) => {
-      const id = setTimeout(() => {
-        clearTimeout(id)
-        reject(new Error(`Function call timed out (> ${ms} ms)`))
-      }, ms)
-    })
-    // Returns a race between our timeout and the passed in promise
-    return Promise.race([promise, timeout])
-  }
-
   _packData (proxyId, functionName, ...args) {
     const data = {}
     args.forEach((value, index) => {
@@ -732,8 +697,7 @@ class VrpcRemote extends EventEmitter {
     )
   }
 
-  async _getInstanceData (instance) {
-    await this.connected()
+  _getInstanceData (instance) {
     // loop domains
     for (const domain in this._domains) {
       const { agents } = this._domains[domain]
