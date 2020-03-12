@@ -13,10 +13,11 @@ General topic pattern:
 ```
 
 > **NOTE**
-> - if `<method>` refers to a static method `<instance>` must have value
+>
+> - if `<method>` refers to a **static** method `<instance>` must have value
 >   `__static__`
-> - if `<method>` refers to a global method `<instance>` must have value
->   `__static__` and `<class> ` must have value `__global__`
+> - if `<method>` refers to a **global** method `<class>` must have value
+>   `__global__` and `<instance>` must have value `__static__`
 
 General RPC **request** payload pattern (here shown for a function called with
 two arguments):
@@ -59,12 +60,12 @@ General RPC **response** payload pattern:
 >  corresponding **class name**
 >- if `<method>` refers to a global method the `<context>` must have the value
 >  `__global__`
-
+>
 > **NOTE 2**
 >
 > If VRPC is used for language binding use cases (i.e. not remotely), the last
 > two properties (`<id>` and `<sender>`) are omitted from the call.
-
+>
 > **NOTE 3**
 >
 > For all languages supporting function overloading, `<method>` will carry
@@ -76,18 +77,17 @@ General RPC **response** payload pattern:
 >
 > where `typename` can be one of:
 >
-> * null
-> * object
-> * array
-> * string
-> * boolean
-> * number
-
+> - null
+> - object
+> - array
+> - string
+> - boolean
+> - number
+>
 > **NOTE 4**
 >
 > In case of an successful RPC call the property `data.e` MUST NOT exist in the
 > response message.
-
 
 ## Agent Details
 
@@ -97,16 +97,17 @@ General RPC **response** payload pattern:
 
 2. VRPC generates an MQTT client ID like so:
 
-    ```
+    ```xml
     vrpca<agentInstance>
     ```
+
     where `<agentInstance>` reflects the first 18 chars of an md5 hash composed
     out of domain and agent.
 
 3. VRPC **publishes** the (retained) agent info message:
 
     ```xml
-    <domain>/<agent>/__info__
+    <domain>/<agent>/__agentInfo__
 
     JSON PAYLOAD {
       status: 'online'
@@ -123,8 +124,8 @@ General RPC **response** payload pattern:
 
 5. VRPC then **publishes** a class info message for each registered class:
 
-    ```
-    <domain>/<agent>/<class>/__info__
+    ```xml
+    <domain>/<agent>/<class>/__classInfo__
 
     JSON PAYLOAD {
       "className": "<className>",
@@ -136,7 +137,7 @@ General RPC **response** payload pattern:
 
 ### Runtime
 
-*  After **receiving** an RPC message on topic:
+- After **receiving** an RPC message on topic:
 
     ```xml
     <domain>/<agent>/<class>/__static__/__create__
@@ -149,7 +150,7 @@ General RPC **response** payload pattern:
     <domain>/<agent>/<class>/<instance>/<method>
     ```
 
-*  After **receiving** an RPC message on topic
+- After **receiving** an RPC message on topic
 
     ```xml
     <domain>/<agent>/<class>/<instance>/<method>
@@ -159,29 +160,50 @@ General RPC **response** payload pattern:
     by **publishing** to the topic that was provided in the
     `<sender>` property.
 
+### Destruction Time
+
+Either by explicitly calling the `end()` function or by MQTT last will
+VRPC **publishes** the (retained) agent info message:
+
+  ```xml
+  <domain>/<agent>/__agentInfo__
+
+  JSON PAYLOAD {
+    status: 'offline'
+    hostname: <hostname>
+  }
+  ```
+
 ## Client Details
 
 ### Initialization time
 
-1.  User (optionally) configures `<domain>` and `<agent>`, those will be the
-    defaults for later remote instances
+1. User (optionally) configures `<domain>` and `<agent>`, those will be the
+  defaults for later remote instances
 
-2.  VRPC generates an MQTT client ID like so:
+2. VRPC generates an MQTT client ID like so:
 
     ```xml
     vrpcp<random>X<processInfo>
     ```
+
     where `<random>` are 4 random characters and `<processInfo>` is a 13
     character long string composed of host specific properties (i.e. stays the
     same on the same host)
 
-3.  VRPC then listens for available classes by **subscribing** to
+3. VRPC then listens for available agents and classes by **subscribing** to
 
     ```xml
-    <domain>/+/+/__info__
+    <domain>/<agent>/__agentInfo__
     ```
 
-4.  And to RPC responses by **subscribing** to
+    and
+
+    ```xml
+    <domain>/<agent>/+/__classInfo__
+    ```
+
+4. Finally, VRPC listens to RPC responses by **subscribing** to
 
       ```xml
       <domain>/<host>/<random>
@@ -192,7 +214,7 @@ General RPC **response** payload pattern:
 
 ### Runtime
 
-* VRPC **publishes** a single message per RPC request to
+- VRPC **publishes** a single message per RPC request to
 
   ```xml
   <domain>/<agent>/<class>/<instance>/<method>
@@ -202,7 +224,7 @@ General RPC **response** payload pattern:
   calls, and `<class>` is replaced with `__global__` in case of global method
   calls.
 
-* In case an argument of the remotely called method is of *function* type
+- In case an argument of the remotely called method is of *function* type
   (i.e. a callback), the corresponding data argument will be a string that
   reads:
 
@@ -213,6 +235,18 @@ General RPC **response** payload pattern:
   Depending on the callback type (continuous or re-registered) either the
   event name or an invoke id is used as last identifier.
 
+### Destruction Time
+
+Either by explicitly calling the `end()` function or by MQTT last will
+VRPC **publishes** the (non-retained) client info message:
+
+  ```xml
+  <domain>/<host>/<random>/__clientInfo__
+
+  JSON PAYLOAD {
+    status: 'offline'
+  }
+  ```
 
 ## Adapter Details
 

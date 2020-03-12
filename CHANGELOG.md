@@ -12,9 +12,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - improved error message on timed out functions [NodeJS]
 - triggering a deprecation notice upon calling `VrpcRemote::connected()` [NodeJS]
 - naming of info messages:
-  * `__agentInfo__`
-  * `__classInfo__`
-  * `__clientInfo__`
+  - `__agentInfo__`
+  - `__classInfo__`
+  - `__clientInfo__`
 
 ### Removed
 
@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - ambiguity between classInfo and clientInfo message subscription
+- documentation
 
 ## [2.1.0-alpha.5] - 26 Feb 2020
 
