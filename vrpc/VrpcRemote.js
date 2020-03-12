@@ -280,7 +280,6 @@ class VrpcRemote extends EventEmitter {
     if (typeof instance === 'string') {
       instanceData = this._getInstanceData(instance)
       if (options) instanceData = { ...options, ...instanceData }
-      else if (!instanceData) throw new Error(`Could not find instance: ${instance}`)
     } else { // deprecate this
       this._log.warn('This API usage will be deprecated, use "delete(instance, options)" instead')
       instanceData = { ...instanceData, ...instance }
