@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
 - implicit triggering of MQTT connection within VrpcRemote constructor [NodeJS]
+- waiting for retained info messages during connect [NodeJS]
 
 ### Added
 
