@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Changed
+
+- handling of agent answers (always using single promise) [NodeJS]
+- improved error message on timed out functions [NodeJS]
+
 ## [2.1.0-alpha.5] - 26 Feb 2020
 
 ### Changed
@@ -75,7 +82,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - automatic un-subscription of dead-client events
 
 
-## [2.1.0-alpha.0] - 11 Nov 2020
+## [2.1.0-alpha.0] - 11 Nov 2019
 
 ### Added
 
@@ -101,13 +108,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - special function `__deleteNamed__`, turned out that `__delete__` suffices
 
-## [2.0.3] - 04 Oct 2020
+## [2.0.3] - 04 Oct 2019
 
 ### Fixed
 
 - missing instances when calling `VrpcRemote.getAvailableInstances()`
 
-## [2.0.2] - 03 Oct 2020
+## [2.0.2] - 03 Oct 2019
 
 ### Fixed
 
@@ -118,7 +125,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - improved possibility to retrieve availabilities in `VrpcRemote.js`
 
-## [2.0.1] - 22 Jun 2020
+## [2.0.1] - 22 Jun 2019
 
 ### Fixed
 
@@ -129,7 +136,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - wrong function calls (including incorrect signature) lead to RPC error instead
   of runtime exception in C++
 
-## [2.0.0] - 15 Jun 2020
+## [2.0.0] - 15 Jun 2019
 
 ### Added
 
@@ -144,7 +151,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - sending multiple agent-info messages if several classes were registered
 - incorrect internal correlationId in node.js remote-proxy
 
-## [2.0.0-alpha.8] - 12 May 2020
+## [2.0.0-alpha.8] - 12 May 2019
 
 ### Added
 
@@ -162,20 +169,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Removed the need of automatically building native add-on during vrpc installation
 
 
-## [2.0.0-alpha.7] - 01 Apr 2020
+## [2.0.0-alpha.7] - 01 Apr 2019
 
 ### Fixed
 
 - Protecting yet another linux-only piece of code from windows compiler
 
-## [2.0.0-alpha.6] - 01 Apr 2020
+## [2.0.0-alpha.6] - 01 Apr 2019
 
 ### Fixed
 
 - Protected dlfcn.h header from being compiled by windows
 - Callback multiplication upon re-registering with same event name
 
-## [2.0.0-alpha.5] - 17 Mar 2020
+## [2.0.0-alpha.5] - 17 Mar 2019
 
 ### Added
 
@@ -198,13 +205,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Renamed all topicPrefix to domain
 - Commandline options of vrpc-agent-js and default settings
 
-## [2.0.0-alpha.4] - 02 Jan 2020
+## [2.0.0-alpha.4] - 02 Jan 2019
 
 ### Fixed
 
 - Exchanged md4 with md5 hashing fixing missing browser support
 
-## [2.0.0-alpha.3] - 01 Jan 2020
+## [2.0.0-alpha.3] - 01 Jan 2019
 
 ### Changed
 

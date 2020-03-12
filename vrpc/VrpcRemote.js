@@ -204,7 +204,7 @@ class VrpcRemote extends EventEmitter {
     await this.connected()
     const topic = `${domain}/${agent}/${className}/__static__/__delete__`
     await this._mqttPublish(topic, JSON.stringify(json))
-    return this._handleAgentAnswer(json.id)
+    return this._handleAgentAnswer(json)
   }
 
   /**
@@ -235,7 +235,7 @@ class VrpcRemote extends EventEmitter {
     await this.connected()
     const topic = `${domain}/${agent}/${className}/__static__/${functionName}`
     await this._mqttPublish(topic, JSON.stringify(json))
-    return this._handleAgentAnswer(json.id)
+    return this._handleAgentAnswer(json)
   }
 
   /**
@@ -578,7 +578,7 @@ class VrpcRemote extends EventEmitter {
     })
   }
 
-  async _createProxy (domain, agent, className, data) {
+  _createProxy (domain, agent, className, data) {
     const instance = data.r
     const targetTopic = `${domain}/${agent}/${className}/${instance}`
     const proxyId = crypto.randomBytes(2).toString('hex')
@@ -608,43 +608,43 @@ class VrpcRemote extends EventEmitter {
             data: this._packData(proxyId, name, ...args)
           }
           await this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
+          return this._handleAgentAnswer(json)
         } catch (err) {
           throw new Error(`Could not remotely call "${name}" because: ${err.message}`)
-        }
-        try {
-          const ret = await this._handleAgentAnswer(json.id)
-          return ret
-        } catch (err) {
-          throw new Error(err.message)
         }
       }
     })
     return proxy
   }
 
-  async _handleAgentAnswer (id) {
-    const answer = new Promise((resolve, reject) => {
+  async _handleAgentAnswer ({ id, context, method }) {
+    return new Promise((resolve, reject) => {
+      const msg = `Function call "${context}::${method}()" timed out (> ${this._timeout} ms)`
+      const timer = setTimeout(
+        () => {
+          this._eventEmitter.removeAllListeners(id)
+          reject(new Error(msg))
+        },
+        this._timeout
+      )
       this._eventEmitter.once(id, data => {
+        clearTimeout(timer)
         if (data.e) {
           reject(new Error(data.e))
         } else {
           const ret = data.r
           // Handle functions returning a promise
           if (typeof ret === 'string' && ret.substr(0, 5) === '__p__') {
-            const promise = new Promise((resolve, reject) => {
-              this._eventEmitter.once(ret, promiseData => {
-                if (promiseData.e) reject(new Error(promiseData.e))
-                else resolve(promiseData.r)
-              })
+            this._eventEmitter.once(ret, promiseData => {
+              if (promiseData.e) reject(new Error(promiseData.e))
+              else resolve(promiseData.r)
             })
-            resolve(promise)
           } else {
             resolve(ret)
           }
         }
       })
     })
-    return this._raceAgainstTime(answer)
   }
 
   _raceAgainstTime (promise, ms = this._timeout) {

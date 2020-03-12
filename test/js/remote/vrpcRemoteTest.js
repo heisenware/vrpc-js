@@ -16,12 +16,13 @@ emitter.on('removed', entry => removedEntries.push(entry))
 
 describe('An instance of the VrpcRemote class', () => {
   let vrpc
-  it('should be construct-able given an optional domain', () => {
+  it('should be construct-able given an optional domain', async() => {
     vrpc = new VrpcRemote({
       domain: 'test.vrpc',
       token: process.env.VRPC_TEST_TOKEN,
       timeout: 1500
     })
+    await vrpc.connected()
     assert.ok(vrpc)
   })
   it('should return available classes and functions', async () => {
@@ -171,7 +172,7 @@ describe('An instance of the VrpcRemote class', () => {
           })
           assert.fail()
         } catch (err) {
-          assert.equal(err.message, 'Function call timed out (> 1500 ms)')
+          assert.equal(err.message, 'Function call "TestClass::doesNotExist()" timed out (> 1500 ms)')
         }
       })
     })
@@ -180,12 +181,13 @@ describe('An instance of the VrpcRemote class', () => {
 
 describe('Another instance of the VrpcRemote class', () => {
   let vrpc
-  it('should be construct-able with pre-defined domain and agent', () => {
+  it('should be construct-able with pre-defined domain and agent', async () => {
     vrpc = new VrpcRemote({
       domain: 'test.vrpc',
       agent: 'js',
       token: process.env.VRPC_TEST_TOKEN
     })
+    await vrpc.connected()
     assert.isObject(vrpc)
   })
   describe('The corresponding VrpcRemote instance', () => {
