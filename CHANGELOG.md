@@ -8,9 +8,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-- handling of agent answers (always using single promise) [NodeJS]
+- handling of agent answer implementation (always using single promise) [NodeJS]
 - improved error message on timed out functions [NodeJS]
 - triggering a deprecation notice upon calling `VrpcRemote::connected()` [NodeJS]
+- naming of info messages:
+  * `__agentInfo__`
+  * `__classInfo__`
+  * `__clientInfo__`
 
 ### Removed
 
@@ -22,6 +26,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - explicit `VrpcRemote::connect()` function, performing the MQTT connect [NodeJS]
 - 'error' and 'connect' event for `VrpcRemote` [NodeJS]
 
+### Fixed
+
+- ambiguity between classInfo and clientInfo message subscription
 
 ## [2.1.0-alpha.5] - 26 Feb 2020
 

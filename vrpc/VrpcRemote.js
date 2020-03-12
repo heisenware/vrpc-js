@@ -114,7 +114,7 @@ class VrpcRemote extends EventEmitter {
       clientId: this._mqttClientId,
       rejectUnauthorized: false,
       will: {
-        topic: `${this._vrpcClientId}/__info__`,
+        topic: `${this._vrpcClientId}/__clientInfo__`,
         payload: JSON.stringify({ status: 'offline' })
       }
     }
@@ -130,9 +130,9 @@ class VrpcRemote extends EventEmitter {
       const domain = this._domain === '*' ? '+' : this._domain
       const agent = this._agent === '*' ? '+' : this._agent
       // Agent info
-      this._mqttSubscribe(`${domain}/${agent}/__info__`)
+      this._mqttSubscribe(`${domain}/${agent}/__agentInfo__`)
       // Class info
-      this._mqttSubscribe(`${domain}/${agent}/+/__info__`)
+      this._mqttSubscribe(`${domain}/${agent}/+/__classInfo__`)
       // RPC responses
       this._mqttSubscribe(this._vrpcClientId)
       this.emit('connect')
@@ -143,14 +143,14 @@ class VrpcRemote extends EventEmitter {
       const tokens = topic.split('/')
       const [domain, agent, klass, instance] = tokens
       // AgentInfo message
-      if (klass === '__info__') {
+      if (klass === '__agentInfo__') {
         const { status, hostname } = JSON.parse(message.toString())
         this._createIfNotExist(domain, agent)
         this._domains[domain].agents[agent].status = status
         this._domains[domain].agents[agent].hostname = hostname
         this.emit('agent', { domain, agent, status, hostname })
       // ClassInfo message
-      } else if (instance === '__info__') {
+      } else if (instance === '__classInfo__') {
         // Json properties: { className, instances, memberFunctions, staticFunctions }
         const json = JSON.parse(message.toString())
         this._createIfNotExist(domain, agent)
@@ -469,7 +469,7 @@ class VrpcRemote extends EventEmitter {
    */
   async end () {
     await this._mqttPublish(
-      `${this._vrpcClientId}/__info__`,
+      `${this._vrpcClientId}/__clientInfo__`,
       JSON.stringify({ status: 'offline' })
     )
     return new Promise(resolve => this._client.end(resolve))

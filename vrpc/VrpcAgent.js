@@ -84,7 +84,7 @@ class VrpcAgent {
       clientId: `vrpca${md5}`,
       rejectUnauthorized: false,
       will: {
-        topic: `${this._baseTopic}/__info__`,
+        topic: `${this._baseTopic}/__agentInfo__`,
         payload: JSON.stringify({
           status: 'offline',
           hostname: os.hostname()
@@ -198,7 +198,7 @@ class VrpcAgent {
     }
     // Publish agent online
     await this._mqttPublish(
-      `${this._baseTopic}/__info__`,
+      `${this._baseTopic}/__agentInfo__`,
       JSON.stringify({
         status: 'online',
         hostname: os.hostname()
@@ -221,7 +221,7 @@ class VrpcAgent {
     }
     try {
       await this._mqttPublish(
-        `${this._baseTopic}/${klass}/__info__`,
+        `${this._baseTopic}/${klass}/__classInfo__`,
         JSON.stringify(json),
         { retain: true }
       )
@@ -248,7 +248,7 @@ class VrpcAgent {
 
   async end ({ unregister = false } = {}) {
     try {
-      const agentTopic = `${this._baseTopic}/__info__`
+      const agentTopic = `${this._baseTopic}/__agentInfo__`
       await this._mqttPublish(
         agentTopic,
         JSON.stringify({
@@ -261,7 +261,7 @@ class VrpcAgent {
         await this._mqttPublish(agentTopic, null, { retain: true })
         const classes = this._getClasses()
         for (const klass of classes) {
-          const infoTopic = `${this._baseTopic}/${klass}/__info__`
+          const infoTopic = `${this._baseTopic}/${klass}/__classInfo__`
           await this._mqttPublish(infoTopic, null, { retain: true })
         }
       }
@@ -282,7 +282,7 @@ class VrpcAgent {
       const [,, klass, instance, method] = tokens
 
       // Special case: clientInfo message
-      if (tokens.length === 4 && tokens[3] === '__info__') {
+      if (tokens.length === 4 && tokens[3] === '__clientInfo__') {
         this._handleClientInfoMessage(topic, json)
         return
       }
@@ -363,7 +363,7 @@ class VrpcAgent {
         })
       }
       VrpcAdapter._unregisterEventListeners(clientId)
-      this._mqttUnsubscribe(`${clientId}/__info__`)
+      this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
     }
   }
 
@@ -374,7 +374,7 @@ class VrpcAgent {
     } else { // new instance
       this._unnamedInstances.set(clientId, new Set([instanceId]))
       if (!this._namedInstances.has(clientId)) {
-        await this._mqttSubscribe(`${clientId}/__info__`)
+        await this._mqttSubscribe(`${clientId}/__clientInfo__`)
       }
       this._log.info(`Tracking lifetime of client: ${clientId}`)
     }
@@ -387,7 +387,7 @@ class VrpcAgent {
     } else { // new instance
       this._namedInstances.set(clientId, new Set([instanceId]))
       if (!this._unnamedInstances.has(clientId)) {
-        await this._mqttSubscribe(`${clientId}/__info__`)
+        await this._mqttSubscribe(`${clientId}/__clientInfo__`)
       }
       this._log.debug(`Tracking lifetime of client: ${clientId}`)
     }
@@ -411,7 +411,7 @@ class VrpcAgent {
       entryNamed.delete(instanceId)
       if (entryNamed.length === 0) {
         this._namedInstances.delete(clientId)
-        await this._mqttUnsubscribe(`${clientId}/__info__`)
+        await this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
         this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
       }
       return true
@@ -419,7 +419,7 @@ class VrpcAgent {
     entryUnnamed.delete(instanceId)
     if (entryUnnamed.length === 0) {
       this._unnamedInstances.delete(clientId)
-      await this._mqttUnsubscribe(`${clientId}/__info__`)
+      await this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
       this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
     }
     return false
