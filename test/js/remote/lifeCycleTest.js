@@ -64,6 +64,7 @@ describe('Agent Life-Cycle', () => {
         token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
+      await remote.connect()
     })
     it('VrpcRemote should see the agent online', (done) => {
       const testFunc = ({ domain, agent, status }) => {
@@ -102,6 +103,7 @@ describe('Agent Life-Cycle', () => {
         token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
+      await remoteInner.connect()
       const promise = new Promise((resolve, reject) => {
         remoteInner.on('agent', ({ domain, agent, status }) => {
           if (domain === 'test.vrpc' &&
@@ -112,7 +114,7 @@ describe('Agent Life-Cycle', () => {
         })
         setTimeout(resolve, 500)
       })
-      await remoteInner.connected()
+      await remoteInner.connect()
       await promise
       await remoteInner.end()
     })
@@ -143,7 +145,7 @@ describe('Instance life-cycle', () => {
         token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
-      await remote.connected()
+      await remote.connect()
     })
     after(async () => {
       await remote.end()
@@ -189,7 +191,8 @@ describe('Instance life-cycle', () => {
       remote.on('class', ({ className, instances }) => {
         inst1[className] = instances
       })
-      await remote.connected()
+      await remote.connect()
+      await new Promise(resolve => setTimeout(resolve, 1000))
     })
     after(async () => {
       await remote.end()
@@ -259,7 +262,7 @@ describe('Event Callbacks', () => {
         token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
-      await remote.connected()
+      await remote.connect()
     })
     after(async () => {
       await remote.end()
@@ -320,7 +323,7 @@ describe('Event Callbacks', () => {
         token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
-      await remote.connected()
+      await remote.connect()
     })
     after(async () => {
       await remote.end()

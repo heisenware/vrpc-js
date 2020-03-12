@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - handling of agent answers (always using single promise) [NodeJS]
 - improved error message on timed out functions [NodeJS]
+- triggering a deprecation notice upon calling `VrpcRemote::connected()` [NodeJS]
+
+### Removed
+
+- implicit triggering of MQTT connection within VrpcRemote constructor [NodeJS]
+
+### Added
+
+- explicit `VrpcRemote::connect()` function, performing the MQTT connect [NodeJS]
+- 'error' and 'connect' event for `VrpcRemote` [NodeJS]
+
 
 ## [2.1.0-alpha.5] - 26 Feb 2020
 
@@ -26,7 +37,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-- API for VrpcRemote::getInstance and VrpcRemote::delete [NodeJS]
+- API for `VrpcRemote::getInstance` and `VrpcRemote::delete` [NodeJS]
   - provisioning of instanceId only is acceptable now, explicit context is
     optional.
   - old API usage is still supported, but generates a deprecation report

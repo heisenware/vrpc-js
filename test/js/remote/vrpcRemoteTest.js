@@ -22,7 +22,7 @@ describe('An instance of the VrpcRemote class', () => {
       token: process.env.VRPC_TEST_TOKEN,
       timeout: 1500
     })
-    await vrpc.connected()
+    await vrpc.connect()
     assert.ok(vrpc)
   })
   it('should return available classes and functions', async () => {
@@ -187,7 +187,7 @@ describe('Another instance of the VrpcRemote class', () => {
       agent: 'js',
       token: process.env.VRPC_TEST_TOKEN
     })
-    await vrpc.connected()
+    await vrpc.connect()
     assert.isObject(vrpc)
   })
   describe('The corresponding VrpcRemote instance', () => {
