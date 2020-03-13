@@ -625,13 +625,13 @@ class VrpcRemote extends EventEmitter {
       const handler = (timer) => (instances) => {
         if (instances.includes(instance)) {
           clearTimeout(timer)
-          this.off('instanceNew', handler)
+          this.removeListener('instanceNew', handler)
           resolve()
         }
       }
       const timer = setTimeout(
         () => {
-          this.off('instanceNew', handler(timer))
+          this.removeListener('instanceNew', handler(timer))
           const msg = `Could not find instance: ${instance} (> ${this._timeout} ms)`
           reject(new Error(msg))
         },
