@@ -301,6 +301,7 @@ class VrpcAgent {
       VrpcAdapter._call(json)
 
       // Intersecting life-cycle functions
+      let publishClassInfo = false
       switch (method) {
         case '__create__': {
           // TODO handle instantiation errors
@@ -314,7 +315,7 @@ class VrpcAgent {
           // TODO handle instantiation errors
           const instanceId = json.data.r
           if (!this._hasNamedInstance(instanceId)) {
-            await this._publishClassInfoMessage(klass)
+            publishClassInfo = true
             this._subscribeToMethodsOfNewInstance(klass, instanceId)
           }
           await this._registerNamedInstance(instanceId, json.sender)
@@ -329,9 +330,7 @@ class VrpcAgent {
           const { data: { _1 }, sender } = json
           this._unsubscribeMethodsOfDeletedInstance(klass, instance)
           const wasNamed = await this._unregisterInstance(_1, sender)
-          if (wasNamed) { // let other clients know about its death
-            await this._publishClassInfoMessage(klass)
-          }
+          if (wasNamed) publishClassInfo = true
           break
         }
       }
@@ -343,7 +342,13 @@ class VrpcAgent {
         json.data.r = '__vrpc::not-serializable__'
         jsonString = JSON.stringify(json)
       }
+      if (publishClassInfo && method === '__delete__') {
+        await this._publishClassInfoMessage(klass)
+      }
       await this._mqttPublish(json.sender, jsonString)
+      if (publishClassInfo && method === '__createNamed__') {
+        await this._publishClassInfoMessage(klass)
+      }
     } catch (err) {
       this._log.error(err, `Problem while handling incoming message: ${err.message}`)
     }

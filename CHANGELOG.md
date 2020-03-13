@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - VrpcAgent: unregistration of named instances [NodeJS]
+- VrpcAgent: ordering of classInfo message w.r.t. named creation [NodeJS]
 
 ## [2.1.0-alpha.6] - 12 Mar 2010
 
