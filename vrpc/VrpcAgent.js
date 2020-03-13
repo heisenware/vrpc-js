@@ -402,27 +402,32 @@ class VrpcAgent {
 
   async _unregisterInstance (instanceId, clientId) {
     const entryUnnamed = this._unnamedInstances.get(clientId)
-    if (!entryUnnamed || !entryUnnamed.has(instanceId)) { // named
-      const entryNamed = this._namedInstances.get(clientId)
-      if (!entryNamed || !entryNamed.has(instanceId)) {
-        this._log.warn(`Failed un-registering not registered instance: ${instanceId} on client: ${clientId}`)
-        return false
-      }
-      entryNamed.delete(instanceId)
-      if (entryNamed.length === 0) {
-        this._namedInstances.delete(clientId)
+    if (entryUnnamed && entryUnnamed.has(instanceId)) {
+      entryUnnamed.delete(instanceId)
+      if (entryUnnamed.length === 0) {
+        this._unnamedInstances.delete(clientId)
         await this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
         this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
       }
-      return true
+      return false
     }
-    entryUnnamed.delete(instanceId)
-    if (entryUnnamed.length === 0) {
-      this._unnamedInstances.delete(clientId)
-      await this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
-      this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
+    let found = false
+    this._namedInstances.forEach(async (v) => {
+      if (v.has(instanceId)) {
+        found = true
+        v.delete(instanceId)
+        if (v.length === 0) {
+          this._namedInstances.delete(clientId)
+          await this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
+          this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
+        }
+      }
+    })
+    if (!found) {
+      this._log.warn(`Failed un-registering not registered instance: ${instanceId}`)
+      return false
     }
-    return false
+    return true
   }
 
   _subscribeToMethodsOfNewInstance (klass, instance) {

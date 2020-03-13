@@ -232,7 +232,8 @@ class VrpcRemote extends EventEmitter {
    * Get a remotely existing instance.
    *
    * Either provide a string only, then VRPC tries to find the instance using
-   * client information, or provide an object with explicit meta data.
+   * client information, or additionally provide an object with explicit meta
+   * data.
    *
    * @param {string} instance The instance to be retrieved
    * @param {object} options Explicitly define domain, agent and class
@@ -246,20 +247,17 @@ class VrpcRemote extends EventEmitter {
     if (typeof instance === 'string') {
       instanceData = this._getInstanceData(instance)
       if (options) instanceData = { ...options, ...instanceData }
-      else if (!instanceData) throw new Error(`Could not find instance: ${instance}`)
+      else if (!instanceData) {
+        await this._waitForInstance(instance)
+      }
     } else { // deprecate this
       this._log.warn('This API usage will be deprecated, use "getInstance(instance, options)" instead')
       instanceData = { ...instanceData, ...instance }
+      const available = this._getInstanceData(instanceData.instance)
+      if (!available) await this._waitForInstance(instanceData.instance)
     }
     const { domain, agent, className, instance: instanceString } = instanceData
-    const json = {
-      context: className,
-      method: '__getNamed__',
-      id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      sender: `${domain}/${os.hostname()}/${this._instance}`,
-      data: { _1: instanceString }
-    }
-    return this._getProxy(domain, agent, className, json)
+    return this._createProxy(domain, agent, className, instanceString)
   }
 
   /**
@@ -547,15 +545,14 @@ class VrpcRemote extends EventEmitter {
         if (data.e) {
           reject(new Error(data.e))
         } else {
-          const proxy = this._createProxy(domain, agent, className, data)
+          const proxy = this._createProxy(domain, agent, className, data.r)
           resolve(proxy)
         }
       })
     })
   }
 
-  _createProxy (domain, agent, className, data) {
-    const instance = data.r
+  _createProxy (domain, agent, className, instance) {
     const targetTopic = `${domain}/${agent}/${className}/${instance}`
     const proxyId = crypto.randomBytes(2).toString('hex')
     const proxy = {
@@ -620,6 +617,27 @@ class VrpcRemote extends EventEmitter {
           }
         }
       })
+    })
+  }
+
+  async _waitForInstance (instance) {
+    return new Promise((resolve, reject) => {
+      const handler = (timer) => (instances) => {
+        if (instances.includes(instance)) {
+          clearTimeout(timer)
+          this.off('instanceNew', handler)
+          resolve()
+        }
+      }
+      const timer = setTimeout(
+        () => {
+          this.off('instanceNew', handler(timer))
+          const msg = `Could not find instance: ${instance} (> ${this._timeout} ms)`
+          reject(new Error(msg))
+        },
+        this._timeout
+      )
+      this.on('instanceNew', handler(timer))
     })
   }
 

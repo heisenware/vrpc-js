@@ -223,7 +223,7 @@ describe('Another instance of the VrpcRemote class', () => {
           await vrpc.getInstance({ className: 'TestClass', instance: 'bad' })
           assert.fail()
         } catch (err) {
-          assert.equal(err.message, 'Instance with id: bad does not exist')
+          assert.equal(err.message, 'Could not find instance: bad (> 6000 ms)')
         }
       })
       it('should be possible to attach to the named instance', async () => {
@@ -255,7 +255,7 @@ describe('Another instance of the VrpcRemote class', () => {
             await vrpc.getInstance({ className: 'TestClass', instance: 'test1' })
             assert.fail()
           } catch (err) {
-            assert.equal(err.message, 'Instance with id: test1 does not exist')
+            assert.equal(err.message, 'Could not find instance: test1 (> 6000 ms)')
           }
         })
       })

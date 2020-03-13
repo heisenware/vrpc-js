@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-- not throwing if instance information could not be found locally [NodeJS]
+- `VrpcRemote::getInstance` will try first locally, second remotely to find
+  the instance (exception is thrown after timeout) [NodeJS]
+
+### Fixed
+
+- VrpcAgent: unregistration of named instances [NodeJS]
 
 ## [2.1.0-alpha.6] - 12 Mar 2010
 
