@@ -226,6 +226,14 @@ describe('Another instance of the VrpcRemote class', () => {
           assert.equal(err.message, 'Could not find instance: bad (> 6000 ms)')
         }
       })
+      it('should not be possible to attach to non-existing instance without timeout', async () => {
+        try {
+          await vrpc.getInstance('bad', { noWait: true })
+          assert.fail()
+        } catch (err) {
+          assert.equal(err.message, 'Could not find instance: bad')
+        }
+      })
       it('should be possible to attach to the named instance', async () => {
         test1 = await vrpc.getInstance({ className: 'TestClass', instance: 'test1' })
         assert.isObject(test1)

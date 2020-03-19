@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Spuriously occurring RPC timeouts on calls that actually successfully
   travelled the network by removing the promise-based waiting from all mqtt
   pub/sub calls. Turns out that those callbacks may come later then event
-  RPC answer!
+  RPC answer! [NodeJS]
+
+### Added
+
+- Option `noWait` on `VrpcRemote::getInstance` skipping any waiting for the
+  instance to appear if not currently found in the local cache. [NodeJS]
 
 ## [2.1.0-alpha.7] - 13 Mar 2010
 

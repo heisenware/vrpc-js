@@ -240,25 +240,32 @@ class VrpcRemote extends EventEmitter {
    * @param {string} options.className Name of the instance's class
    * @param {string} options.agent Agent name. If not provided class default is used.
    * @param {string} options.domain Domain name. If not provided class default is used.
+   * @param {bool} options.noWait If true immediately fail if instance could not be found in local cache.
    * @return Proxy object reflecting the remotely existing instance.
    */
   async getInstance (instance, options) {
     let instanceData = { domain: this._domain, agent: this._agent }
     if (typeof instance === 'string') {
       instanceData = this._getInstanceData(instance)
-      if (options) instanceData = { ...options, ...instanceData }
-      else if (!instanceData) {
+      if (options && (options.className || options.agent || options.domain)) {
+        instanceData = { ...options, ...instanceData }
+      } else if (!instanceData) {
+        if (options && options.noWait) throw new Error(`Could not find instance: ${instance}`)
         await this._waitForInstance(instance)
       }
     } else { // deprecate this
       this._log.warn('This API usage will be deprecated, use "getInstance(instance, options)" instead')
       instanceData = { ...instanceData, ...instance }
       const available = this._getInstanceData(instanceData.instance)
-      if (!available) await this._waitForInstance(instanceData.instance)
+      if (!available) {
+        if (options && options.noWait) throw new Error(`Could not find instance: ${instance}`)
+        await this._waitForInstance(instanceData.instance)
+      }
     }
     const { domain, agent, className, instance: instanceString } = instanceData
     return this._createProxy(domain, agent, className, instanceString)
   }
+
 
   /**
    * Delete a remotely existing instance.
