@@ -185,7 +185,7 @@ class VrpcRemote extends EventEmitter {
         this._eventEmitter.emit(id, data)
       }
     })
-    return new Promise(resolve => this._client.once('connect', resolve))
+    return new Promise(resolve => this.once('connect', resolve))
   }
 
   async connected () {
@@ -291,7 +291,7 @@ class VrpcRemote extends EventEmitter {
       data: { _1: instanceString }
     }
     const topic = `${domain}/${agent}/${className}/__static__/__delete__`
-    await this._mqttPublish(topic, JSON.stringify(json))
+    this._mqttPublish(topic, JSON.stringify(json))
     return this._handleAgentAnswer(json)
   }
 
@@ -321,7 +321,7 @@ class VrpcRemote extends EventEmitter {
       data: this._packData(className, functionName, ...args)
     }
     const topic = `${domain}/${agent}/${className}/__static__/${functionName}`
-    await this._mqttPublish(topic, JSON.stringify(json))
+    this._mqttPublish(topic, JSON.stringify(json))
     return this._handleAgentAnswer(json)
   }
 
@@ -345,7 +345,7 @@ class VrpcRemote extends EventEmitter {
    *
    * @return {Array} Array of domain names.
    */
-   getAvailableDomains () {
+  getAvailableDomains () {
     return Object.keys(this._domains)
   }
 
@@ -387,7 +387,7 @@ class VrpcRemote extends EventEmitter {
    * @param {string} domain Domain name. If not provided class default is used.
    * @return {Array} Array of instance names.
    */
-   getAvailableInstances (className, agent = this._agent, domain = this._domain) {
+  getAvailableInstances (className, agent = this._agent, domain = this._domain) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (domain === '*') throw new Error('Domain must be specified')
     return this._domains[domain]
@@ -465,7 +465,7 @@ class VrpcRemote extends EventEmitter {
    * @return {Promise} Resolves when ended.
    */
   async end () {
-    await this._mqttPublish(
+    this._mqttPublish(
       `${this._vrpcClientId}/__clientInfo__`,
       JSON.stringify({ status: 'offline' })
     )
@@ -481,40 +481,31 @@ class VrpcRemote extends EventEmitter {
     return `vrpcp${instance}X${md5}` // 5 + 4 + 1 + 13 = 23 (max clientId)
   }
 
-  async _mqttPublish (topic, message, options) {
-    return new Promise((resolve) => {
-      this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
-        if (err) {
-          this._log.warn(`Could not publish MQTT message because: ${err.message}`)
-        }
-        resolve()
-      })
+  _mqttPublish (topic, message, options) {
+    this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
+      if (err) {
+        this._log.warn(`Could not publish MQTT message because: ${err.message}`)
+      }
     })
   }
 
-  async _mqttSubscribe (topic, options) {
-    return new Promise((resolve) => {
-      this._client.subscribe(topic, { qos: 1, ...options }, (err, granted) => {
-        if (err) {
-          this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
-        } else {
-          if (granted.length === 0) {
-            this._log.warn(`No permission for subscribing to topic: ${topic}`)
-          }
+  _mqttSubscribe (topic, options) {
+    this._client.subscribe(topic, { qos: 1, ...options }, (err, granted) => {
+      if (err) {
+        this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
+      } else {
+        if (granted.length === 0) {
+          this._log.warn(`No permission for subscribing to topic: ${topic}`)
         }
-        resolve()
-      })
+      }
     })
   }
 
-  async _mqttUnsubscribe (topic, options) {
-    return new Promise((resolve) => {
-      this._client.unsubscribe(topic, options, (err) => {
-        if (err) {
-          this._log.warn(`Could not unsubscribe from topic: ${topic} because: ${err.message}`)
-        }
-        resolve()
-      })
+  _mqttUnsubscribe (topic, options) {
+    this._client.unsubscribe(topic, options, (err) => {
+      if (err) {
+        this._log.warn(`Could not unsubscribe from topic: ${topic} because: ${err.message}`)
+      }
     })
   }
 
@@ -530,7 +521,7 @@ class VrpcRemote extends EventEmitter {
   async _getProxy (domain, agent, className, json) {
     const { method } = json
     const topic = `${domain}/${agent}/${className}/__static__/${method}`
-    await this._mqttPublish(topic, JSON.stringify(json))
+    this._mqttPublish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
       const msg = `Proxy creation timed out (> ${this._timeout} ms)`
       const id = setTimeout(
@@ -571,16 +562,15 @@ class VrpcRemote extends EventEmitter {
     // Build proxy
     uniqueFuncs.forEach(name => {
       proxy[name] = async (...args) => {
-        let json
         try {
-          json = {
+          const json = {
             context: instance,
             method: name,
             id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
             sender: this._vrpcClientId,
             data: this._packData(proxyId, name, ...args)
           }
-          await this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
+          this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
           return this._handleAgentAnswer(json)
         } catch (err) {
           throw new Error(`Could not remotely call "${name}" because: ${err.message}`)

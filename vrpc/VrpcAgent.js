@@ -105,40 +105,31 @@ class VrpcAgent {
     return this._ensureConnected()
   }
 
-  async _mqttPublish (topic, message, options) {
-    return new Promise((resolve) => {
-      this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
-        if (err) {
-          this._log.warn(`Could not publish MQTT message because: ${err.message}`)
-        }
-        resolve()
-      })
+  _mqttPublish (topic, message, options) {
+    this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
+      if (err) {
+        this._log.warn(`Could not publish MQTT message because: ${err.message}`)
+      }
     })
   }
 
-  async _mqttSubscribe (topic, options) {
-    return new Promise((resolve) => {
-      this._client.subscribe(topic, { qos: 1, ...options }, (err, granted) => {
-        if (err) {
-          this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
-        } else {
-          if (granted.length === 0) {
-            this._log.warn(`No permission for subscribing to topic: ${topic}`)
-          }
+  _mqttSubscribe (topic, options) {
+    this._client.subscribe(topic, { qos: 1, ...options }, (err, granted) => {
+      if (err) {
+        this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
+      } else {
+        if (granted.length === 0) {
+          this._log.warn(`No permission for subscribing to topic: ${topic}`)
         }
-        resolve()
-      })
+      }
     })
   }
 
-  async _mqttUnsubscribe (topic, options) {
-    return new Promise((resolve) => {
-      this._client.unsubscribe(topic, options, (err) => {
-        if (err) {
-          this._log.warn(`Could not unsubscribe from topic: ${topic} because: ${err.message}`)
-        }
-        resolve()
-      })
+  _mqttUnsubscribe (topic, options) {
+    this._client.unsubscribe(topic, options, (err) => {
+      if (err) {
+        this._log.warn(`Could not unsubscribe from topic: ${topic} because: ${err.message}`)
+      }
     })
   }
 
@@ -172,11 +163,11 @@ class VrpcAgent {
     })
   }
 
-  async _handleVrpcCallback (jsonString, jsonObject) {
+  _handleVrpcCallback (jsonString, jsonObject) {
     const { sender } = jsonObject
     try {
       this._log.debug(`Forwarding callback to: ${sender} with payload:`, jsonObject)
-      await this._mqttPublish(sender, jsonString)
+      this._mqttPublish(sender, jsonString)
     } catch (err) {
       this._log.warn(
         err,
@@ -185,11 +176,11 @@ class VrpcAgent {
     }
   }
 
-  async _handleConnect () {
+  _handleConnect () {
     this._log.info('[OK]')
     try {
       const topics = this._generateTopics()
-      await this._mqttSubscribe(topics)
+      this._mqttSubscribe(topics)
     } catch (err) {
       this._log.error(
         err,
@@ -197,7 +188,7 @@ class VrpcAgent {
       )
     }
     // Publish agent online
-    await this._mqttPublish(
+    this._mqttPublish(
       `${this._baseTopic}/__agentInfo__`,
       JSON.stringify({
         status: 'online',
@@ -207,12 +198,12 @@ class VrpcAgent {
     )
     // Publish class information
     const classes = this._getClasses()
-    classes.forEach(async klass => {
-      await this._publishClassInfoMessage(klass)
+    classes.forEach(klass => {
+      this._publishClassInfoMessage(klass)
     })
   }
 
-  async _publishClassInfoMessage (klass) {
+  _publishClassInfoMessage (klass) {
     const json = {
       className: klass,
       instances: this._getInstances(klass),
@@ -220,7 +211,7 @@ class VrpcAgent {
       staticFunctions: this._getStaticFunctions(klass)
     }
     try {
-      await this._mqttPublish(
+      this._mqttPublish(
         `${this._baseTopic}/${klass}/__classInfo__`,
         JSON.stringify(json),
         { retain: true }
@@ -249,7 +240,7 @@ class VrpcAgent {
   async end ({ unregister = false } = {}) {
     try {
       const agentTopic = `${this._baseTopic}/__agentInfo__`
-      await this._mqttPublish(
+      this._mqttPublish(
         agentTopic,
         JSON.stringify({
           status: 'offline',
@@ -258,11 +249,11 @@ class VrpcAgent {
         { retain: true }
       )
       if (unregister) {
-        await this._mqttPublish(agentTopic, null, { retain: true })
+        this._mqttPublish(agentTopic, null, { retain: true })
         const classes = this._getClasses()
         for (const klass of classes) {
           const infoTopic = `${this._baseTopic}/${klass}/__classInfo__`
-          await this._mqttPublish(infoTopic, null, { retain: true })
+          this._mqttPublish(infoTopic, null, { retain: true })
         }
       }
       return new Promise(resolve => this._client.end(resolve))
@@ -274,7 +265,7 @@ class VrpcAgent {
     }
   }
 
-  async _handleMessage (topic, data) {
+  _handleMessage (topic, data) {
     try {
       const json = JSON.parse(data.toString())
       this._log.debug(`Message arrived with topic: ${topic} and payload:`, json)
@@ -308,7 +299,7 @@ class VrpcAgent {
           const instanceId = json.data.r
           // TODO await this
           this._subscribeToMethodsOfNewInstance(klass, instanceId)
-          await this._registerUnnamedInstance(instanceId, json.sender)
+          this._registerUnnamedInstance(instanceId, json.sender)
           break
         }
         case '__createNamed__': {
@@ -318,18 +309,18 @@ class VrpcAgent {
             publishClassInfo = true
             this._subscribeToMethodsOfNewInstance(klass, instanceId)
           }
-          await this._registerNamedInstance(instanceId, json.sender)
+          this._registerNamedInstance(instanceId, json.sender)
           break
         }
         case '__getNamed__': {
           const { data: { _1, e }, sender } = json
-          if (!e) await this._registerNamedInstance(_1, sender)
+          if (!e) this._registerNamedInstance(_1, sender)
           break
         }
         case '__delete__': {
           const { data: { _1 }, sender } = json
           this._unsubscribeMethodsOfDeletedInstance(klass, instance)
-          const wasNamed = await this._unregisterInstance(_1, sender)
+          const wasNamed = this._unregisterInstance(_1, sender)
           if (wasNamed) publishClassInfo = true
           break
         }
@@ -343,11 +334,11 @@ class VrpcAgent {
         jsonString = JSON.stringify(json)
       }
       if (publishClassInfo && method === '__delete__') {
-        await this._publishClassInfoMessage(klass)
+        this._publishClassInfoMessage(klass)
       }
-      await this._mqttPublish(json.sender, jsonString)
+      this._mqttPublish(json.sender, jsonString)
       if (publishClassInfo && method === '__createNamed__') {
-        await this._publishClassInfoMessage(klass)
+        this._publishClassInfoMessage(klass)
       }
     } catch (err) {
       this._log.error(err, `Problem while handling incoming message: ${err.message}`)
@@ -372,27 +363,27 @@ class VrpcAgent {
     }
   }
 
-  async _registerUnnamedInstance (instanceId, clientId) {
+  _registerUnnamedInstance (instanceId, clientId) {
     const entry = this._unnamedInstances.get(clientId)
     if (entry) { // already seen
       entry.add(instanceId)
     } else { // new instance
       this._unnamedInstances.set(clientId, new Set([instanceId]))
       if (!this._namedInstances.has(clientId)) {
-        await this._mqttSubscribe(`${clientId}/__clientInfo__`)
+        this._mqttSubscribe(`${clientId}/__clientInfo__`)
       }
       this._log.info(`Tracking lifetime of client: ${clientId}`)
     }
   }
 
-  async _registerNamedInstance (instanceId, clientId) {
+  _registerNamedInstance (instanceId, clientId) {
     const entry = this._namedInstances.get(clientId)
     if (entry) { // already seen
       entry.add(instanceId)
     } else { // new instance
       this._namedInstances.set(clientId, new Set([instanceId]))
       if (!this._unnamedInstances.has(clientId)) {
-        await this._mqttSubscribe(`${clientId}/__clientInfo__`)
+        this._mqttSubscribe(`${clientId}/__clientInfo__`)
       }
       this._log.debug(`Tracking lifetime of client: ${clientId}`)
     }
@@ -405,13 +396,13 @@ class VrpcAgent {
     return false
   }
 
-  async _unregisterInstance (instanceId, clientId) {
+  _unregisterInstance (instanceId, clientId) {
     const entryUnnamed = this._unnamedInstances.get(clientId)
     if (entryUnnamed && entryUnnamed.has(instanceId)) {
       entryUnnamed.delete(instanceId)
       if (entryUnnamed.length === 0) {
         this._unnamedInstances.delete(clientId)
-        await this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
+        this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
         this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
       }
       return false
@@ -423,7 +414,7 @@ class VrpcAgent {
         v.delete(instanceId)
         if (v.length === 0) {
           this._namedInstances.delete(clientId)
-          await this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
+          this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
           this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
         }
       }
@@ -437,18 +428,18 @@ class VrpcAgent {
 
   _subscribeToMethodsOfNewInstance (klass, instance) {
     const memberFunctions = this._getMemberFunctions(klass)
-    memberFunctions.forEach(async method => {
+    memberFunctions.forEach(method => {
       const topic = `${this._baseTopic}/${klass}/${instance}/${method}`
-      await this._mqttSubscribe(topic)
+      this._mqttSubscribe(topic)
       this._log.debug(`Subscribed to new topic after instantiation: ${topic}`)
     })
   }
 
   _unsubscribeMethodsOfDeletedInstance (klass, instance) {
     const memberFunctions = this._getMemberFunctions(klass)
-    memberFunctions.forEach(async method => {
+    memberFunctions.forEach(method => {
       const topic = `${this._baseTopic}/${klass}/${instance}/${method}`
-      await this._mqttUnsubscribe(topic)
+      this._mqttUnsubscribe(topic)
       this._log.debug(`Unsubscribed from topic after deletion: ${topic}`)
     })
   }
