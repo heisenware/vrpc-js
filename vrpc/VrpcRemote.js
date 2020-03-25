@@ -262,7 +262,9 @@ class VrpcRemote extends EventEmitter {
         await this._waitForInstance(instanceData.instance)
       }
     }
-    const { domain, agent, className, instance: instanceString } = instanceData
+    let { domain, agent, className, instance: instanceString } = instanceData
+    if (!domain) domain = this._domain
+    if (!agent) agent = this._agent
     return this._createProxy(domain, agent, className, instanceString)
   }
 
