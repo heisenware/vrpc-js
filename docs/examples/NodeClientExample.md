@@ -8,21 +8,18 @@ rejections.
 Let's see how VRPC handles all this cases and how it feels to use the bar
 remotely...
 
----
-**NOTE**
-
-In order to follow this example from scratch, make sure you ran through the
-*NodeAgent* example and have the agent online.
-
-Once done, start with a new
-directory (e.g. `vrpc-node-client-example`), cd into it and run:
-
-```bash
-npm init -f -y
-npm install vrpc
-```
-
----
+> **NOTE**
+>
+> In order to follow this example from scratch, make sure you ran through the
+> *NodeAgent* example and have the agent online.
+>
+> Once done, start with a new
+> directory (e.g. `vrpc-node-client-example`), cd into it and run:
+>
+> ```bash
+> npm init -f -y
+> npm install vrpc
+> ```
 
 ## STEP 1: Write a program to remote-control the Bar
 
@@ -41,15 +38,20 @@ The only VRPC component needed is the `VrpcRemote` client.
 ### Client for NodeJS agent
 
 *index.js*
+
 ```javascript
 const { VrpcRemote } = require('vrpc')
 
-const vrpcRemote = new VrpcRemote({
-  domain: 'public.vrpc',
-  agent: '<yourAgent>'
-})
-
 async function main () {
+
+  // Create a remote client
+  const vrpcRemote = new VrpcRemote({
+    domain: 'public.vrpc',
+    agent: '<yourAgent>'
+  })
+  // Connect it
+  await vrpcRemote.connect()
+
   console.log('Why an example at the Bar?')
   const sense = await vrpcRemote.callStatic({
     className: 'Bar',
@@ -78,7 +80,7 @@ async function main () {
     const ms = await bar.prepareDrink('rum', (answer) => {
       console.log(answer)
     })
-    console.log(`Cool, that took only ${ms / 1000} seconds to prepare!`)
+    console.log(`Cool, that took only ${ms} ms to prepare!`)
   } catch (err) {
     console.log(`Sorry: ${err.message}`)
   }
@@ -171,6 +173,10 @@ async function main () {
 main().catch(err => console.log(`An error happened: ${err.message}`))
 ```
 
+> **IMPORTANT**
+>
+> Don't forget to exchange `<yourAgent>` with the name you used while starting
+> the agent! (If you used the example, it's your hostname)
 
 Make sure you have an agent running, then try the client using:
 
