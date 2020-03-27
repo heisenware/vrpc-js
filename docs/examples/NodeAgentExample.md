@@ -3,37 +3,17 @@
 With NodeJS being such a nice and easy programming language we will not split
 the example in two, but directly head to the bar.
 
----
-**NOTE**
-
-In order to follow this example from scratch, create a new directory (e.g.
-`vrpc-node-agent-example`), cd into it and run:
-
-```bash
-npm init -f -y
-npm install vrpc
-```
-Finally create a directory `src` and you are good to go.
-
-If you start with VRPC the first time please see steps A and B before proceeding
-with step 1.
-
----
-
-## STEP A: Create a free VRPC account
-
-If you already have an account, simply skip this step.
-
-If not, quickly create a new one by clicking on "CREATE A NEW ACCOUNT"
-under https://app.vrpc.io. It takes less than a minute and the only thing
-required is your name and a valid email address.
-
-## STEP B: Create a free domain
-
-If you already have a domain, simply skip this step.
-
-If not, navigate to the domain tab in your VRPC app and click *ADD DOMAIN*,
-choose a free domain and hit *Start 30 days trial* button.
+> **NOTE**
+>
+> In order to follow this example from scratch, create a new directory (e.g.
+> `vrpc-node-agent-example`), cd into it and run:
+>
+> ```bash
+> npm init -f -y
+> npm install vrpc
+> ```
+>
+> Finally create a directory `src` and you are good to go.
 
 ## STEP 1: NodeJS code that should be bound
 
@@ -132,26 +112,52 @@ async function main () {
 main()
 ```
 
-That's it, try your agent by typing:
+That's it, try it by using the free `public.vrpc` domain and type:
 
 ```bash
-node index.js -a barAgent -d <yourDomain> -t <yourToken>
+node index.js -d public.vrpc -a $(hostname)
 ```
 
-(see steps A-C if you don't know that your domain or your token is)
+> **NOTE**
+>
+> The function `VrpcAdapter.register()` can take options detailing
+> the class registration process. The following options are available:
+>
+> - `onlyPublic` - registers only public functions, i.e. skips those starting with
+>   an underscore "`_`"  (default: true)
+>
+> - `withNew` - whether the registered class needs the `new` keyword to be
+>   constructed (default: true)
+>
+> - `schema` - optionally provide a JSON schema (in ajv style) that is used for
+>   validating arguments before object instantiation (default: null)
 
----
-**NOTE**
+# Optional steps to make your communication private
 
-The function `VrpcAdapter.register()` can take options detailing
-the class registration process. The following options are available:
+## STEP A: Create a free VRPC account
 
-- `onlyPublic` - registers only public functions, i.e. skips those starting with
-  an underscore "`_`"  (default: true)
+If you already have an account, simply skip this step.
 
-- `withNew` - whether the registered class needs the `new` keyword to be
-  constructed (default: true)
+If not, quickly create a new one by clicking on "CREATE A NEW ACCOUNT"
+under https://app.vrpc.io. It takes less than a minute and the only thing
+required is your name and a valid email address.
 
-- `schema` - optionally provide a JSON schema (in ajv style) that is used for
-  validating arguments before object instantiation (default: null)
----
+## STEP B: Create a free domain
+
+If you already have a domain, simply skip this step.
+
+If not, navigate to the `Domains` tab in your VRPC app and click *ADD DOMAIN*,
+choose a free domain and hit *Start 30 days trial* button.
+
+## STEP C: Test VRPC installation and connectivity
+
+For any agent to work, you must provide it with a valid domain and agent
+token. You get an agent token from your VRPC app using the `Access Control` tab.
+
+Simply copy the *defaultAgentToken* or create a new one and use this.
+
+Having that you are ready to make the communication to your agent private:
+
+```bash
+node index.js -d <yourDomain> -a $(hostname) -t <yourToken>
+```
