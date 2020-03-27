@@ -105,12 +105,16 @@ main().catch(err => console.log(`An error happened: ${err.message}`))
 const { VrpcRemote } = require('vrpc')
 const EventEmitter = require('events')
 
-const vrpcRemote = new VrpcRemote({
-  domain: 'public.vrpc',
-  agent: '<yourAgent>'
-})
-
 async function main () {
+
+  // Create a remote client
+  const vrpcRemote = new VrpcRemote({
+    domain: 'public.vrpc',
+    agent: '<yourAgent>'
+  })
+  // Connect it
+  await vrpcRemote.connect()
+
   console.log('Why an example at the Bar?')
   const sense = await vrpcRemote.callStatic({
     className: 'Bar',
