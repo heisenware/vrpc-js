@@ -7,7 +7,7 @@ make existing C++ code remotely callable.
 >
 >
 > In order to follow this example from scratch, first download
-> the correct C++ agent for your platform from https://vrpc.io/web/download.
+> the correct C++ agent for your platform from https://vrpc.io/download.
 >
 > Save the tarball in a new directory (e.g.
 > `vrpc-cpp-agent-example1`), and unpack it using:
@@ -29,6 +29,7 @@ We pretend that the code below already existed and should be made remotely
 accessible.
 
 *src/Foo.hpp*
+
 ```cpp
 class Foo {
 
@@ -133,6 +134,11 @@ That's already it, after typing
 make
 ```
 your agent should build and then is immediately ready to use.
+
+> **NOTE**
+>
+> If you copied the code directly from the browser make sure your IDE
+> inserts tabs and not spaces (as Makefiles need tabs).
 
 Try it by using the free `public.vrpc` domain and type:
 

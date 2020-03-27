@@ -110,13 +110,13 @@ under `build/Release`.
 
 ## STEP 4: The Node.js application
 
-*src/foo.js*
+*index.js*
 
 ```javascript
 'use strict'
 
 const { VrpcLocal } = require('vrpc')
-const addon = require('../build/Release/vrpc_foo')
+const addon = require('./build/Release/vrpc_foo')
 
 const vrpc = new VrpcLocal(addon)
 
@@ -129,7 +129,7 @@ console.log(foo.getValue()) // prints 24
 Test it using:
 
 ```bash
-node src/foo.js
+node index.js
 ```
 
 Note that the C++ code is called like all other instructions in Node.js as

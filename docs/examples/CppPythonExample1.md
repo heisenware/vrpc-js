@@ -10,8 +10,9 @@ In order to follow this example from scratch, create a new directory (e.g.
 `vrpc-cpp-python-example1`), cd into it and run:
 
 ```bash
-pip3 install 'vrpc==2.0.0a8' --user
+pip3 install vrpc --user
 ```
+
 Finally create a directory `src` and you are good to go.
 
 ---
@@ -22,6 +23,7 @@ We pretend that the code below already existed and should be made usable
 from within Python3.
 
 *src/Foo.hpp*
+
 ```cpp
 class Foo {
 

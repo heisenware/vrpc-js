@@ -9,7 +9,7 @@ that creating VRPC bindings still remains a trivial task...
 >
 >
 > In order to follow this example from scratch, first download
-> the correct C++ agent for your platform from https://vrpc.io/web/download.
+> the correct C++ agent for your platform from https://vrpc.io/download.
 >
 > Save the tarball in a new directory (e.g.
 > `vrpc-cpp-agent-example2`), and unpack it using:
