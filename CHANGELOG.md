@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Fixed
+
+- Compilation error of addon.cpp whe using V8 12.x (solves GH-5) [C++]
+
 ## [2.1.0] - 25 Mar 2010
 
 ### Fixed
