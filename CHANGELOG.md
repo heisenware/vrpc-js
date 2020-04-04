@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Compilation error of addon.cpp whe using V8 12.x (solves GH-5) [C++]
+- Unhandled error propagation of `VrpcRemote::#error` event when no handler is
+  subscribed [NodeJS]
+- Immediate failure of `VrpcRemote::connect` function when MQTT connection takes
+  time [NodeJS]
+- Wrong RPC timeouts when agent is online only after the
+  client call (but still within `timeout` time) [NodeJS]
+- Loss of messages and re-subscription issues while `VrpcAgent` re-connects
+  - Agent is using a persisted session while being online
 
 ### Added
 

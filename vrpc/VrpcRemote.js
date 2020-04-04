@@ -75,7 +75,7 @@ class VrpcRemote extends EventEmitter {
     domain = '*',
     broker = 'mqtts://vrpc.io:8883',
     timeout = 6 * 1000,
-    log = console
+    log = 'console'
   } = {}) {
     super()
     this._token = token
@@ -92,9 +92,11 @@ class VrpcRemote extends EventEmitter {
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
     this._client = null
-    this._log = log
-    if (this._log.constructor && this._log.constructor.name === 'Console') {
+    if (log === 'console') {
+      this._log = console
       this._log.debug = () => {}
+    } else {
+      this._log = log
     }
   }
 
@@ -122,7 +124,14 @@ class VrpcRemote extends EventEmitter {
 
     this._client.on('error', (err) => {
       this.emit('error', err)
-      this._log.error(`Encountered MQTT connection issue: ${err}`)
+    })
+
+    this._client.stream.on('error', (err) => {
+      this.emit('error', err)
+    })
+
+    this.on('error', (err) => {
+      this._log.debug(`Encountered MQTT error: ${err.message}`)
     })
 
     this._client.on('connect', () => {
@@ -185,7 +194,15 @@ class VrpcRemote extends EventEmitter {
         this._eventEmitter.emit(id, data)
       }
     })
-    return new Promise(resolve => this.once('connect', resolve))
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`Connection trial timed out (> ${this._timeout} ms)`))
+      }, this._timeout)
+      this.once('connect', () => {
+        clearTimeout(timer)
+        resolve()
+      })
+    })
   }
 
   async connected () {
@@ -268,7 +285,6 @@ class VrpcRemote extends EventEmitter {
     return this._createProxy(domain, agent, className, instanceString)
   }
 
-
   /**
    * Delete a remotely existing instance.
    *
@@ -330,6 +346,7 @@ class VrpcRemote extends EventEmitter {
       data: this._packData(className, functionName, ...args)
     }
     const topic = `${domain}/${agent}/${className}/__static__/${functionName}`
+    await this._waitUntilClassIsOnline(domain, agent, className)
     this._mqttPublish(topic, JSON.stringify(json))
     return this._handleAgentAnswer(json)
   }
@@ -478,7 +495,7 @@ class VrpcRemote extends EventEmitter {
       `${this._vrpcClientId}/__clientInfo__`,
       JSON.stringify({ status: 'offline' })
     )
-    return new Promise(resolve => this._client.end(resolve))
+    return new Promise(resolve => this._client.end(false, {}, resolve))
   }
 
   _createClientId (instance) {
@@ -530,10 +547,11 @@ class VrpcRemote extends EventEmitter {
   async _getProxy (domain, agent, className, json) {
     const { method } = json
     const topic = `${domain}/${agent}/${className}/__static__/${method}`
+    await this._waitUntilClassIsOnline(domain, agent, className)
     this._mqttPublish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
       const msg = `Proxy creation timed out (> ${this._timeout} ms)`
-      const id = setTimeout(
+      const timer = setTimeout(
         () => {
           this._eventEmitter.removeAllListeners(json.id)
           reject(new Error(msg))
@@ -541,7 +559,7 @@ class VrpcRemote extends EventEmitter {
         this._timeout
       )
       this._eventEmitter.once(json.id, data => {
-        clearTimeout(id)
+        clearTimeout(timer)
         if (data.e) {
           reject(new Error(data.e))
         } else {
@@ -550,6 +568,33 @@ class VrpcRemote extends EventEmitter {
         }
       })
     })
+  }
+
+  async _waitUntilClassIsOnline (domain, agent, className) {
+    if (this._hasClassOnline(domain, agent, className)) return
+    return new Promise((resolve, reject) => {
+      let timer = null
+      const checkClass = () => {
+        if (this._hasClassOnline(domain, agent, className)) {
+          if (timer) clearTimeout(timer)
+          this.removeListener('class', checkClass)
+          resolve()
+        }
+      }
+      timer = setTimeout(() => {
+        this.removeListener('class', checkClass)
+        reject(new Error(`Proxy creation timed out (> ${this._timeout} ms)`))
+      }, this._timeout)
+      this.on('class', checkClass)
+    })
+  }
+
+  _hasClassOnline (domain, agent, className) {
+    return (this._domains[domain] &&
+      this._domains[domain].agents[agent] &&
+      this._domains[domain].agents[agent].status === 'online' &&
+      this._domains[domain].agents[agent].classes[className]
+    )
   }
 
   _createProxy (domain, agent, className, instance) {

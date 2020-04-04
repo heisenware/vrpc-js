@@ -46,7 +46,7 @@ class VrpcAgent {
     password,
     token,
     broker = 'mqtts://vrpc.io:8883',
-    log = console
+    log = 'console'
   } = {}
   ) {
     this._username = username
@@ -55,9 +55,12 @@ class VrpcAgent {
     this._agent = agent
     this._domain = domain
     this._broker = broker
-    this._log = log
-    if (this._log.constructor && this._log.constructor.name === 'Console') {
+    this._isReconnect = false
+    if (log === 'console') {
+      this._log = console
       this._log.debug = () => {}
+    } else {
+      this._log = log
     }
     this._baseTopic = `${this._domain}/${this._agent}`
     VrpcAdapter.onCallback(this._handleVrpcCallback.bind(this))
@@ -75,11 +78,10 @@ class VrpcAgent {
       username = '__token__'
       password = this._token
     }
-    const options = {
+    this._options = {
       username,
       password,
       keepalive: 30,
-      clean: true,
       connectTimeout: 10 * 1000,
       clientId: `vrpca${md5}`,
       rejectUnauthorized: false,
@@ -97,12 +99,32 @@ class VrpcAgent {
     this._log.info(`Agent  : ${this._agent}`)
     this._log.info(`Broker : ${this._broker}`)
     this._log.info('Connecting to MQTT server...')
-    this._client = mqtt.connect(this._broker, options)
+    await this._clearPersistedSession()
+    this._client = mqtt.connect(
+      this._broker,
+      { ...this._options, clean: false }
+    )
     this._client.on('connect', this._handleConnect.bind(this))
     this._client.on('reconnect', this._handleReconnect.bind(this))
     this._client.on('error', this._handleError.bind(this))
     this._client.on('message', this._handleMessage.bind(this))
     return this._ensureConnected()
+  }
+
+  async _clearPersistedSession () {
+    // Clear potentially existing persisted sessions
+    const clearingClient = mqtt.connect(
+      this._broker,
+      { ...this._options, clean: true }
+    )
+    clearingClient.on('error', (err) => {
+      this._log.warn('Error', err.message)
+    })
+    await new Promise(resolve => {
+      clearingClient.on('connect', () => {
+        clearingClient.end(false, {}, resolve)
+      })
+    })
   }
 
   _mqttPublish (topic, message, options) {
@@ -178,6 +200,10 @@ class VrpcAgent {
 
   _handleConnect () {
     this._log.info('[OK]')
+    if (this._isReconnect) {
+      this._publishAgentInfoMessage()
+      return
+    }
     try {
       const topics = this._generateTopics()
       this._mqttSubscribe(topics)
@@ -188,6 +214,16 @@ class VrpcAgent {
       )
     }
     // Publish agent online
+    this._publishAgentInfoMessage()
+
+    // Publish class information
+    const classes = this._getClasses()
+    classes.forEach(klass => {
+      this._publishClassInfoMessage(klass)
+    })
+  }
+
+  _publishAgentInfoMessage () {
     this._mqttPublish(
       `${this._baseTopic}/__agentInfo__`,
       JSON.stringify({
@@ -196,11 +232,6 @@ class VrpcAgent {
       }),
       { retain: true }
     )
-    // Publish class information
-    const classes = this._getClasses()
-    classes.forEach(klass => {
-      this._publishClassInfoMessage(klass)
-    })
   }
 
   _publishClassInfoMessage (klass) {
@@ -256,7 +287,8 @@ class VrpcAgent {
           this._mqttPublish(infoTopic, null, { retain: true })
         }
       }
-      return new Promise(resolve => this._client.end(resolve))
+      await new Promise(resolve => this._client.end(false, {}, resolve))
+      await this._clearPersistedSession()
     } catch (err) {
       this._log.error(
         err,
@@ -445,6 +477,7 @@ class VrpcAgent {
   }
 
   _handleReconnect () {
+    this._isReconnect = true
     this._log.warn(`Reconnecting to ${this._broker}`)
   }
 
