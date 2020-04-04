@@ -1,10 +1,11 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [2.1.1] - 4 Apr 2020
 
 ### Fixed
 
@@ -23,14 +24,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Node 12.x as additional travis test platform
 - Performance test (not part of CI)
 
-## [2.1.0] - 25 Mar 2010
+## [2.1.0] - 25 Mar 2020
 
 ### Fixed
 
 - Possible exception when using deprecated form of `VrpcRemote::getInstance`
   [NodeJS]
 
-## [2.1.0-alpha.8] - 19 Mar 2010
+## [2.1.0-alpha.8] - 19 Mar 2020
 
 ### Fixed
 
@@ -44,7 +45,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Option `noWait` on `VrpcRemote::getInstance` skipping any waiting for the
   instance to appear if not currently found in the local cache. [NodeJS]
 
-## [2.1.0-alpha.7] - 13 Mar 2010
+## [2.1.0-alpha.7] - 13 Mar 2020
 
 ### Changed
 
@@ -56,7 +57,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - VrpcAgent: unregistration of named instances [NodeJS]
 - VrpcAgent: ordering of classInfo message w.r.t. named creation [NodeJS]
 
-## [2.1.0-alpha.6] - 12 Mar 2010
+## [2.1.0-alpha.6] - 12 Mar 2020
 
 ### Changed
 
@@ -330,13 +331,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Renamed VrpcFactory to VrpcAdapter
 - Renamed vrpc_local.py to VrpcLocal.py
 
-## [1.1.7] - 31 Mar 2020
+## [1.1.7] - 31 Mar 2018
 
 ### Fixed
 
   - Re-registration problem for emitter based callbacks resulting in multiplied callbacks
 
-## [1.1.6] - 31 Mar 2020
+## [1.1.6] - 31 Mar 2018
 
   - Nothing changed, this tag is identical to 1.1.5 for a technical issue during
     publishing
