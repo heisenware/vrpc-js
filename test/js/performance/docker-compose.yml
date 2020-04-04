@@ -1,0 +1,55 @@
+version: "3.1"
+services:
+
+  client:
+    image: node:12.16.1-alpine
+    hostname: client
+    networks:
+      - vrpc
+    volumes:
+      - ../../../:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "test/js/performance/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node_modules/.bin/mocha",
+      "test/js/performance/*.js",
+      "--colors",
+      "--exit",
+      "--timeout",
+      "60000"
+    ]
+
+  broker:
+    image: erlio/docker-vernemq:1.9.0
+    hostname: broker
+    networks:
+      - vrpc
+    environment:
+      DOCKER_VERNEMQ_ALLOW_ANONYMOUS: 'on'
+    command: ["start_vernemq", "--name", "vernemq_test"]
+
+  agent1:
+    image: node:12.16.1-alpine
+    hostname: agent1
+    networks:
+      - vrpc
+    volumes:
+      - ../../../:/app
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "test/js/performance/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node",
+      "test/js/performance/fixtures/agent.js"
+    ]
+
+networks:
+  vrpc:

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - Node 12.x as additional travis test platform
+- Performance test (not part of CI)
 
 ## [2.1.0] - 25 Mar 2010
 
