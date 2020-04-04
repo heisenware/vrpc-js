@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Compilation error of addon.cpp whe using V8 12.x (solves GH-5) [C++]
 
+### Added
+
+- Node 12.x as additional travis test platform
+
 ## [2.1.0] - 25 Mar 2010
 
 ### Fixed
