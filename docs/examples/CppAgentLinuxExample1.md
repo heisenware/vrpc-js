@@ -21,6 +21,7 @@ make existing C++ code remotely callable.
 > ```bash
 > mv <platform> third_party
 > ```
+>
 > Finally create a directory `src` and you are good to go.
 
 ## STEP 1: C++ code that should be bound
