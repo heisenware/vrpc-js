@@ -175,8 +175,8 @@ class VrpcRemote extends EventEmitter {
           memberFunctions,
           staticFunctions
         } = json
-        if (removed.length !== 0) this.emit('instanceGone', removed, { agent, className })
-        if (added.length !== 0) this.emit('instanceNew', added, { agent, className })
+        if (removed.length !== 0) this.emit('instanceGone', removed, { domain, agent, className })
+        if (added.length !== 0) this.emit('instanceNew', added, { domain, agent, className })
         this.emit(
           'class',
           {
@@ -261,28 +261,28 @@ class VrpcRemote extends EventEmitter {
    * @return Proxy object reflecting the remotely existing instance.
    */
   async getInstance (instance, options) {
-    let instanceData = { domain: this._domain, agent: this._agent }
     if (typeof instance === 'string') {
-      instanceData = this._getInstanceData(instance)
-      if (options && (options.className || options.agent || options.domain)) {
-        instanceData = { ...options, ...instanceData }
-      } else if (!instanceData) {
-        if (options && options.noWait) throw new Error(`Could not find instance: ${instance}`)
-        await this._waitForInstance(instance)
-      }
+      const {
+        domain,
+        agent,
+        className,
+        instance: instanceString
+      } = await this._getInstanceData(instance, options)
+      return this._createProxy(domain, agent, className, instanceString)
     } else { // deprecate this
       this._log.warn('This API usage will be deprecated, use "getInstance(instance, options)" instead')
-      instanceData = { ...instanceData, ...instance }
-      const available = this._getInstanceData(instanceData.instance)
-      if (!available) {
-        if (options && options.noWait) throw new Error(`Could not find instance: ${instance}`)
-        await this._waitForInstance(instanceData.instance)
-      }
+      console.trace()
+      const fakedOptions = { ...instance }
+      const fakedInstance = fakedOptions.instance
+      delete fakedOptions.instance
+      const {
+        domain,
+        agent,
+        className,
+        instance: instanceString
+      } = await this._getInstanceData(fakedInstance, fakedOptions)
+      return this._createProxy(domain, agent, className, instanceString)
     }
-    let { domain, agent, className, instance: instanceString } = instanceData
-    if (!domain) domain = this._domain
-    if (!agent) agent = this._agent
-    return this._createProxy(domain, agent, className, instanceString)
   }
 
   /**
@@ -664,13 +664,16 @@ class VrpcRemote extends EventEmitter {
     })
   }
 
-  async _waitForInstance (instance) {
+  async _waitForInstance (instance, options = {}) {
     return new Promise((resolve, reject) => {
-      const handler = (timer) => (instances) => {
+      const handler = (timer) => (instances, { domain, agent, className }) => {
         if (instances.includes(instance)) {
+          if (options.domain && domain !== options.domain) return
+          if (options.agent && agent !== options.agent) return
+          if (options.className && className !== options.className) return
           clearTimeout(timer)
           this.removeListener('instanceNew', handler)
-          resolve()
+          resolve({ domain, agent, className, instance })
         }
       }
       const timer = setTimeout(
@@ -758,15 +761,27 @@ class VrpcRemote extends EventEmitter {
     )
   }
 
-  _getInstanceData (instance) {
+  async _getInstanceData (instance, options = {}) {
+    const instanceData = this._getInstanceFromCache(instance, options)
+    if (!instanceData) {
+      if (options.noWait) throw new Error(`Could not find instance: ${instance}`)
+      return this._waitForInstance(instance, options)
+    }
+    return instanceData
+  }
+
+  _getInstanceFromCache (instance, options = {}) {
     // loop domains
     for (const domain in this._domains) {
+      if (options.domain && domain !== options.domain) continue
       const { agents } = this._domains[domain]
       if (!agents) break
       for (const agent in agents) {
+        if (options.agent && agent !== options.agent) continue
         const { classes, status } = agents[agent]
         if (!classes || status === 'offline') break
         for (const className in classes) {
+          if (options.className && className !== options.className) continue
           const { instances } = classes[className]
           if (!instances) break
           if (instances.includes(instance)) {
