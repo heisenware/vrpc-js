@@ -2,7 +2,6 @@ import React from 'react'
 import { withVrpc } from '../react-vrpc'
 function AddTodo ({ todosBackend }) {
   let input
-
   return (
     <div>
       <form onSubmit={async (e) => {

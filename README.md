@@ -62,6 +62,10 @@ dynamic linkage), executable or source package.
 
 - [NodeJS Remote Client Example](docs/examples/NodeClientExample.md)
 
+### Frontend-Backend communication
+
+- [React Todos App](docs/examples/ReactTodosExample.md)
+
 ## Reference Documentation
 
 - [RPC Protocol Details](docs/reference/remoteProtocol.md)

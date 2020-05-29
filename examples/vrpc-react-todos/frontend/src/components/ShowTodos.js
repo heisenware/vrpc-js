@@ -12,10 +12,11 @@ class ShowTodos extends React.Component {
 
   async componentDidMount () {
     await this.updateTodos()
+    this.timeout = setInterval(() => this.updateTodos(), 3000)
   }
 
-  async componentDidUpdate () {
-    await this.updateTodos()
+  async componentWillUnmount () {
+    clearInterval(this.timeout)
   }
 
   async updateTodos () {
