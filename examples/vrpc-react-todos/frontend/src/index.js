@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import App from './components/App'
 import * as serviceWorker from './serviceWorker'
-import { createVrpcProvider } from './react-vrpc'
+import { createVrpcProvider } from 'react-vrpc'
 
 const VrpcProvider = createVrpcProvider({
   domain: 'public.vrpc',

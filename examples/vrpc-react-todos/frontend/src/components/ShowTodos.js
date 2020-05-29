@@ -1,5 +1,5 @@
 import React from 'react'
-import { withVrpc } from '../react-vrpc'
+import { withVrpc } from 'react-vrpc'
 import VisibleTodoList from './VisibleTodoList'
 import Filter from './Filter'
 

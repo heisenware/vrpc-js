@@ -120,7 +120,7 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import App from './components/App'
 import * as serviceWorker from './serviceWorker'
-import { createVrpcProvider } from './react-vrpc'
+import { createVrpcProvider } from 'react-vrpc'
 
 const VrpcProvider = createVrpcProvider({
   domain: 'public.vrpc',
@@ -187,7 +187,7 @@ method of the `index.js` file. It wraps two other components:
 
 ```javascript
 import React from 'react'
-import { withVrpc } from '../react-vrpc'
+import { withVrpc } from 'react-vrpc'
 function AddTodo ({ todosBackend }) {
   let input
   return (
@@ -232,7 +232,7 @@ a network call is involved that inherently makes all functions asynchronous.
 
 ```javascript
 import React from 'react'
-import { withVrpc } from '../react-vrpc'
+import { withVrpc } from 'react-vrpc'
 import VisibleTodoList from './VisibleTodoList'
 import Filter from './Filter'
 
