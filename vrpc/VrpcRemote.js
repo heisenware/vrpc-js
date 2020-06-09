@@ -92,6 +92,7 @@ class VrpcRemote extends EventEmitter {
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
     this._client = null
+    this._objectIds = new WeakMap()
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -702,22 +703,32 @@ class VrpcRemote extends EventEmitter {
           index === 1 &&
           typeof args[0] === 'string'
         ) {
-          const id = `__f__${proxyId}-${functionName}-${index}-${args[0]}`
+          const objId = this._getObjectId(value)
+          const id = `__f__${proxyId}-${args[0]}-${objId}`
           data[`_${index + 1}`] = id
           this._eventEmitter.on(id, data => {
             const args = Object.keys(data).sort()
-              .filter(value => value[0] === '_')
-              .map(key => data[key])
+              .filter(x => x[0] === '_')
+              .map(x => data[x])
             value.apply(null, args)
           })
+        } else if (
+          (functionName === 'off' || functionName === 'removeListener') &&
+          index === 1 &&
+          typeof args[0] === 'string'
+        ) {
+          const objId = this._getObjectId(value)
+          const id = `__f__${proxyId}-${args[0]}-${objId}`
+          data[`_${index + 1}`] = id
+          this._eventEmitter.removeAllListeners(id)
         // Regular function callback
         } else {
           const id = `__f__${proxyId}-${functionName}-${index}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`
           data[`_${index + 1}`] = id
           this._eventEmitter.once(id, data => {
             const args = Object.keys(data).sort()
-              .filter(value => value[0] === '_')
-              .map(key => data[key])
+              .filter(x => x[0] === '_')
+              .map(x => data[x])
             value.apply(null, args) // This is the actual function call
           })
         }
@@ -727,8 +738,8 @@ class VrpcRemote extends EventEmitter {
         data[`_${index + 1}`] = id
         this._eventEmitter.on(id, data => {
           const args = Object.keys(data).sort()
-            .filter(value => value[0] === '_')
-            .map(key => data[key])
+            .filter(x => x[0] === '_')
+            .map(x => data[x])
           emitter.emit(event, ...args)
         })
       } else {
@@ -736,6 +747,13 @@ class VrpcRemote extends EventEmitter {
       }
     })
     return data
+  }
+
+  _getObjectId (callback) {
+    if (this._objectIds.has(callback)) return this._objectIds.get(callback)
+    const id = crypto.randomBytes(9).toString('base64')
+    this._objectIds.set(callback, id)
+    return id
   }
 
   _stripSignature (method) {

@@ -376,9 +376,22 @@ class VrpcAdapter {
         if (json.method === 'on' && typeof args[0] === 'string') {
           const e = args[0]
           const i = json.context
+          const r = arg
           VrpcAdapter._listeners[json.sender]
-            ? VrpcAdapter._listeners[json.sender].push({ i, e, f })
-            : VrpcAdapter._listeners[json.sender] = [{ i, e, f }]
+            ? VrpcAdapter._listeners[json.sender].push({ i, e, f, r })
+            : VrpcAdapter._listeners[json.sender] = [{ i, e, f, r }]
+        }
+        if ((json.method === 'off' || json.method === 'removeListener') &&
+          typeof args[0] === 'string') {
+          const r = arg
+          const entry = VrpcAdapter._listeners[json.sender].find(x => x.r === r)
+          if (entry) {
+            console.log('## FOUND function')
+            const { i, e, f } = entry
+            VrpcAdapter.getInstance(i).removeListener(e, f)
+          } else {
+            console.log('## NO sHOW on', arg)
+          }
         }
         wrappedArgs.push(f)
       // Leave the others untouched
