@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Proper un-registration of local event subscriptions on a proxy instance
   through `off` or `removeListener` function [NodeJS]
+- Missing `await` statement in `delete()` method of `VrpcRemote` leading to
+  race condition [NodeJS]
 
 ## [2.1.2] - 26 May 2020
 
@@ -18,8 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issues with `VrpcRemote::getInstance` ignoring defaults or throwing wrong
   exceptions [NodeJS]
-- Missing `await` statement in `delete()` method of `VrpcRemote` leading to
-  race condition [NodeJS]
+
 
 ### Added
 
