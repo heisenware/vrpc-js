@@ -302,7 +302,7 @@ class VrpcRemote extends EventEmitter {
   async delete (instance, options) {
     let instanceData = { domain: this._domain, agent: this._agent }
     if (typeof instance === 'string') {
-      instanceData = this._getInstanceData(instance)
+      instanceData = await this._getInstanceData(instance)
       if (options) instanceData = { ...options, ...instanceData }
     } else { // deprecate this
       this._log.warn('This API usage will be deprecated, use "delete(instance, options)" instead')

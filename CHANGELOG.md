@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issues with `VrpcRemote::getInstance` ignoring defaults or throwing wrong
   exceptions [NodeJS]
+- Missing `await` statement in `delete()` method of `VrpcRemote` leading to
+  race condition [NodeJS]
 
 ### Added
 
