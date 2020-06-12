@@ -386,11 +386,8 @@ class VrpcAdapter {
           const r = arg
           const entry = VrpcAdapter._listeners[json.sender].find(x => x.r === r)
           if (entry) {
-            console.log('## FOUND function')
             const { i, e, f } = entry
             VrpcAdapter.getInstance(i).removeListener(e, f)
-          } else {
-            console.log('## NO sHOW on', arg)
           }
         }
         wrappedArgs.push(f)

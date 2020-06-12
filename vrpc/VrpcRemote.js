@@ -92,7 +92,7 @@ class VrpcRemote extends EventEmitter {
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
     this._client = null
-    this._objectIds = new WeakMap()
+    this._cachedSubscriptions = new Map()
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -625,6 +625,8 @@ class VrpcRemote extends EventEmitter {
             sender: this._vrpcClientId,
             data: this._packData(proxyId, name, ...args)
           }
+          // Skipping remote call -> handled locally
+          if (json.data === null) return
           this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
           return this._handleAgentAnswer(json)
         } catch (err) {
@@ -691,6 +693,7 @@ class VrpcRemote extends EventEmitter {
 
   _packData (proxyId, functionName, ...args) {
     const data = {}
+    let isHandledLocally = false
     args.forEach((value, index) => {
       // Check whether provided argument is a function
       if (this._isFunction(value)) {
@@ -703,24 +706,17 @@ class VrpcRemote extends EventEmitter {
           index === 1 &&
           typeof args[0] === 'string'
         ) {
-          const objId = this._getObjectId(value)
-          const id = `__f__${proxyId}-${args[0]}-${objId}`
+          const id = this._addEventSubscription(proxyId, args[0], value)
+          if (!id) isHandledLocally = true
           data[`_${index + 1}`] = id
-          this._eventEmitter.on(id, data => {
-            const args = Object.keys(data).sort()
-              .filter(x => x[0] === '_')
-              .map(x => data[x])
-            value.apply(null, args)
-          })
         } else if (
           (functionName === 'off' || functionName === 'removeListener') &&
           index === 1 &&
           typeof args[0] === 'string'
         ) {
-          const objId = this._getObjectId(value)
-          const id = `__f__${proxyId}-${args[0]}-${objId}`
+          const id = this._removeEventSubscription(proxyId, args[0], value)
+          if (!id) isHandledLocally = true
           data[`_${index + 1}`] = id
-          this._eventEmitter.removeAllListeners(id)
         // Regular function callback
         } else {
           const id = `__f__${proxyId}-${functionName}-${index}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`
@@ -746,14 +742,39 @@ class VrpcRemote extends EventEmitter {
         data[`_${index + 1}`] = value
       }
     })
+    if (isHandledLocally) return null
     return data
   }
 
-  _getObjectId (callback) {
-    if (this._objectIds.has(callback)) return this._objectIds.get(callback)
-    const id = crypto.randomBytes(9).toString('base64')
-    this._objectIds.set(callback, id)
+  _addEventSubscription (proxyId, event, callback) {
+    const id = `__f__${proxyId}-${event}`
+    if (this._cachedSubscriptions.has(id)) {
+      this._cachedSubscriptions.get(id).on(id, callback)
+      return
+    }
+    const emitter = new EventEmitter()
+    emitter.on(id, callback)
+    this._cachedSubscriptions.set(id, emitter)
+    this._eventEmitter.on(id, (data) => {
+      const args = Object.keys(data).sort()
+        .filter(x => x[0] === '_')
+        .map(x => data[x])
+      emitter.emit(id, ...args)
+    })
     return id
+  }
+
+  _removeEventSubscription (proxyId, event, callback) {
+    const id = `__f__${proxyId}-${event}`
+    if (this._cachedSubscriptions.has(id)) {
+      const emitter = this._cachedSubscriptions.get(id)
+      emitter.off(id, callback)
+      if (emitter.listenerCount(id) === 0) {
+        this._cachedSubscriptions.delete(id)
+        this._eventEmitter.removeAllListeners(id)
+        return id
+      }
+    }
   }
 
   _stripSignature (method) {
