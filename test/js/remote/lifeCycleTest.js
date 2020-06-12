@@ -299,7 +299,28 @@ describe('Event Callbacks', () => {
     it('should not have received further events on the original instance', () => {
       assert.deepEqual(events1, [1, 2])
     })
-    it('should receive events on deep derived instance', async () =>{
+    it('should support callback function based toggling', async () => {
+      const localEvents = []
+      const foo = await remote.create({
+        className: 'Foo',
+        instance: 'foo'
+      })
+      const cb = (value) => localEvents.push(value)
+      const cbo = (value) => localEvents.push(value)
+      await foo.once('echo', cb)
+      await foo.on('echo', cb)
+      await foo.on('echo', cbo)
+      await foo.echo(1)
+      await foo.echo(2)
+      await foo.off('echo', cb)
+      await foo.echo(3)
+      await foo.on('echo', cb)
+      await foo.echo(4)
+      await foo.off('echo', cb)
+      await foo.off('echo', cbo)
+      assert.deepEqual(localEvents, [1, 1, 1, 2, 2, 3, 4, 4])
+    })
+    it('should receive events on deep derived instance', async () => {
       const miniFoo = await remote.create({
         className: 'MiniFoo',
         instance: 'miniFoo'
