@@ -76,7 +76,6 @@ async function main () {
   }
 }
 
-// Start the agent
 main()
 ```
 
@@ -125,7 +124,7 @@ import { createVrpcProvider } from 'react-vrpc'
 const VrpcProvider = createVrpcProvider({
   domain: 'public.vrpc',
   backends: {
-    todosBackend: {
+    todos: {
       agent: 'burkhards-todos-agent',
       className: 'Todos',
       instance: 'react-todos',
@@ -149,23 +148,30 @@ ReactDOM.render(
 serviceWorker.unregister()
 ```
 
-In this file will are defining the available backends, here it's just one -
+In this file we are defining the available backends, here it's just one -
 a single instance of our `Todos` class. In this case, the fronted creates a
 new instance of the `Todos` class with the explicit name `react-todos`. If
 an instance with that name existed before VRPC will just attach to and not
 re-create it.
 
-The `VrpcProvider` component provides a `withVrpc` function which allows
-to inject the `react-todos` backend-proxy into any component that needs it.
+The `VrpcProvider` component manages the state of all backends and provides
+the `withBackend` function to wrap, or alternatively the `useBackend` hook to
+inject backend-proxy objects into components that need it.
 
 *src/components/App.js*
 
 ```javascript
 import React from 'react'
 import AddTodo from './AddTodo'
-import ShowTodos from './ShowTodos'
+import ShowTodos from './ShowTodosHook'
+import { useBackend } from 'react-vrpc'
 
 function App () {
+  const { loading, error } = useBackend('todos')
+
+  if (loading) return 'Loading...'
+  if (error) return `Error! ${error.message}`
+
   return (
     <div>
       <AddTodo />
@@ -177,29 +183,37 @@ function App () {
 export default App
 ```
 
-This file defines the main `App` component that was included in the `ReactDOM.render`
-method of the `index.js` file. It wraps two other components:
+This file defines the main `App` component that was included in the
+`ReactDOM.render` method of the `index.js` file. It wraps two other components:
 
 * `AddTodo` - renders the form allowing to submit a new todo item
 * `ShowTodos` - renders the list of todos and the filtering buttons
+
+Before those components are rendered we check that our required backend is
+loaded and available without errors.
 
 *src/components/AddTodo.js*
 
 ```javascript
 import React from 'react'
-import { withVrpc } from 'react-vrpc'
-function AddTodo ({ todosBackend }) {
+import { useBackend } from 'react-vrpc'
+
+function AddTodo () {
+  const { backend, refresh } = useBackend('todos')
+
+  async function handleSubmit (e) {
+    e.preventDefault()
+    const { value } = input
+    if (!value.trim()) return
+    await backend.addTodo(value)
+    input.value = ''
+    refresh()
+  }
+
   let input
   return (
     <div>
-      <form onSubmit={async (e) => {
-        e.preventDefault()
-        const { value } = input
-        if (!value.trim()) return
-        await todosBackend.addTodo(value)
-        input.value = ''
-      }}
-      >
+      <form onSubmit={handleSubmit}>
         <input ref={node => (input = node)} />
         <button type='submit'>
           Add Todo
@@ -209,67 +223,85 @@ function AddTodo ({ todosBackend }) {
   )
 }
 
-export default withVrpc(AddTodo)
+export default AddTodo
 ```
 
-This is the first component making of our backend. Adding the `withVrpc` function
-wrapping the `AddTodo` component (last line in the code) accomplishes that.
+This component adds a new todo item to the list. It accomplishes
+that by directly calling the corresponding function on the backend.
 
-Once wrapped, all backends are available as regular properties and reflect
-proxy-instances of the actual backend classes.
+The backend proxy-instance got injected through the `useBackend` hook and
+is available under the `backend` property.
 
-You can see how simple it is to call the backend if you look at the implementation
-of the form submit:
+You can see how simple it is to call the backend if you look at the
+implementation of the form submit handler:
 
 ```javascript
-await todosBackend.addTodo(value)
+await backend.addTodo(value)
 ```
 
-Just remember to always place an `await` in front of all backend codes, as
-a network call is involved that inherently makes all functions asynchronous.
+Just remember to always place an `await` in front of all backend calls, as
+a network is involved that inherently makes all functions asynchronous.
+
+Also note the call to
+
+```javascript
+refresh()
+```
+
+which instructs all other components using the `todos` backend to update.
 
 *src/components/ShowTodo.js*
 
 ```javascript
 import React from 'react'
-import { withVrpc } from 'react-vrpc'
+import { withBackend } from 'react-vrpc'
 import VisibleTodoList from './VisibleTodoList'
 import Filter from './Filter'
 
 class ShowTodos extends React.Component {
-
-  state = {
-    todos: [],
-    filter: 'all'
+  constructor () {
+    super()
+    this.state = {
+      todos: [],
+      filter: 'all'
+    }
   }
 
   async componentDidMount () {
     await this.updateTodos()
-    this.timeout = setInterval(() => this.updateTodos(), 3000)
   }
 
-  async componentWillUnmount () {
-    clearInterval(this.timeout)
+  async componentDidUpdate (_, prevState) {
+    if (this.state.filter !== prevState.filter) {
+      await this.updateTodos()
+    }
   }
 
   async updateTodos () {
-    const { todosBackend } = this.props
+    const { todos: { backend } } = this.props
+    if (!backend) return
     const { filter } = this.state
-    const todos = await todosBackend.getTodos(filter)
+    const todos = await backend.getTodos(filter)
     this.setState({ todos })
   }
 
+  async handleToggle (id) {
+    const { todos: { backend } } = this.props
+    if (!backend) return
+    await backend.toggleTodo(id)
+    await this.updateTodos()
+  }
+
   render () {
-    const { todosBackend } = this.props
     const { todos, filter } = this.state
     return (
       <div>
         <VisibleTodoList
           todos={todos}
-          onClick={async (id) => await todosBackend.toggleTodo(id) }
+          onClick={async (id) => this.handleToggle(id) }
         />
         <Filter
-          onClick={async (filter) => this.setState({ filter })}
+          onClick={(filter) => this.setState({ filter })}
           filter={filter}
         />
       </div>
@@ -277,24 +309,29 @@ class ShowTodos extends React.Component {
   }
 }
 
-export default withVrpc(ShowTodos)
+export default withBackend('todos', ShowTodos)
 ```
 
-This component does two things with the backend:
+This (class-)component does two things with the backend:
 
-1. Retrieves a list of todos from the backend (every 3 seconds)
+1. Retrieves a list of todos from the backend
 
     ```javascript
-    await todosBackend.getTodos(filter)
+    await backend.getTodos(filter)
     ```
 
 2. Toggles the `completed` state of a todo item (upon click)
 
     ```javascript
-    await todosBackend.toggleTodo(id)
+    await backend.toggleTodo(id)
     ```
 
-It utilizes the stateless components `<VisibleTodoList>`
+This implementation shows how the `withBackend` function can be used if you are
+(not yet) using the hook API. Check the example code for the alternative
+implementation using hooks (*src/components/ShowTodosHook.js*).
+
+To finally render the todos, the stateless component `<VisibleTodoList>` is
+utilized.
 
 *src/components/VisibleTodoList.js*
 
@@ -321,7 +358,10 @@ function VisibleTodoList ({ todos, onClick }) {
 export default VisibleTodoList
 ```
 
-and `<Filter>`
+The `<Filter>` component forwards the user's interaction w.r.t. the current
+filtering value.
+
+*src/components/Filter.js*
 
 ```javascript
 import React from 'react'
@@ -358,13 +398,9 @@ function Filter ({ onClick, filter }) {
 export default Filter
 ```
 
-for rendering out the data and forwarding the user's interaction.
-
 Well, and that's already it!
 
-Your todos app is fully functional and you can play with it by clicking it
-directly or by seeing it getting updated when you modify the backend through
-https://live.vrpc.io (domain: `public.vrpc`, token: *leave blank*).
+Your todos app is fully functional and you can play with it.
 
 > **NOTE**
 >
@@ -409,7 +445,7 @@ const vrpcAgent = new VrpcAgent({
 })
 ```
 
-And adapt the frontend to:
+And adapt the *index.js* file in the frontend to:
 
 ```javascript
 const VrpcProvider = createVrpcProvider({

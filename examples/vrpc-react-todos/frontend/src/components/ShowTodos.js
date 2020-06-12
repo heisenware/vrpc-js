@@ -1,42 +1,52 @@
 import React from 'react'
-import { withVrpc } from 'react-vrpc'
+import { withBackend } from '../react-vrpc'
 import VisibleTodoList from './VisibleTodoList'
 import Filter from './Filter'
 
 class ShowTodos extends React.Component {
-
-  state = {
-    todos: [],
-    filter: 'all'
+  constructor () {
+    super()
+    this.state = {
+      todos: [],
+      filter: 'all'
+    }
   }
 
   async componentDidMount () {
     await this.updateTodos()
-    this.timeout = setInterval(() => this.updateTodos(), 3000)
   }
 
-  async componentWillUnmount () {
-    clearInterval(this.timeout)
+  async componentDidUpdate (_, prevState) {
+    if (this.state.filter !== prevState.filter) {
+      await this.updateTodos()
+    }
   }
 
   async updateTodos () {
-    const { todosBackend } = this.props
+    const { todos: { backend } } = this.props
+    if (!backend) return
     const { filter } = this.state
-    const todos = await todosBackend.getTodos(filter)
+    const todos = await backend.getTodos(filter)
     this.setState({ todos })
   }
 
+  async handleToggle (id) {
+    const { todos: { backend } } = this.props
+    if (!backend) return
+    await backend.toggleTodo(id)
+    await this.updateTodos()
+  }
+
   render () {
-    const { todosBackend } = this.props
     const { todos, filter } = this.state
     return (
       <div>
         <VisibleTodoList
           todos={todos}
-          onClick={async (id) => await todosBackend.toggleTodo(id) }
+          onClick={async (id) => this.handleToggle(id) }
         />
         <Filter
-          onClick={async (filter) => this.setState({ filter })}
+          onClick={(filter) => this.setState({ filter })}
           filter={filter}
         />
       </div>
@@ -44,4 +54,4 @@ class ShowTodos extends React.Component {
   }
 }
 
-export default withVrpc(ShowTodos)
+export default withBackend('todos', ShowTodos)

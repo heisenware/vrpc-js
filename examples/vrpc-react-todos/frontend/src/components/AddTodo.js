@@ -1,17 +1,22 @@
 import React from 'react'
-import { withVrpc } from 'react-vrpc'
-function AddTodo ({ todosBackend }) {
+import { useBackend } from '../react-vrpc'
+
+function AddTodo () {
+  const { backend, refresh } = useBackend('todos')
+
+  async function handleSubmit (e) {
+    e.preventDefault()
+    const { value } = input
+    if (!value.trim()) return
+    await backend.addTodo(value)
+    input.value = ''
+    refresh()
+  }
+
   let input
   return (
     <div>
-      <form onSubmit={async (e) => {
-        e.preventDefault()
-        const { value } = input
-        if (!value.trim()) return
-        await todosBackend.addTodo(value)
-        input.value = ''
-      }}
-      >
+      <form onSubmit={handleSubmit}>
         <input ref={node => (input = node)} />
         <button type='submit'>
           Add Todo
@@ -21,4 +26,4 @@ function AddTodo ({ todosBackend }) {
   )
 }
 
-export default withVrpc(AddTodo)
+export default AddTodo
