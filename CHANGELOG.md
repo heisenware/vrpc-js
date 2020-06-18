@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   through `off` or `removeListener` function [NodeJS]
 - Missing `await` statement in `delete()` method of `VrpcRemote` leading to
   race condition [NodeJS]
+- using `removeListener` instead of `off` for event un-subscription to support
+  older version of NodeJS [NodeJS]
 
 ## [2.1.2] - 26 May 2020
 

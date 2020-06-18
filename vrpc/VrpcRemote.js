@@ -768,7 +768,7 @@ class VrpcRemote extends EventEmitter {
     const id = `__f__${proxyId}-${event}`
     if (this._cachedSubscriptions.has(id)) {
       const emitter = this._cachedSubscriptions.get(id)
-      emitter.off(id, callback)
+      emitter.removeListener(id, callback)
       if (emitter.listenerCount(id) === 0) {
         this._cachedSubscriptions.delete(id)
         this._eventEmitter.removeAllListeners(id)
