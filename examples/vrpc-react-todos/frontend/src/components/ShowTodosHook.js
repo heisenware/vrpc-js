@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useBackend } from '../react-vrpc'
+import { useBackend } from 'react-vrpc'
 import VisibleTodoList from './VisibleTodoList'
 import Filter from './Filter'
 

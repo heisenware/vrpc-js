@@ -9,6 +9,7 @@
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-scripts": "3.4.1",
+    "react-vrpc": "^1.0.0",
     "vrpc": "^2.1.2"
   },
   "scripts": {

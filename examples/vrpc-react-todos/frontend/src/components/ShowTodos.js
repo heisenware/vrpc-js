@@ -1,5 +1,5 @@
 import React from 'react'
-import { withBackend } from '../react-vrpc'
+import { withBackend } from 'react-vrpc'
 import VisibleTodoList from './VisibleTodoList'
 import Filter from './Filter'
 
@@ -16,7 +16,10 @@ class ShowTodos extends React.Component {
     await this.updateTodos()
   }
 
-  async componentDidUpdate (_, prevState) {
+  async componentDidUpdate (prevProps, prevState) {
+    if (prevProps.todos !== this.props.todos) {
+      await this.updateTodos()
+    }
     if (this.state.filter !== prevState.filter) {
       await this.updateTodos()
     }

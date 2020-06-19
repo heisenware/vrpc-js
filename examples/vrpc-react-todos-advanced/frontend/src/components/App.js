@@ -1,7 +1,7 @@
 import React from 'react'
 import AddTodo from './AddTodo'
 import ShowTodos from './ShowTodos'
-import { useBackend } from '../react-vrpc'
+import { useBackend } from 'react-vrpc'
 
 function App () {
   const { loading, error } = useBackend('todos')

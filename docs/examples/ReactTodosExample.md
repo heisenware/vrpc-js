@@ -250,7 +250,7 @@ refresh()
 
 which instructs all other components using the `todos` backend to update.
 
-*src/components/ShowTodo.js*
+*src/components/ShowTodos.js*
 
 ```javascript
 import React from 'react'
@@ -271,7 +271,10 @@ class ShowTodos extends React.Component {
     await this.updateTodos()
   }
 
-  async componentDidUpdate (_, prevState) {
+  async componentDidUpdate (prevProps, prevState) {
+    if (prevProps.todos !== this.props.todos) {
+      await this.updateTodos()
+    }
     if (this.state.filter !== prevState.filter) {
       await this.updateTodos()
     }

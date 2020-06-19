@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { useBackend } from '../react-vrpc'
-import TodoItem from './TodoItem'
+import { useBackend } from 'react-vrpc'
+import TodoItem from './TodoItemClass'
 import Filter from './Filter'
 
 function ShowTodos () {

@@ -4,7 +4,7 @@ class Todo extends EventEmitter {
   constructor (text) {
     super()
     this._data = { text, completed: false }
-    setInterval(() => this.toggleCompleted(), 500)
+    setInterval(() => this.toggleCompleted(), 1000)
   }
 
   getData () {

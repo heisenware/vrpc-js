@@ -1,5 +1,5 @@
 import React from 'react'
-import { useBackend } from '../react-vrpc'
+import { useBackend } from 'react-vrpc'
 function AddTodo () {
   const { backend, loading, error } = useBackend('todos')
 

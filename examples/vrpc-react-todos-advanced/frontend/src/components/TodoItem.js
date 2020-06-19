@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { useBackend } from '../react-vrpc'
+import { useBackend } from 'react-vrpc'
 
 function TodoItem ({ id, filter }) {
   const { backend, loading, error } = useBackend('todos', id)
