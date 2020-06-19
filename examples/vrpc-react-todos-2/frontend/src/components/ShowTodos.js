@@ -5,10 +5,7 @@ import Filter from './Filter'
 
 function ShowTodos () {
   const [filter, setFilter] = useState('all')
-  const { backend, loading, error } = useBackend('todos')
-
-  if (loading) return 'Loading...'
-  if (error) return `Error! ${error.message}`
+  const { backend } = useBackend('todos')
 
   const { ids } = backend
   return (

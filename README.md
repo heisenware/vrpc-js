@@ -64,7 +64,8 @@ dynamic linkage), executable or source package.
 
 ### Frontend-Backend communication
 
-- [React Todos App](docs/examples/ReactTodosExample.md)
+- [Simple React Todos App](docs/examples/ReactTodosExample1.md)
+- [Advanced React Todos App](docs/examples/ReactTodosExample2.md)
 
 ## Reference Documentation
 

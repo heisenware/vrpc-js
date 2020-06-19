@@ -1,4 +1,4 @@
-# React Todos App
+# Simple React Todos App
 
 This example shows how easily you can implement a single-page-application that
 loads its data from a backend asynchronously. The idea is to end up with the
@@ -6,7 +6,7 @@ same user-experience as is demonstrated in the [redux
 example](https://redux.js.org/basics/example), but - of course - using VRPC and
 introducing real backend communication.
 
-Let's start from scratch with a new directory, e.g. `vrpc-react-todos`. Once
+Let's start from scratch with a new directory, e.g. `vrpc-react-todos-1`. Once
 created, cd into it and you are good to go.
 
 ## STEP 1: Implementation of the backend
@@ -99,7 +99,7 @@ Simply login using `public.vrpc` as domain and leave the token-field empty.
 ## STEP 2: Implementation of the frontend
 
 Next let's setup the **frontend**. Make sure you are back in the root directory
-(i.e. `vrpc-react-todos`), then run:
+(i.e. `vrpc-react-todos-1`), then run:
 
 ```bash
 npx create-react-app frontend
