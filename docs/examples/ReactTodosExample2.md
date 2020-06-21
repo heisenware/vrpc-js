@@ -100,7 +100,7 @@ As VRPC can itself manage the life-time of instances (through the injected metho
 `create` and `delete`) you can create a `Todo` item by calling `create` with
 the arguments:
 
-```text
+```javascript
 create (a0, 'keep coding') <-
 ```
 
@@ -111,7 +111,7 @@ sure to always use unique ones.
 Once created, you can call all member functions. When bored, you can also delete
 the entire `Todo` item again by calling:
 
-```text
+```javascript
 delete (a0) <-
 ```
 
