@@ -5,13 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Added
+
+- Feature of parsing js-doc like comments while registering code through the
+  adapter [NodeJS]
+
 ## [2.1.4] - 19 Jun 2020
 
 ### Changed
 
-- implementation of event-registration: now dispatching multiple
+- Implementation of event-registration: now dispatching multiple
   subscribers of a proxy on the client side, not the agent side [NodeJS]
-- react todos example showing what can be done with react-vrpc v1.x
+- React todos example showing what can be done with react-vrpc v1.x
 
 ## [2.1.3] - 9 Jun 2020
 

@@ -1,6 +1,6 @@
 const { VrpcAdapter, VrpcAgent } = require('vrpc')
-// Register class "Todos" to be remotely callable
-VrpcAdapter.register(require('./src/Todo'))
+// Adapts the code and makes it remotely callable
+VrpcAdapter.register('./src/Todo')
 
 async function main () {
   try {

@@ -1,5 +1,9 @@
 const EventEmitter = require('events')
 
+/**
+ * The Todo class manages a single todo item
+ * @param {string} text The todo text
+ */
 class Todo extends EventEmitter {
   constructor (text) {
     super()
@@ -7,10 +11,17 @@ class Todo extends EventEmitter {
     setInterval(() => this.toggleCompleted(), 1000)
   }
 
+  /**
+   * Receives todo item data
+   * @return {Object} Object with 'text' and 'completed' information
+   */
   getData () {
     return this._data
   }
 
+  /**
+   * Toggles the completed state of the object
+   */
   toggleCompleted () {
     this._data.completed = !this._data.completed
     this.emit('update', this._data)

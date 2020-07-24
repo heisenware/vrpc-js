@@ -1,3 +1,9 @@
+/**
+ * A class intended for testing VRPC's functionality.
+ *
+ * @class TestClass
+ * @param {Object} registry
+ */
 class TestClass {
   constructor (registry = {}) {
     this._registry = registry
@@ -12,6 +18,12 @@ class TestClass {
     return this._registry[category] !== undefined
   }
 
+  /**
+   * Allows to register a notification callback
+   *
+   * @param {function(Object)} callback A callback notifying whenever a new
+   * entry is available
+   */
   notifyOnNew (callback) {
     this._callbacks.set('new', callback)
   }
@@ -44,6 +56,13 @@ class TestClass {
     return entry
   }
 
+  /**
+   * Waits the configured amount of time and then returns.
+   *
+   * @param {number} ms Time to wait
+   * @returns {number} The time this function waited for
+   *
+   */
   async waitForMe (ms = 100) {
     await new Promise(resolve => setTimeout(resolve, ms))
     return ms

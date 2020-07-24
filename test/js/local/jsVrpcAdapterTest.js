@@ -154,3 +154,32 @@ describe('The nodejs VrpcAdapter', () => {
     })
   })
 })
+
+describe('The nodejs VrpcAdapter', () => {
+  it('should properly register a class when provided a path', () => {
+    VrpcAdapter.register('../../fixtures/TestClass')
+    assert(VrpcAdapter._functionRegistry.has('TestClass'))
+  })
+  it('should have parsed meta information', () => {
+    const meta = VrpcAdapter._getMetaData('TestClass')
+    assert.deepEqual(Object.keys(meta), ['__createNamed__', 'notifyOnNew', 'waitForMe'])
+    assert.deepEqual(
+      meta.waitForMe,
+      {
+        description: 'Waits the configured amount of time and then returns.',
+        params: [
+          {
+            description: 'Time to wait',
+            name: 'ms',
+            optional: false,
+            type: 'number'
+          }
+        ],
+        ret: {
+          description: 'The time this function waited for',
+          type: 'number'
+        }
+      }
+    )
+  })
+})

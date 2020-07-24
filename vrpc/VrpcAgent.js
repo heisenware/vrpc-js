@@ -157,22 +157,22 @@ class VrpcAgent {
 
   _getClasses () {
     return VrpcAdapter.getAvailableClasses()
-    // return JSON.parse(VrpcAdapter.getClasses())
   }
 
   _getInstances (className) {
     return VrpcAdapter.getAvailableInstances(className)
-    // return JSON.parse(VrpcAdapter.getInstances(className))
   }
 
   _getMemberFunctions (className) {
     return VrpcAdapter.getAvailableMemberFunctions(className)
-    // return JSON.parse(VrpcAdapter.getMemberFunctions(className))
   }
 
   _getStaticFunctions (className) {
     return VrpcAdapter.getAvailableStaticFunctions(className)
-    // return JSON.parse(VrpcAdapter.getStaticFunctions(className))
+  }
+
+  _getMetaData (className) {
+    return VrpcAdapter.getAvailableMetaData(className)
   }
 
   async _ensureConnected () {
@@ -218,8 +218,8 @@ class VrpcAgent {
 
     // Publish class information
     const classes = this._getClasses()
-    classes.forEach(klass => {
-      this._publishClassInfoMessage(klass)
+    classes.forEach(className => {
+      this._publishClassInfoMessage(className)
     })
   }
 
@@ -234,16 +234,17 @@ class VrpcAgent {
     )
   }
 
-  _publishClassInfoMessage (klass) {
+  _publishClassInfoMessage (className) {
     const json = {
-      className: klass,
-      instances: this._getInstances(klass),
-      memberFunctions: this._getMemberFunctions(klass),
-      staticFunctions: this._getStaticFunctions(klass)
+      className: className,
+      instances: this._getInstances(className),
+      memberFunctions: this._getMemberFunctions(className),
+      staticFunctions: this._getStaticFunctions(className),
+      meta: this._getMetaData(className)
     }
     try {
       this._mqttPublish(
-        `${this._baseTopic}/${klass}/__classInfo__`,
+        `${this._baseTopic}/${className}/__classInfo__`,
         JSON.stringify(json),
         { retain: true }
       )
@@ -259,10 +260,10 @@ class VrpcAgent {
     const topics = []
     const classes = this._getClasses()
     this._log.info(`Registering classes: ${classes}`)
-    classes.forEach(klass => {
-      const staticFunctions = this._getStaticFunctions(klass)
+    classes.forEach(className => {
+      const staticFunctions = this._getStaticFunctions(className)
       staticFunctions.forEach(func => {
-        topics.push(`${this._baseTopic}/${klass}/__static__/${func}`)
+        topics.push(`${this._baseTopic}/${className}/__static__/${func}`)
       })
     })
     return topics
@@ -282,8 +283,8 @@ class VrpcAgent {
       if (unregister) {
         this._mqttPublish(agentTopic, null, { retain: true })
         const classes = this._getClasses()
-        for (const klass of classes) {
-          const infoTopic = `${this._baseTopic}/${klass}/__classInfo__`
+        for (const className of classes) {
+          const infoTopic = `${this._baseTopic}/${className}/__classInfo__`
           this._mqttPublish(infoTopic, null, { retain: true })
         }
       }
@@ -302,7 +303,7 @@ class VrpcAgent {
       const json = JSON.parse(data.toString())
       this._log.debug(`Message arrived with topic: ${topic} and payload:`, json)
       const tokens = topic.split('/')
-      const [,, klass, instance, method] = tokens
+      const [,, className, instance, method] = tokens
 
       // Special case: clientInfo message
       if (tokens.length === 4 && tokens[3] === '__clientInfo__') {
@@ -317,7 +318,7 @@ class VrpcAgent {
       }
 
       // Prepare RPC json
-      json.context = instance === '__static__' ? klass : instance
+      json.context = instance === '__static__' ? className : instance
       json.method = method
 
       // Mutates json and adds return value
@@ -330,7 +331,7 @@ class VrpcAgent {
           // TODO handle instantiation errors
           const instanceId = json.data.r
           // TODO await this
-          this._subscribeToMethodsOfNewInstance(klass, instanceId)
+          this._subscribeToMethodsOfNewInstance(className, instanceId)
           this._registerUnnamedInstance(instanceId, json.sender)
           break
         }
@@ -339,7 +340,7 @@ class VrpcAgent {
           const instanceId = json.data.r
           if (!this._hasNamedInstance(instanceId)) {
             publishClassInfo = true
-            this._subscribeToMethodsOfNewInstance(klass, instanceId)
+            this._subscribeToMethodsOfNewInstance(className, instanceId)
           }
           this._registerNamedInstance(instanceId, json.sender)
           break
@@ -351,7 +352,7 @@ class VrpcAgent {
         }
         case '__delete__': {
           const { data: { _1 }, sender } = json
-          this._unsubscribeMethodsOfDeletedInstance(klass, instance)
+          this._unsubscribeMethodsOfDeletedInstance(className, instance)
           const wasNamed = this._unregisterInstance(_1, sender)
           if (wasNamed) publishClassInfo = true
           break
@@ -366,11 +367,11 @@ class VrpcAgent {
         jsonString = JSON.stringify(json)
       }
       if (publishClassInfo && method === '__delete__') {
-        this._publishClassInfoMessage(klass)
+        this._publishClassInfoMessage(className)
       }
       this._mqttPublish(json.sender, jsonString)
       if (publishClassInfo && method === '__createNamed__') {
-        this._publishClassInfoMessage(klass)
+        this._publishClassInfoMessage(className)
       }
     } catch (err) {
       this._log.error(err, `Problem while handling incoming message: ${err.message}`)
@@ -458,19 +459,19 @@ class VrpcAgent {
     return true
   }
 
-  _subscribeToMethodsOfNewInstance (klass, instance) {
-    const memberFunctions = this._getMemberFunctions(klass)
+  _subscribeToMethodsOfNewInstance (className, instance) {
+    const memberFunctions = this._getMemberFunctions(className)
     memberFunctions.forEach(method => {
-      const topic = `${this._baseTopic}/${klass}/${instance}/${method}`
+      const topic = `${this._baseTopic}/${className}/${instance}/${method}`
       this._mqttSubscribe(topic)
       this._log.debug(`Subscribed to new topic after instantiation: ${topic}`)
     })
   }
 
-  _unsubscribeMethodsOfDeletedInstance (klass, instance) {
-    const memberFunctions = this._getMemberFunctions(klass)
+  _unsubscribeMethodsOfDeletedInstance (className, instance) {
+    const memberFunctions = this._getMemberFunctions(className)
     memberFunctions.forEach(method => {
-      const topic = `${this._baseTopic}/${klass}/${instance}/${method}`
+      const topic = `${this._baseTopic}/${className}/${instance}/${method}`
       this._mqttUnsubscribe(topic)
       this._log.debug(`Unsubscribed from topic after deletion: ${topic}`)
     })

@@ -128,12 +128,23 @@ General RPC **response** payload pattern:
     <domain>/<agent>/<class>/__classInfo__
 
     JSON PAYLOAD {
-      "className": "<className>",
-      "instances": "[<instance1>, <instance2>, ...]",
-      "staticFunctions": "[<function1>, <function2>, ...]",
-      "memberFunctions": "[<function1>, <function2>, ...]"
+      "className": <className>,
+      "instances": [<instance1>, <instance2>, ...],
+      "staticFunctions": [<function1>, <function2>, ...],
+      "memberFunctions": [<function1>, <function2>, ...],
+      "meta": {
+        <function1>: { description, params, ret }
+        <function2>: { description, params, ret }
+      }
     }
     ```
+
+    > **NOTE**
+    >
+    > The `meta` property is optional and only available if meta information
+    > could be acquired from the adapted code (e.g. js-doc like comments)
+    > When available, not all functions may be listed, those without meta
+    > information are skipped.
 
 ### Runtime
 

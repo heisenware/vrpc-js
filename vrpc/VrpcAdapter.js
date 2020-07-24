@@ -43,13 +43,14 @@ const fs = require('fs')
 const Ajv = require('ajv')
 const caller = require('caller')
 const shortid = require('shortid')
+const commentParser = require('comment-parser')
 
 class VrpcAdapter {
   /**
    * Automatically requires .js files for auto-registration.
    *
    * @param {string} dirPath Relative path to start the auto-registration from
-   * @param {integer} maxLevel Maximum search depth (default: unlimited)
+   * @param {integer} [maxLevel] Maximum search depth (default: unlimited)
    */
   static addPluginPath (
     dirPath,
@@ -78,39 +79,40 @@ class VrpcAdapter {
   }
 
   /**
-   * Registers a class to be remotely constructable and callable.
+   * Registers existing code and makes it (remotely) callable
    *
-   * @param {Class} Klass The class to be registered
-   * @param {Object} options
-   * @param {boolean} options.onlyPublic If true, only registers functions that
-   * do not begin with an underscore (default: true)
-   * @param {boolean} options.withNew If true, registered class will be created
-   * using `new`
-   * @param {Object} options.schema Optional, if provided is used to validate
-   * ctor parameters
+   * @param {Object|string} code Existing code to be registered, can be a class
+   * or function object or a relative path to a module
+   * @param {Object} [options]
+   * @param {boolean} [options.onlyPublic=true] If true, only registers functions
+   * that do not begin with an underscore
+   * @param {boolean} [options.withNew=true] If true, class will be constructed
+   * using the `new` operator
+   * @param {Object} [options.schema=null] If provided is used to validate ctor
+   * parameters (only works if registered code reflects a single class)
+   * @param {boolean} options.jsdocPath if provided, parses documentation and
+   * provides it as meta information (if the code parameter reflects a path this
+   * is automatically taken as default)
+   *
+   * NOTE: This function currently only supports registration of classes (either
+   * when provided as object or when exported on the provided module path)
    */
-  static register (
-    Klass,
-    { onlyPublic = true, withNew = true, schema = null } = {}
-  ) {
-    // Get all static static functions
-    let staticFunctions = VrpcAdapter._extractStaticFunctions(Klass)
-    if (onlyPublic) {
-      staticFunctions = staticFunctions.filter(f => !f.startsWith('_'))
+  static register (code, options = {}) {
+    if (typeof code === 'string') {
+      const absPath = path.resolve(caller(), '../', code)
+      const relPath = path.relative(__dirname, absPath)
+      const absJsdocPath = `${absPath}.js`
+      const Klass = require(relPath)
+      this._registerClass(Klass, absJsdocPath, options)
+    } else {
+      const { jsdocPath } = options
+      if (jsdocPath) {
+        const absJsdocPath = path.resolve(caller(), '../', jsdocPath, '.js')
+        this._registerClass(code, absJsdocPath, { ...options, jsdoc: true })
+      } else {
+        this._registerClass(code, null, options)
+      }
     }
-    // Inject constructor and destructor
-    staticFunctions.push('__create__')
-    staticFunctions.push('__delete__')
-    staticFunctions.push('__createNamed__')
-    staticFunctions.push('__getNamed__')
-    let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
-    if (onlyPublic) {
-      memberFunctions = memberFunctions.filter(f => !f.startsWith('_'))
-    }
-    VrpcAdapter._functionRegistry.set(
-      Klass.name,
-      { Klass, withNew, staticFunctions, memberFunctions, schema }
-    )
   }
 
   static getClasses () {
@@ -123,6 +125,10 @@ class VrpcAdapter {
 
   static getStaticFunctions (className) {
     return JSON.stringify(VrpcAdapter._getStaticFunctionsArray(className))
+  }
+
+  static getMetaData (className) {
+    return JSON.stringify(VrpcAdapter._getMetaData(className))
   }
 
   static getInstances (className) {
@@ -225,7 +231,94 @@ class VrpcAdapter {
     return VrpcAdapter._getStaticFunctionsArray(className)
   }
 
+  /**
+   * Provides all available meta data of the registered class.
+   *
+   * @param {string} className Name of class to provide meta data for
+   */
+  static getAvailableMetaData (className) {
+    return VrpcAdapter._getMetaData(className)
+  }
+
   // private:
+
+  static _registerClass (
+    Klass,
+    absJsdocPath = null,
+    {
+      onlyPublic = true,
+      withNew = true,
+      schema = null,
+      jsdoc = true
+    } = {}
+  ) {
+    // Get all static static functions
+    let staticFunctions = VrpcAdapter._extractStaticFunctions(Klass)
+    if (onlyPublic) {
+      staticFunctions = staticFunctions.filter(f => !f.startsWith('_'))
+    }
+    // Inject constructor and destructor
+    staticFunctions.push('__create__')
+    staticFunctions.push('__delete__')
+    staticFunctions.push('__createNamed__')
+    staticFunctions.push('__getNamed__')
+    let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
+    if (onlyPublic) {
+      memberFunctions = memberFunctions.filter(f => !f.startsWith('_'))
+    }
+    let meta = null
+    if (jsdoc && absJsdocPath) {
+      const content = fs.readFileSync(absJsdocPath).toString('utf8')
+      meta = this._parseComments(content)
+    }
+    VrpcAdapter._functionRegistry.set(
+      Klass.name,
+      { Klass, withNew, staticFunctions, memberFunctions, schema, meta }
+    )
+  }
+
+  static _parseComments (content) {
+    const comments = commentParser(content, { assocFunctions: true })
+    const meta = {}
+    comments.forEach(({ tags, description, functionName }) => {
+      if (functionName) {
+        if (tags) {
+          let params = tags.filter(({ tag }) => tag === 'param' || tag === 'arg' || tag === 'argument')
+          if (params.length > 0) {
+            params = params.map(({ name, optional, description, type }) => {
+              return { name, optional, description, type }
+            })
+          } else {
+            params = []
+          }
+          let ret = tags.filter(({ tag }) => tag === 'returns' || tag === 'return')
+          if (ret.length === 1) {
+            const { source, type } = ret[0]
+            const description = source.split(' ').splice(2).join(' ')
+            ret = { description, type }
+          } else {
+            ret = null
+          }
+          if (functionName === 'constructor') {
+            const modified = [
+              {
+                name: 'instanceName',
+                optional: false,
+                description: 'Name of the instance to be created',
+                type: 'string'
+              },
+              ...params
+            ]
+            meta.__createNamed__ = { description, params: modified, ret }
+          } else {
+            meta[functionName] = { description, params, ret }
+          }
+        }
+      }
+    })
+    console.log(JSON.stringify(meta, null, 2))
+    return meta
+  }
 
   static _call (json) {
     const { context, method, data } = json
@@ -452,12 +545,16 @@ class VrpcAdapter {
     return entry
   }
 
-  static _isFunction (variable) {
-    if (variable) {
-      const ident = {}.toString.call(variable)
+  static _isFunction (v) {
+    if (v) {
+      const ident = {}.toString.call(v)
       return ident === '[object Function]' || ident === '[object AsyncFunction]'
     }
     return false
+  }
+
+  static _isClass (v) {
+    return typeof v === 'function' && /^\s*class\s+/.test(v.toString())
   }
 
   static _extractMemberFunctions (klass) {
@@ -511,6 +608,12 @@ class VrpcAdapter {
     const entry = VrpcAdapter._functionRegistry.get(className)
     if (entry) return entry.staticFunctions
     return []
+  }
+
+  static _getMetaData (className) {
+    const entry = VrpcAdapter._functionRegistry.get(className)
+    if (entry && entry.meta) return entry.meta
+    return {}
   }
 }
 

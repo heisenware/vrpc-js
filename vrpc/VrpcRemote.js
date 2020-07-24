@@ -174,7 +174,8 @@ class VrpcRemote extends EventEmitter {
           className,
           instances,
           memberFunctions,
-          staticFunctions
+          staticFunctions,
+          meta
         } = json
         if (removed.length !== 0) this.emit('instanceGone', removed, { domain, agent, className })
         if (added.length !== 0) this.emit('instanceNew', added, { domain, agent, className })
@@ -186,7 +187,8 @@ class VrpcRemote extends EventEmitter {
             className,
             instances,
             memberFunctions,
-            staticFunctions
+            staticFunctions,
+            meta
           }
         )
       // RPC message
