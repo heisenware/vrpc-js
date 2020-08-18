@@ -511,7 +511,7 @@ class VrpcRemote extends EventEmitter {
   }
 
   _mqttPublish (topic, message, options) {
-    this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
+    this._client.publish(topic, message, { qos: 0, ...options }, (err) => {
       if (err) {
         this._log.warn(`Could not publish MQTT message because: ${err.message}`)
       }
@@ -519,7 +519,7 @@ class VrpcRemote extends EventEmitter {
   }
 
   _mqttSubscribe (topic, options) {
-    this._client.subscribe(topic, { qos: 1, ...options }, (err, granted) => {
+    this._client.subscribe(topic, { qos: 0, ...options }, (err, granted) => {
       if (err) {
         this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
       } else {

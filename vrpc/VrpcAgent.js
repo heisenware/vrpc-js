@@ -91,7 +91,7 @@ class VrpcAgent {
           status: 'offline',
           hostname: os.hostname()
         }),
-        qos: 1,
+        qos: 0,
         retain: true
       }
     }
@@ -128,7 +128,7 @@ class VrpcAgent {
   }
 
   _mqttPublish (topic, message, options) {
-    this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
+    this._client.publish(topic, message, { qos: 0, ...options }, (err) => {
       if (err) {
         this._log.warn(`Could not publish MQTT message because: ${err.message}`)
       }
@@ -136,7 +136,7 @@ class VrpcAgent {
   }
 
   _mqttSubscribe (topic, options) {
-    this._client.subscribe(topic, { qos: 1, ...options }, (err, granted) => {
+    this._client.subscribe(topic, { qos: 0, ...options }, (err, granted) => {
       if (err) {
         this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
       } else {
@@ -324,6 +324,16 @@ class VrpcAgent {
       // Mutates json and adds return value
       VrpcAdapter._call(json)
 
+      let jsonString
+      try {
+        jsonString = JSON.stringify(json)
+      } catch (err) {
+        this._log.debug(`Failed serialization of return value for: ${json.context}::${json.method}, because: ${err.message}`)
+        json.data.r = '__vrpc::not-serializable__'
+        jsonString = JSON.stringify(json)
+      }
+      this._mqttPublish(json.sender, jsonString)
+
       // Intersecting life-cycle functions
       let publishClassInfo = false
       switch (method) {
@@ -331,7 +341,7 @@ class VrpcAgent {
           // TODO handle instantiation errors
           const instanceId = json.data.r
           // TODO await this
-          this._subscribeToMethodsOfNewInstance(className, instanceId)
+          this._subscribeToMethodsOfNewInstance(klass, instanceId)
           this._registerUnnamedInstance(instanceId, json.sender)
           break
         }
@@ -339,8 +349,8 @@ class VrpcAgent {
           // TODO handle instantiation errors
           const instanceId = json.data.r
           if (!this._hasNamedInstance(instanceId)) {
-            publishClassInfo = true
-            this._subscribeToMethodsOfNewInstance(className, instanceId)
+            this._publishClassInfoMessage(klass)
+            this._subscribeToMethodsOfNewInstance(klass, instanceId)
           }
           this._registerNamedInstance(instanceId, json.sender)
           break
@@ -352,31 +362,18 @@ class VrpcAgent {
         }
         case '__delete__': {
           const { data: { _1 }, sender } = json
-          this._unsubscribeMethodsOfDeletedInstance(className, instance)
           const wasNamed = this._unregisterInstance(_1, sender)
-          if (wasNamed) publishClassInfo = true
+          if (wasNamed) this._publishClassInfoMessage(klass)
+          this._unsubscribeMethodsOfDeletedInstance(klass, instance)
           break
         }
-      }
-      let jsonString
-      try {
-        jsonString = JSON.stringify(json)
-      } catch (err) {
-        this._log.debug(`Failed serialization of return value for: ${json.context}::${json.method}, because: ${err.message}`)
-        json.data.r = '__vrpc::not-serializable__'
-        jsonString = JSON.stringify(json)
-      }
-      if (publishClassInfo && method === '__delete__') {
-        this._publishClassInfoMessage(className)
-      }
-      this._mqttPublish(json.sender, jsonString)
-      if (publishClassInfo && method === '__createNamed__') {
-        this._publishClassInfoMessage(className)
       }
     } catch (err) {
       this._log.error(err, `Problem while handling incoming message: ${err.message}`)
     }
   }
+
+
 
   _handleClientInfoMessage (topic, json) {
     // Client went offline
@@ -460,12 +457,7 @@ class VrpcAgent {
   }
 
   _subscribeToMethodsOfNewInstance (className, instance) {
-    const memberFunctions = this._getMemberFunctions(className)
-    memberFunctions.forEach(method => {
-      const topic = `${this._baseTopic}/${className}/${instance}/${method}`
-      this._mqttSubscribe(topic)
-      this._log.debug(`Subscribed to new topic after instantiation: ${topic}`)
-    })
+     this._mqttSubscribe(`${this._baseTopic}/${className}/${instance}/+`)
   }
 
   _unsubscribeMethodsOfDeletedInstance (className, instance) {
