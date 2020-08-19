@@ -316,7 +316,6 @@ class VrpcAdapter {
         }
       }
     })
-    console.log(JSON.stringify(meta, null, 2))
     return meta
   }
 
