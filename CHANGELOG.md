@@ -12,7 +12,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Feature of parsing js-doc like comments while registering code through the
   adapter [NodeJS]
 - New option: `bestEffort` which sets all `qos` levels to 0 when true [NodeJS]
-  (thanks to @psorowka for suggesting this for performance improvement)
+  (thanks to [psorowka](https://github.com/psorowka) for suggesting this for
+  performance improvement)
+
+### Changed
+
+- Sequential subscription calls to single array-based one, much improving proxy
+  creation performance [NodeJS] (thanks to [cstim](https://github.com/cstim)
+  suggesting this)
 
 ## [2.1.4] - 19 Jun 2020
 
