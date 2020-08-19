@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   creation performance [NodeJS] (thanks to [cstim](https://github.com/cstim)
   suggesting this)
 
+### Fixed
+
+- Wrong error message in-case a re-subscription happened. Now message is fixed
+  and level set from `warn` to `debug`
+
 ## [2.1.4] - 19 Jun 2020
 
 ### Changed

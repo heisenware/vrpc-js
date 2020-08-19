@@ -150,7 +150,7 @@ class VrpcAgent {
         this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
       } else {
         if (granted.length === 0) {
-          this._log.warn(`No permission for subscribing to topic: ${topic}`)
+          this._log.debug(`Already subscribed to: ${topic}`)
         }
       }
     })
