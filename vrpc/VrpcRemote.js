@@ -75,7 +75,8 @@ class VrpcRemote extends EventEmitter {
     domain = '*',
     broker = 'mqtts://vrpc.io:8883',
     timeout = 6 * 1000,
-    log = 'console'
+    log = 'console',
+    bestEffort = false
   } = {}) {
     super()
     this._token = token
@@ -85,6 +86,7 @@ class VrpcRemote extends EventEmitter {
     this._domain = domain
     this._broker = broker
     this._timeout = timeout
+    this._qos = this._qos = bestEffort ? 0 : 1
     this._instance = crypto.randomBytes(2).toString('hex')
     this._mqttClientId = this._createClientId(this._instance)
     this._vrpcClientId = `${domain}/${os.hostname()}/${this._instance}`
@@ -511,7 +513,7 @@ class VrpcRemote extends EventEmitter {
   }
 
   _mqttPublish (topic, message, options) {
-    this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
+    this._client.publish(topic, message, { qos: this._qos, ...options }, (err) => {
       if (err) {
         this._log.warn(`Could not publish MQTT message because: ${err.message}`)
       }
@@ -519,7 +521,7 @@ class VrpcRemote extends EventEmitter {
   }
 
   _mqttSubscribe (topic, options) {
-    this._client.subscribe(topic, { qos: 1, ...options }, (err, granted) => {
+    this._client.subscribe(topic, { qos: this._qos, ...options }, (err, granted) => {
       if (err) {
         this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
       } else {

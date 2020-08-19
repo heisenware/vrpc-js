@@ -35,6 +35,13 @@ class VrpcAgent {
       ['-P', '--password'],
       { help: 'Password' }
     )
+    parser.addArgument(
+      ['--bestEffort'],
+      {
+        help: 'Calls function on best-effort. Improves performance but may fail under unstable network connections.',
+        action: 'store_true'
+      }
+    )
     const args = parser.parseArgs()
     return new VrpcAgent(args)
   }
@@ -46,7 +53,8 @@ class VrpcAgent {
     password,
     token,
     broker = 'mqtts://vrpc.io:8883',
-    log = 'console'
+    log = 'console',
+    bestEffort = false
   } = {}
   ) {
     this._username = username
@@ -55,6 +63,7 @@ class VrpcAgent {
     this._agent = agent
     this._domain = domain
     this._broker = broker
+    this._qos = bestEffort ? 0 : 1
     this._isReconnect = false
     if (log === 'console') {
       this._log = console
@@ -91,7 +100,7 @@ class VrpcAgent {
           status: 'offline',
           hostname: os.hostname()
         }),
-        qos: 1,
+        qos: this._qos,
         retain: true
       }
     }
@@ -128,7 +137,7 @@ class VrpcAgent {
   }
 
   _mqttPublish (topic, message, options) {
-    this._client.publish(topic, message, { qos: 1, ...options }, (err) => {
+    this._client.publish(topic, message, { qos: this._qos, ...options }, (err) => {
       if (err) {
         this._log.warn(`Could not publish MQTT message because: ${err.message}`)
       }
@@ -136,7 +145,7 @@ class VrpcAgent {
   }
 
   _mqttSubscribe (topic, options) {
-    this._client.subscribe(topic, { qos: 1, ...options }, (err, granted) => {
+    this._client.subscribe(topic, { qos: this._qos, ...options }, (err, granted) => {
       if (err) {
         this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
       } else {

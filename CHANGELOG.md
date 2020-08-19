@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Feature of parsing js-doc like comments while registering code through the
   adapter [NodeJS]
+- New option: `bestEffort` which sets all `qos` levels to 0 when true [NodeJS]
+  (thanks to @psorowka for suggesting this for performance improvement)
 
 ## [2.1.4] - 19 Jun 2020
 
