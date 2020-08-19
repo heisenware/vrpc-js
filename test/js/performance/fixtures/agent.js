@@ -23,7 +23,8 @@ async function main () {
   const agent = new VrpcAgent({
     domain: 'public.vrpc',
     agent: os.hostname(),
-    broker: 'mqtt://broker:1883'
+    broker: 'mqtt://broker:1883',
+    bestEffort: false
   })
   await agent.serve()
 }

@@ -6,15 +6,15 @@ const { assert } = require('chai')
 const { VrpcRemote } = require('../../../index')
 const {
   performance,
-  PerformanceObserver,
-  monitorEventLoopDelay
+  PerformanceObserver
 } = require('perf_hooks')
 const Dockerode = require('dockerode')
 
-describe('A single this.client connected to a single agent', () => {
+const N_PROXIES = 300
+const N_RPC_CALLS = 10
 
+describe('A single client connected to a single agent', () => {
   before(async () => {
-
     // Create docker instance
     this.docker = new Dockerode()
 
@@ -23,7 +23,7 @@ describe('A single this.client connected to a single agent', () => {
     const obs = new PerformanceObserver((list) => {
       const entry = list.getEntries()[0]
       this.ave.push(entry.duration)
-      console.log(`Time for ('${entry.name}')`, entry.duration)
+      console.log(`Time for ${entry.name}`, entry.duration)
     })
 
     obs.observe({ entryTypes: ['measure'], buffered: false })
@@ -32,7 +32,8 @@ describe('A single this.client connected to a single agent', () => {
     this.client = new VrpcRemote({
       domain: 'public.vrpc',
       broker: 'mqtt://broker:1883',
-      timeout: 10000
+      timeout: 10000,
+      bestEffort: true
     })
     await this.client.connect()
   })
@@ -41,26 +42,32 @@ describe('A single this.client connected to a single agent', () => {
     await this.client.end()
   })
 
-  it('should create a multiple proxy instances', async () => {
+  it('should create multiple proxy instances', async () => {
     this.proxies = []
-    for (let i = 0; i < 10; i++) {
-      this.proxies.push(this.client.create({ agent: 'agent1', className: 'PlusOne' }))
+    for (let i = 0; i < N_PROXIES; i++) {
+      performance.mark(`${i}b`)
+      const proxy = await this.client.create({ agent: 'agent1', className: 'PlusOne' })
+      this.proxies.push(proxy)
+      performance.mark(`${i}e`)
+      performance.measure(`proxy-creation-${i}`, `${i}b`, `${i}e`)
     }
-    this.proxies = await Promise.all(this.proxies)
+    console.log('Average time for proxy-creation', this.ave.reduce((a, b) => (a + b)) / this.ave.length)
+    this.ave = []
   })
 
   it('should not loose messages when calling the agent full speed', async () => {
-    for (let i = 1; i <= 100; i++) {
+    for (let i = 1; i <= N_RPC_CALLS; i++) {
       performance.mark(`${i}b`)
       const values = await Promise.all(this.proxies.map(proxy => proxy.increment()))
       performance.mark(`${i}e`)
       performance.measure(`rpc-online-${i}`, `${i}b`, `${i}e`)
-      assert.deepStrictEqual(values, Array(10).fill(i))
+      assert.deepStrictEqual(values, Array(N_PROXIES).fill(i))
     }
-    console.log('AVE:', this.ave.reduce((a, b) => (a + b)) / this.ave.length)
+    console.log('Average time for rpc-online', this.ave.reduce((a, b) => (a + b)) / this.ave.length)
+    this.ave = []
     await Promise.all(this.proxies.map(proxy => proxy.reset()))
   })
-]
+
   // NOTE: Reduce the agent's keep-alive to trigger a full re-connect.
   // This test will still pass!
   it('should not even loose messages when the agent is shortly offline', async () => {
@@ -73,12 +80,12 @@ describe('A single this.client connected to a single agent', () => {
         Container: 'test_agent1_1'
       })
     }, 5000)
-    for (let i = 1; i <= 100; i++) {
+    for (let i = 1; i <= N_RPC_CALLS; i++) {
       performance.mark(`${i}b`)
       const values = await Promise.all(this.proxies.map(proxy => proxy.increment()))
       performance.mark(`${i}e`)
       performance.measure(`rpc-offline-${i}`, `${i}b`, `${i}e`)
-      assert.deepStrictEqual(values, Array(10).fill(i))
+      assert.deepStrictEqual(values, Array(N_PROXIES).fill(i))
     }
   })
 })
