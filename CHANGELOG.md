@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [unreleased]
 
+### Changed
+
 - Embedded comment-parser dependency into code base
+
+### Fixed
+
+- potential crash of comment-parser when faced with stand-alone comment-blocks
 
 ## [2.1.5] - 19 August 2020
 

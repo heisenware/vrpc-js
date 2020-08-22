@@ -66,6 +66,7 @@ function parse_tag (str, parsers) {
  * Parses comment block (array of String lines)
  */
 function parse_block (source, opts) {
+  if (!source[0]) return null
   const trim = opts.trim
     ? s => s.trim()
     : s => s

@@ -5,6 +5,11 @@
  * @param {Object} registry
  */
 class TestClass {
+  /**
+   * Constructor allowing to provide an existing registry
+   *
+   * @param {Object} registry
+   */
   constructor (registry = {}) {
     this._registry = registry
     this._callbacks = new Map()
@@ -17,6 +22,10 @@ class TestClass {
   hasCategory (category) {
     return this._registry[category] !== undefined
   }
+
+  /**
+   * A free code block should not harm
+   */
 
   /**
    * Allows to register a notification callback
