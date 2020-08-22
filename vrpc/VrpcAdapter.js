@@ -43,7 +43,7 @@ const fs = require('fs')
 const Ajv = require('ajv')
 const caller = require('caller')
 const shortid = require('shortid')
-const commentParser = require('comment-parser')
+const commentParser = require('./comment-parser')
 
 class VrpcAdapter {
   /**
