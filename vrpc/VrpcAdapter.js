@@ -371,6 +371,8 @@ class VrpcAdapter {
           const { Klass } = entry
           // TODO Think about whether to do live checking (like here) or
           // rather sticking to those functions registered before...
+          // TODO This is even more important now as the agent does a wildcard
+          // subscription against all functions
           if (VrpcAdapter._isFunction(Klass[method])) {
             try {
               const ret = Klass[method].apply(null, wrappedArgs)

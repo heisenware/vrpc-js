@@ -469,21 +469,15 @@ class VrpcAgent {
   }
 
   _subscribeToMethodsOfNewInstance (className, instance) {
-    const memberFunctions = this._getMemberFunctions(className)
-    const topics = memberFunctions.map(method => (
-      `${this._baseTopic}/${className}/${instance}/${method}`
-    ))
-    this._mqttSubscribe(topics)
-    this._log.debug(`Subscribed to new topics after instantiation: ${topics}`)
+    const topic = `${this._baseTopic}/${className}/${instance}/+`
+    this._mqttSubscribe(topic)
+    this._log.debug(`Subscribed to new topic after instantiation: ${topic}`)
   }
 
   _unsubscribeMethodsOfDeletedInstance (className, instance) {
-    const memberFunctions = this._getMemberFunctions(className)
-    const topics = memberFunctions.map(method => (
-      `${this._baseTopic}/${className}/${instance}/${method}`
-    ))
-    this._mqttUnsubscribe(topics)
-    this._log.debug(`Unsubscribed from topics after deletion: ${topics}`)
+    const topic = `${this._baseTopic}/${className}/${instance}/+`
+    this._mqttUnsubscribe(topic)
+    this._log.debug(`Unsubscribed from topic after deletion: ${topic}`)
   }
 
   _handleReconnect () {

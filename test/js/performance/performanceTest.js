@@ -10,7 +10,7 @@ const {
 } = require('perf_hooks')
 const Dockerode = require('dockerode')
 
-const N_PROXIES = 300
+const N_PROXIES = 500
 const N_RPC_CALLS = 10
 
 describe('A single client connected to a single agent', () => {

@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - Embedded comment-parser dependency into code base
+- Using a wildcard topic for subscribing and unsubscribing the method of new or
+  deleted instances respectively. This was suggested by
+  [psorowka](https://github.com/psorowka) as a performance improvement and could
+  be reproduced with a changed class-fixture (including many more functions) in
+  the performance test.
 
 ### Fixed
 
