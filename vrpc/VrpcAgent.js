@@ -64,6 +64,10 @@ class VrpcAgent extends EventEmitter {
         action: 'store_true'
       }
     )
+    parser.addArgument(
+      ['-A', '--agentVersion'],
+      { help: 'Agent version. May be checked on the remote side for compatibility checks.', required: false }
+    )
     const args = parser.parseArgs()
     return new VrpcAgent(args)
   }
@@ -89,7 +93,8 @@ class VrpcAgent extends EventEmitter {
     token,
     broker = 'mqtts://vrpc.io:8883',
     log = 'console',
-    bestEffort = false
+    bestEffort = false,
+    agentVersion = ''
   } = {}
   ) {
     super()
@@ -100,6 +105,7 @@ class VrpcAgent extends EventEmitter {
     this._domain = domain
     this._broker = broker
     this._qos = bestEffort ? 0 : 1
+    this._agentVersion = agentVersion
     this._isReconnect = false
     if (log === 'console') {
       this._log = console
@@ -196,7 +202,8 @@ class VrpcAgent extends EventEmitter {
   _createAgentInfoPayload ({ status }) {
     return JSON.stringify({
       status,
-      hostname: os.hostname()
+      hostname: os.hostname(),
+      agentVersion: this._agentVersion
     })
   }
 
