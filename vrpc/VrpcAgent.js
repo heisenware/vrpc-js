@@ -135,10 +135,7 @@ class VrpcAgent extends EventEmitter {
       rejectUnauthorized: false,
       will: {
         topic: `${this._baseTopic}/__agentInfo__`,
-        payload: JSON.stringify({
-          status: 'offline',
-          hostname: os.hostname()
-        }),
+        payload: this._createAgentInfoPayload({ status: 'offline' }),
         qos: this._qos,
         retain: true
       }
@@ -172,10 +169,7 @@ class VrpcAgent extends EventEmitter {
       const agentTopic = `${this._baseTopic}/__agentInfo__`
       this._mqttPublish(
         agentTopic,
-        JSON.stringify({
-          status: 'offline',
-          hostname: os.hostname()
-        }),
+        this._createAgentInfoPayload({ status: 'offline' }),
         { retain: true }
       )
       if (unregister) {
@@ -194,6 +188,13 @@ class VrpcAgent extends EventEmitter {
         `Problem during disconnecting agent: ${err.message}`
       )
     }
+  }
+
+  _createAgentInfoPayload ({ status }) {
+    return JSON.stringify({
+      status,
+      hostname: os.hostname()
+    })
   }
 
   async _clearPersistedSession () {
@@ -314,10 +315,7 @@ class VrpcAgent extends EventEmitter {
   _publishAgentInfoMessage () {
     this._mqttPublish(
       `${this._baseTopic}/__agentInfo__`,
-      JSON.stringify({
-        status: 'online',
-        hostname: os.hostname()
-      }),
+      this._createAgentInfoPayload({ status: 'online' }),
       { retain: true }
     )
   }
