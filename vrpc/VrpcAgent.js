@@ -3,8 +3,23 @@ const mqtt = require('mqtt')
 const crypto = require('crypto')
 const { ArgumentParser } = require('argparse')
 const VrpcAdapter = require('./VrpcAdapter')
+const EventEmitter = require('events')
 
-class VrpcAgent {
+/**
+ * Make code available to remote users over VRPC.
+ *
+ * This class provides the following events that are originally emitted from the
+ * internal MQTT client:
+ *
+ * - connect: Emitted on successful (re)connection
+ * - reconnect: Emitted when a reconnect starts.
+ * - error: Emitted when the client cannot connect (i.e. connack rc != 0) or
+ *   when a parsing error occurs.
+ * - offline: Emitted when the client goes offline.
+ * - close: Emitted after a disconnection.
+ *
+ */
+class VrpcAgent extends EventEmitter {
 
   static fromCommandline () {
     const parser = new ArgumentParser({
@@ -57,6 +72,7 @@ class VrpcAgent {
     bestEffort = false
   } = {}
   ) {
+    super()
     this._username = username
     this._password = password
     this._token = token
@@ -117,6 +133,8 @@ class VrpcAgent {
     this._client.on('reconnect', this._handleReconnect.bind(this))
     this._client.on('error', this._handleError.bind(this))
     this._client.on('message', this._handleMessage.bind(this))
+    this._client.on('close', this._handleClose.bind(this))
+    this._client.on('offline', this._handleOffline.bind(this))
     return this._ensureConnected()
   }
 
@@ -211,6 +229,8 @@ class VrpcAgent {
     this._log.info('[OK]')
     if (this._isReconnect) {
       this._publishAgentInfoMessage()
+      this.emit('connect')
+      this._isReconnect = false
       return
     }
     try {
@@ -230,6 +250,7 @@ class VrpcAgent {
     classes.forEach(className => {
       this._publishClassInfoMessage(className)
     })
+    this.emit('connect')
   }
 
   _publishAgentInfoMessage () {
@@ -483,10 +504,20 @@ class VrpcAgent {
   _handleReconnect () {
     this._isReconnect = true
     this._log.warn(`Reconnecting to ${this._broker}`)
+    this.emit('reconnect')
   }
 
   _handleError (err) {
     this._log.error(`MQTT triggered error: ${err.message}`)
+    this.emit('error', err)
+  }
+
+  _handleClose () {
+    this.emit('close')
+  }
+
+  _handleOffline () {
+    this.emit('offline')
   }
 }
 module.exports = VrpcAgent
