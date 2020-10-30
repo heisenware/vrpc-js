@@ -53,9 +53,9 @@
   ],
   "dependencies": {
     "ajv": "^6.10.0",
-    "argparse": "^1.0.10",
+    "argparse": "^2.0.1",
     "caller": "^1.0.1",
-    "mqtt": "^3.0.0",
+    "mqtt": "^4.2.4",
     "react-vrpc": "^1.0.0",
     "shortid": "^2.2.14"
   }
