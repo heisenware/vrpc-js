@@ -6,7 +6,8 @@ async function main () {
   try {
     const vrpcAgent = new VrpcAgent({
       agent: 'burkhards-todos-agent',
-      domain: 'public.vrpc'
+      domain: 'public.vrpc',
+      broker: 'mqtt://localhost:1883'
     })
     await vrpcAgent.serve()
   } catch (err) {

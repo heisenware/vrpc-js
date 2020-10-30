@@ -6,6 +6,7 @@ import { createVrpcProvider } from 'react-vrpc'
 
 const VrpcProvider = createVrpcProvider({
   domain: 'public.vrpc',
+  broker: 'mqtt://localhost:1883',
   backends: {
     todos: {
       agent: 'burkhards-todos-agent',
