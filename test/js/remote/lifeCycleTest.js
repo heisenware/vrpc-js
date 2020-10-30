@@ -60,7 +60,8 @@ describe('Agent Life-Cycle', () => {
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
         token: process.env.VRPC_TEST_TOKEN,
-        broker: 'mqtts://vrpc.io:8883'
+        broker: 'mqtts://vrpc.io:8883',
+        version: '1.0.0-test'
       })
       await agent.serve()
       remote = new VrpcRemote({
@@ -72,10 +73,11 @@ describe('Agent Life-Cycle', () => {
       await remote.connect()
     })
     it('VrpcRemote should see the agent online', (done) => {
-      const testFunc = ({ domain, agent, status }) => {
+      const testFunc = ({ domain, agent, status, version }) => {
         if (domain === 'test.vrpc' &&
         agent === 'nodeJsTestAgent' &&
-        status === 'online') {
+        status === 'online' &&
+        version === '1.0.0-test') {
           remote.removeListener('agent', testFunc)
           done()
         }
