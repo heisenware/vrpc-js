@@ -112,6 +112,7 @@ General RPC **response** payload pattern:
     JSON PAYLOAD {
       status: 'online'
       hostname: <hostname>
+      version: <userAgentVersion>
     }
     ```
 
@@ -182,6 +183,7 @@ VRPC **publishes** the (retained) agent info message:
   JSON PAYLOAD {
     status: 'offline'
     hostname: <hostname>
+    version: <userAgentVersion>
   }
   ```
 
