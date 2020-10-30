@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Feature of being able to call the same function across all instances of the
   same class (which is executed on the agent and only then send as single
   message to the client) [NodeJS]
+- Added `version` property to agent (thanks to
+  [cstim](https://github.com/cstim), allowing to specify a custom version which
+  is taken up in the agent-info message and digested by the remote client
+  [NodeJS]
 
 ### Changed
 
