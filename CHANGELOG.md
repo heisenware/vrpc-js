@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Added
+
+- Feature of being able to call the same function across all instances of the
+  same class (which is executed on the agent and only then send as single
+  message to the client) [NodeJS]
+
+### Changed
+
+- Improved the in-code documentation
+
 ## [2.1.6] - 23 August 2020
 
 ### Changed

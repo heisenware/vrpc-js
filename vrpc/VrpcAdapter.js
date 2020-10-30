@@ -49,8 +49,8 @@ class VrpcAdapter {
   /**
    * Automatically requires .js files for auto-registration.
    *
-   * @param {string} dirPath Relative path to start the auto-registration from
-   * @param {integer} [maxLevel] Maximum search depth (default: unlimited)
+   * @param {String} dirPath Relative path to start the auto-registration from
+   * @param {Number} [maxLevel] Maximum search depth (default: unlimited)
    */
   static addPluginPath (
     dirPath,
@@ -84,13 +84,13 @@ class VrpcAdapter {
    * @param {Object|string} code Existing code to be registered, can be a class
    * or function object or a relative path to a module
    * @param {Object} [options]
-   * @param {boolean} [options.onlyPublic=true] If true, only registers functions
+   * @param {Boolean} [options.onlyPublic=true] If true, only registers functions
    * that do not begin with an underscore
-   * @param {boolean} [options.withNew=true] If true, class will be constructed
+   * @param {Boolean} [options.withNew=true] If true, class will be constructed
    * using the `new` operator
    * @param {Object} [options.schema=null] If provided is used to validate ctor
    * parameters (only works if registered code reflects a single class)
-   * @param {boolean} options.jsdocPath if provided, parses documentation and
+   * @param {Boolean} options.jsdocPath if provided, parses documentation and
    * provides it as meta information (if the code parameter reflects a path this
    * is automatically taken as default)
    *
@@ -150,7 +150,7 @@ class VrpcAdapter {
   /**
    * Creates an un-managed, anonymous instance
    *
-   * @param {string} className Name of the class to create an instance of
+   * @param {String} className Name of the class to create an instance of
    * @param  {...any} args  Arguments to provide to the constructor
    * @return The real instance (not a proxy!)
    */
@@ -173,8 +173,8 @@ class VrpcAdapter {
   /**
    * Creates a managed named instance
    *
-   * @param {string} className Name of the class to create an instance of
-   * @param {string} instance Name of the instance
+   * @param {String} className Name of the class to create an instance of
+   * @param {String} instance Name of the instance
    * @param  {...any} args Arguments to provide to the constructor
    * @return The real instance (not a proxy!)
    */
@@ -182,10 +182,22 @@ class VrpcAdapter {
     return VrpcAdapter._createNamed(className, instance, ...args)
   }
 
+  /**
+   * Deletes a managed instance
+   *
+   * @param {String} instance Name of the instance to be deleted
+   * @returns {Boolean} True in case of success, false otherwise
+   */
   static delete (instance) {
     return VrpcAdapter._delete(instance)
   }
 
+  /**
+   * Retrieves an existing instance by name
+   *
+   * @param {String} instance Name of the instance to be acquired
+   * @returns {Object} The real instance (not a proxy!)
+   */
   static getInstance (instance) {
     const entry = VrpcAdapter._instances.get(instance)
     if (entry) return entry.instance
@@ -204,7 +216,7 @@ class VrpcAdapter {
   /**
    * Provides the names of all currently running instances.
    *
-   * @param {string} className Name of class to retrieve the instances for
+   * @param {String} className Name of class to retrieve the instances for
    * @return Array of instance names
    */
   static getAvailableInstances (className) {
@@ -214,7 +226,7 @@ class VrpcAdapter {
   /**
    * Provides all available member functions of the specified class.
    *
-   * @param {string} className Name of class to provide member functions for
+   * @param {String} className Name of class to provide member functions for
    * @return Array of member function names
    */
   static getAvailableMemberFunctions (className) {
@@ -224,7 +236,7 @@ class VrpcAdapter {
   /**
    * Provides all available static functions of a registered class.
    *
-   * @param {string} className Name of class to provide static functions for
+   * @param {String} className Name of class to provide static functions for
    * @return Array of static function names
    */
   static getAvailableStaticFunctions (className) {
@@ -234,7 +246,7 @@ class VrpcAdapter {
   /**
    * Provides all available meta data of the registered class.
    *
-   * @param {string} className Name of class to provide meta data for
+   * @param {String} className Name of class to provide meta data for
    */
   static getAvailableMetaData (className) {
     return VrpcAdapter._getMetaData(className)
@@ -262,6 +274,7 @@ class VrpcAdapter {
     staticFunctions.push('__delete__')
     staticFunctions.push('__createNamed__')
     staticFunctions.push('__getNamed__')
+    staticFunctions.push('__callAll__')
     let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
     if (onlyPublic) {
       memberFunctions = memberFunctions.filter(f => !f.startsWith('_'))
@@ -363,6 +376,33 @@ class VrpcAdapter {
           data.e = err.message
         }
         break
+      case '__callAll__': // Special case: call on all known instances
+        try {
+          const funcName = wrappedArgs[0]
+          const calls = []
+          for (const [id, { className, instance }] of VrpcAdapter._instances) {
+            if (className !== context) continue
+            let v
+            let e = null
+            try {
+              v = instance[funcName].apply(instance, wrappedArgs.slice(1))
+            } catch (err) {
+              e = err
+            }
+            // check wether function returned a promise
+            if (VrpcAdapter._isPromise(v)) {
+              calls.push(v
+                .then(val => ({ id, val, err: null }))
+                .catch(err => ({ id, err, val: null })))
+            } else {
+              calls.push({ id, val: v, err: e })
+            }
+          }
+          this._handlePromise(json, method, Promise.all(calls))
+        } catch (err) {
+          data.e = err.message
+        }
+        break
       // Regular function call
       default: {
         // Check whether context is a registered class
@@ -394,7 +434,7 @@ class VrpcAdapter {
             try {
               const ret = instance[method].apply(instance, wrappedArgs)
               // check if function returns promise
-              if (ret && this._isFunction(ret.then)) {
+              if (VrpcAdapter._isPromise(ret)) {
                 this._handlePromise(json, method, ret)
               } else data.r = ret
             } catch (err) {
@@ -546,16 +586,20 @@ class VrpcAdapter {
     return entry
   }
 
-  static _isFunction (v) {
-    if (v) {
-      const ident = {}.toString.call(v)
+  static _isFunction (obj) {
+    if (obj) {
+      const ident = {}.toString.call(obj)
       return ident === '[object Function]' || ident === '[object AsyncFunction]'
     }
     return false
   }
 
-  static _isClass (v) {
-    return typeof v === 'function' && /^\s*class\s+/.test(v.toString())
+  static _isClass (obj) {
+    return !!obj && (typeof obj === 'function' && /^\s*class\s+/.test(obj.toString()))
+  }
+
+  static _isPromise (obj) {
+    return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function'
   }
 
   static _extractMemberFunctions (klass) {

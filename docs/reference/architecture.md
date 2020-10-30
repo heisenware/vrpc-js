@@ -14,7 +14,7 @@ getInstances (className)
 getMemberFunctions (className)
 getStaticFunctions (className)
 call (jsonString)
-onCallback (callback<sonString>)
+onCallback (callback<jsonString>)
 ```
 
 Besides the registered functionality `call` must additionally provide the

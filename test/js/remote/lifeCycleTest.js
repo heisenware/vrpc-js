@@ -17,6 +17,11 @@ class Foo extends EventEmitter {
     return this._foo
   }
 
+  async promisedFoo () {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    return `promised-${this._foo}`
+  }
+
   echo (value) {
     this.emit('echo', value)
     return value
@@ -176,6 +181,32 @@ describe('Instance life-cycle', () => {
       })
       assert.strictEqual(await foo3.foo(), 'foo-3')
       assert.deepStrictEqual(newInstances, ['foo-1', 'foo-2', 'bar-1'])
+    })
+    it('should be possible to call functions across all instances', async () => {
+      const result = await remote.callAll({
+        className: 'Foo',
+        functionName: 'foo'
+      })
+      assert.deepStrictEqual(
+        result,
+        [
+          { id: 'foo-1', val: 'foo-1', err: null },
+          { id: 'foo-2', val: 'foo-2', err: null }
+        ]
+      )
+    })
+    it('should be possible to call async functions across all instances', async () => {
+      const result = await remote.callAll({
+        className: 'Foo',
+        functionName: 'promisedFoo'
+      })
+      assert.deepStrictEqual(
+        result,
+        [
+          { id: 'foo-1', val: 'promised-foo-1', err: null },
+          { id: 'foo-2', val: 'promised-foo-2', err: null }
+        ]
+      )
     })
   })
   describe('Instances attach', () => {
