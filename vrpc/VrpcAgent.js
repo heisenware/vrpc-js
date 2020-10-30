@@ -178,10 +178,7 @@ class VrpcAgent extends EventEmitter {
       const agentTopic = `${this._baseTopic}/__agentInfo__`
       this._mqttPublish(
         agentTopic,
-        JSON.stringify({
-          status: 'offline',
-          hostname: os.hostname()
-        }),
+        this._createAgentInfoPayload({ status: 'offline' }),
         { retain: true }
       )
       if (unregister) {

@@ -89,10 +89,11 @@ describe('Agent Life-Cycle', () => {
   describe('Agent down (and unregister)', () => {
     it('VrpcRemote should see the agent offline', async () => {
       const promise = new Promise(resolve => {
-        const testFunc = ({ domain, agent, status }) => {
+        const testFunc = ({ domain, agent, status, version }) => {
           if (domain === 'test.vrpc' &&
           agent === 'nodeJsTestAgent' &&
-          status === 'offline') {
+          status === 'offline' &&
+          version === '1.0.0-test') {
             remote.removeListener('agent', testFunc)
             resolve()
           }
