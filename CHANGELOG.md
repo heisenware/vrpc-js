@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Correct provisioning of `version` information when sending `offline`
   agent-info message
 
+### Changed
+
+- upgraded major versions of mqtt and argparse dependencies
+
+### Added
+
+- possibility to specify custom defaults for commandline based agent runs
+  [NodeJS]
+
 ## [2.2.0] - 30 Oct 2020
 
 ### Added
