@@ -162,12 +162,12 @@ class VrpcRemote extends EventEmitter {
       const [domain, agent, klass, instance] = tokens
       // AgentInfo message
       if (klass === '__agentInfo__') {
-        const { status, hostname, agentVersion } = JSON.parse(message.toString())
+        const { status, hostname, version } = JSON.parse(message.toString())
         this._createIfNotExist(domain, agent)
         this._domains[domain].agents[agent].status = status
         this._domains[domain].agents[agent].hostname = hostname
-        this._domains[domain].agents[agent].agentVersion = agentVersion
-        this.emit('agent', { domain, agent, status, hostname, agentVersion })
+        this._domains[domain].agents[agent].version = version
+        this.emit('agent', { domain, agent, status, hostname, version })
       // ClassInfo message
       } else if (instance === '__classInfo__') {
         // Json properties: { className, instances, memberFunctions, staticFunctions }
