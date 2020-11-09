@@ -166,6 +166,11 @@ class VrpcAgent extends EventEmitter {
     // maps clientId to instanceId
     this._unnamedInstances = new Map()
     this._namedInstances = new Map()
+
+    // Handle the internal error event in case the user forgot to implement it
+    this.on('error', (err) => {
+      this._log.debug(`Encountered an error: ${err.message}`)
+    })
   }
 
   /**
@@ -590,7 +595,6 @@ class VrpcAgent extends EventEmitter {
   }
 
   _handleError (err) {
-    this._log.error(`MQTT triggered error: ${err.message}`)
     this.emit('error', err)
   }
 
