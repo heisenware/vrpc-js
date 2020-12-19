@@ -1,0 +1,9 @@
+gitSafeReplacementChar: '-'
+branchName: '${issue.number}-${issue.title,}'
+branches:
+  - label: feature
+    prefix: feature/
+  - label: bug
+    prefix: bugfix/
+  - label: docs
+    prefix: docs/
