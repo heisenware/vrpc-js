@@ -44,7 +44,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/x-rst',
     author='Burkhard C. Heisen',
-    author_email='burkhard.heisen@xsmail.com',
+    author_email='burkhard.heisen@heisenware.com',
     packages=find_packages(),
     package_data={
         'vrpc': ['module.cpp', 'vrpc.hpp', 'json.hpp'],

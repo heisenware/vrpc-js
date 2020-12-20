@@ -32,12 +32,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bheisen/vrpc.git"
+    "url": "git+https://github.com/heisenware/vrpc.git"
   },
-  "author": "Burkhard C. Heisen <burkhard.heisen@xsmail.com>",
+  "author": "Burkhard C. Heisen <burkhard.heisen@heisenware.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/bheisen/vrpc-nodejs-example/issues"
+    "url": "https://github.com/heisenware/vrpc/issues"
   },
   "homepage": "https://vrpc.io",
   "devDependencies": {

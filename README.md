@@ -1,9 +1,10 @@
 # VRPC - Variadic Remote Procedure Calls
-[![Build Status](https://travis-ci.org/bheisen/vrpc.svg?branch=master)](https://travis-ci.org/bheisen/vrpc)
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/bheisen/vrpc/master/LICENSE)
+
+[![Build Status](https://travis-ci.com/heisenware/vrpc.svg?branch=master)](https://travis-ci.com/heisenware/vrpc)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/heisenware/vrpc/master/LICENSE)
 [![Semver](https://img.shields.io/badge/semver-2.0.0-blue)](https://semver.org/spec/v2.0.0.html)
-[![GitHub Releases](https://img.shields.io/github/tag/bheisen/vrpc.svg)](https://github.com/bheisen/vrpc/tag)
-[![GitHub Issues](https://img.shields.io/github/issues/bheisen/vrpc.svg)](http://github.com/bheisen/vrpc/issues)
+[![GitHub Releases](https://img.shields.io/github/tag/heisenware/vrpc.svg)](https://github.com/heisenware/vrpc/tag)
+[![GitHub Issues](https://img.shields.io/github/issues/heisenware/vrpc.svg)](http://github.com/heisenware/vrpc/issues)
 
 ---
 ## Visit our website: https://vrpc.io
