@@ -518,7 +518,8 @@ class VrpcAdapter {
         if ((json.method === 'off' || json.method === 'removeListener') &&
           typeof args[0] === 'string') {
           const r = arg
-          const entry = VrpcAdapter._listeners[json.sender].find(x => x.r === r)
+          const sender = VrpcAdapter._listeners[json.sender]
+          const entry = sender && sender.find(x => x.r === r)
           if (entry) {
             const { i, e, f } = entry
             VrpcAdapter.getInstance(i).removeListener(e, f)
