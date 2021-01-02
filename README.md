@@ -65,8 +65,8 @@ dynamic linkage), executable or source package.
 
 ### Frontend-Backend communication
 
-- [Simple React Todos App](docs/examples/ReactTodosExample1.md)
-- [Advanced React Todos App](docs/examples/ReactTodosExample2.md)
+- [Simple React Todos App](https://github.com/heisenware/react-vrpc/tree/master/examples/vrpc-react-todos-1)
+- [Advanced React Todos App](https://github.com/heisenware/react-vrpc/tree/master/examples/vrpc-react-todos-2)
 
 ## Reference Documentation
 
