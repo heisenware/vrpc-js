@@ -45,6 +45,10 @@ const caller = require('caller')
 const shortid = require('shortid')
 const commentParser = require('./comment-parser')
 
+/**
+ * Generates an adapter layer for existing code and enables further VRPC-based
+ * communication.
+ */
 class VrpcAdapter {
   /**
    * Automatically requires .js files for auto-registration.
@@ -152,7 +156,7 @@ class VrpcAdapter {
    *
    * @param {String} className Name of the class to create an instance of
    * @param  {...any} args  Arguments to provide to the constructor
-   * @return The real instance (not a proxy!)
+   * @returns {Object} The real instance (not a proxy!)
    */
   static create (className, ...args) {
     if (typeof className === 'string') {
@@ -176,7 +180,7 @@ class VrpcAdapter {
    * @param {String} className Name of the class to create an instance of
    * @param {String} instance Name of the instance
    * @param  {...any} args Arguments to provide to the constructor
-   * @return The real instance (not a proxy!)
+   * @returns {Object} The real instance (not a proxy!)
    */
   static createNamed (className, instance, ...args) {
     return VrpcAdapter._createNamed(className, instance, ...args)
@@ -207,7 +211,7 @@ class VrpcAdapter {
   /**
    * Retrieves an array of all available classes (names only)
    *
-   * @return Array of class names
+   * @returns {Array.<String>} Array of class names
    */
   static getAvailableClasses () {
     return VrpcAdapter._getClassesArray()
@@ -217,7 +221,7 @@ class VrpcAdapter {
    * Provides the names of all currently running instances.
    *
    * @param {String} className Name of class to retrieve the instances for
-   * @return Array of instance names
+   * @returns {Array.<String>} Array of instance names
    */
   static getAvailableInstances (className) {
     return VrpcAdapter._getInstancesArray(className)
@@ -227,7 +231,7 @@ class VrpcAdapter {
    * Provides all available member functions of the specified class.
    *
    * @param {String} className Name of class to provide member functions for
-   * @return Array of member function names
+   * @return {Array.<String>} Array of member function names
    */
   static getAvailableMemberFunctions (className) {
     return VrpcAdapter._getMemberFunctionsArray(className)
@@ -237,16 +241,30 @@ class VrpcAdapter {
    * Provides all available static functions of a registered class.
    *
    * @param {String} className Name of class to provide static functions for
-   * @return Array of static function names
+   * @returns {Array.<String>} Array of static function names
    */
   static getAvailableStaticFunctions (className) {
     return VrpcAdapter._getStaticFunctionsArray(className)
   }
 
   /**
+   * @typedef {Object} MetaData
+   * @param {String} MetaData.[function].description Function description
+   * @param {Object} MetaData.[function].params Object associating further information to parameters
+   * @param {Object} MetaData.[function].ret Object associating further information to return value
+   * @param {String} MetaData.[function].params.[parameter].name Parameter name
+   * @param {String} MetaData.[function].params.[parameter].description Parameter description
+   * @param {String} MetaData.[function].params.[parameter].type Parameter type
+   * @param {Boolean} MetaData.[function].params.[parameter].optional Whether parameter is optional
+   * @param {String} MetaData.[function].ret.description Return value description
+   * @param {String} MetaData.[function].ret.type Return value type
+   */
+
+  /**
    * Provides all available meta data of the registered class.
    *
    * @param {String} className Name of class to provide meta data for
+   * @returns {MetaData} Meta Data
    */
   static getAvailableMetaData (className) {
     return VrpcAdapter._getMetaData(className)

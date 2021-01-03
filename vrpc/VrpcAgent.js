@@ -6,18 +6,9 @@ const VrpcAdapter = require('./VrpcAdapter')
 const EventEmitter = require('events')
 
 /**
- * Make code available to remote users over VRPC.
+ * Agent capable of making existing code available to remote control by clients.
  *
- * This class provides the following events that are originally emitted from the
- * internal MQTT client:
- *
- * - connect: Emitted on successful (re)connection
- * - reconnect: Emitted when a reconnect starts.
- * - error: Emitted when the client cannot connect (i.e. connack rc != 0) or
- *   when a parsing error occurs.
- * - offline: Emitted when the client goes offline.
- * - close: Emitted after a disconnection.
- *
+ * @extends EventEmitter
  */
 class VrpcAgent extends EventEmitter {
 
@@ -122,6 +113,7 @@ class VrpcAgent extends EventEmitter {
   /**
    * Constructs an agent instance
    *
+   * @constructor
    * @param {Object} obj
    * @param {String} obj.domain The domain under which the agent-provided code is reachable
    * @param {String} obj.agent This agent's name
@@ -132,6 +124,12 @@ class VrpcAgent extends EventEmitter {
    * @param {Object} [obj.log=console] Log object (must support debug, info, warn, and error level)
    * @param {String} [obj.bestEffort=false] If true, message will be sent with best effort, i.e. no caching if offline
    * @param {String} obj.version The (custom) version of this agent
+   *
+   * @example
+   * const agent = new Agent({
+   *   domain: 'public.vrpc'
+   *   agent: 'myAgent'
+   * })
    */
   constructor ({
     domain,
@@ -214,6 +212,7 @@ class VrpcAgent extends EventEmitter {
     this._client.on('message', this._handleMessage.bind(this))
     this._client.on('close', this._handleClose.bind(this))
     this._client.on('offline', this._handleOffline.bind(this))
+    this._client.on('end', this._handleEnd.bind(this))
     return this._ensureConnected()
   }
 
@@ -222,6 +221,7 @@ class VrpcAgent extends EventEmitter {
    *
    * @param {Object} [obj]
    * @param {Boolean} [unregister=false] If true, fully un-registers agent from broker
+   * @returns {Promise}
    */
   async end ({ unregister = false } = {}) {
     try {
@@ -605,5 +605,68 @@ class VrpcAgent extends EventEmitter {
   _handleOffline () {
     this.emit('offline')
   }
+
+  _handleEnd () {
+    this.emit('end')
+  }
+
+  /**
+ * Event 'connect'
+ *
+ * Emitted on successful (re)connection (i.e. connack rc=0).
+ *
+ * @event VrpcRemote#class
+ * @type {Object}
+ * @property {Boolean} sessionPresent - A session from a previous connection is already present
+*/
+
+/**
+ * Event 'reconnect'
+ *
+ * Emitted when a reconnect starts.
+ *
+ * @event VrpcRemote#reconnect
+*/
+
+/**
+ * Event 'close'
+ *
+ * Emitted after a disconnection.
+ *
+ * @event VrpcRemote#close
+ */
+
+/**
+ * Event 'offline'
+ *
+ * Emitted when the client goes offline.
+ *
+ * @event VrpcRemote#offline
+ */
+
+/**
+ * Event 'error'
+ *
+ * Emitted when the client cannot connect (i.e. connack rc != 0) or when a
+ * parsing error occurs. The following TLS errors will be emitted as an error
+ * event:
+ *
+ * - ECONNREFUSED
+ * - ECONNRESET
+ * - EADDRINUSE
+ * - ENOTFOUND
+ *
+ * @event VrpcRemote#error
+ * @type {Object} Error
+ */
+
+/**
+ * Event 'end'
+ *
+ * Emitted when mqtt.Client#end() is called. If a callback was passed to
+ * mqtt.Client#end(), this event is emitted once the callback returns.
+ *
+ * @event VrpcRemote#end
+ */
 }
 module.exports = VrpcAgent

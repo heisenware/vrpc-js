@@ -40,8 +40,15 @@ SOFTWARE.
 const EventEmitter = require('events')
 const crypto = require('crypto')
 
+/**
+ * Client capable of creating proxy objects and locally calling
+ * functions as provided through native addons.
+ */
 class VrpcLocal {
-
+  /**
+   * @constructor
+   * @param {Object} adapter An adapter object, typically loaded as native addon
+   */
   constructor (adapter) {
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
@@ -58,9 +65,9 @@ class VrpcLocal {
   /**
    * Creates an instance of the specified class.
    *
-   * @param {string} className Name of the class to create an instance of
-   * @param  {...any} args Arguments to provide to the constructor
-   * @return Proxy to the created instance
+   * @param {String} className Name of the class to create an instance of
+   * @param  {...Any} args Arguments to provide to the constructor
+   * @return {Object} Proxy to the created instance
    */
   create (className, ...args) {
     if (typeof className === 'string') {
@@ -109,7 +116,7 @@ class VrpcLocal {
   /**
    * Retrieves an array of all available classes (names only)
    *
-   * @return Array of class names
+   * @return {Array.<String>} Array of class names
    */
   getAvailableClasses () {
     return JSON.parse(this._adapter.getClasses())
@@ -118,8 +125,8 @@ class VrpcLocal {
   /**
    * Provides the names of all currently running instances.
    *
-   * @param {string} className Name of class to retrieve the instances for
-   * @return Array of instance names
+   * @param {String} className Name of class to retrieve the instances for
+   * @return {Array.<String>} Array of instance names
    */
   getAvailableInstances (className) {
     return JSON.parse(this._adapter.getInstances(className))
@@ -128,8 +135,8 @@ class VrpcLocal {
   /**
    * Provides all available member functions of the specified class.
    *
-   * @param {string} className Name of class to provide member functions for
-   * @return Array of member function names
+   * @param {String} className Name of class to provide member functions for
+   * @return {Array.<String>} Array of member function names
    */
   getAvailableMemberFunctions (className) {
     return JSON.parse(this._adapter.getMemberFunctions(className))
@@ -138,8 +145,8 @@ class VrpcLocal {
   /**
    * Provides all available static functions of a registered class.
    *
-   * @param {string} className Name of class to provide static functions for
-   * @return Array of static function names
+   * @param {String} className Name of class to provide static functions for
+   * @return {Array.<String>} Array of static function names
    */
   getAvailableStaticFunctions (className) {
     return JSON.parse(this._adapter.getStaticFunctions(className))

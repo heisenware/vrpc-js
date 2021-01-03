@@ -15,7 +15,8 @@
     "test:jsLocal": "./node_modules/.bin/mocha test/js/local/*.js --exit",
     "test:jsRemote": "./node_modules/.bin/mocha test/js/remote/lifeCycleTest.js --timeout 30000 --exit && test/js/remote/test.sh",
     "test:jsPerformance": "test/js/performance/test.sh",
-    "example": "node examples/Bar.js"
+    "example": "node examples/Bar.js",
+    "doc": "./node_modules/.bin/jsdoc2md -f vrpc/*.js --separators > docs/reference/nodeJs.md"
   },
   "bin": {
     "vrpc-agent-js": "./vrpc/vrpc-agent-js"
@@ -43,6 +44,7 @@
   "devDependencies": {
     "chai": "^4.2.0",
     "dockerode": "^3.2.0",
+    "jsdoc-to-markdown": "^6.0.1",
     "mocha": "^6.1.4",
     "sinon": "^7.3.2"
   },
