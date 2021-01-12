@@ -1,0 +1,61 @@
+version: "3.1"
+services:
+
+  client:
+    image: node:12.16.1-alpine
+    hostname: client
+    volumes:
+      - ../../../:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "test/js/distributed/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node_modules/.bin/mocha",
+      "test/js/distributed/*.js",
+      "--colors",
+      "--exit",
+      "--timeout",
+      "10000"
+    ]
+
+  broker:
+    image: eclipse-mosquitto:1.6.12
+    hostname: broker
+    ports:
+      - 1883:1883/tcp
+
+  agent1:
+    image: node:12.16.1-alpine
+    hostname: agent1
+    volumes:
+      - ../../../:/app
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "test/js/distributed/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node",
+      "test/js/distributed/fixtures/agent.js"
+    ]
+
+  agent2:
+    image: node:12.16.1-alpine
+    hostname: agent2
+    volumes:
+      - ../../../:/app
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "test/js/distributed/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node",
+      "test/js/distributed/fixtures/agent.js"
+    ]
