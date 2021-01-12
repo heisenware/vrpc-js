@@ -1,0 +1,447 @@
+'use strict'
+
+/* global describe, context, before, after, it */
+const { VrpcRemote } = require('../../../index')
+const assert = require('assert')
+const sinon = require('sinon')
+
+describe('vrpc-remote', () => {
+  describe('construction and connection', () => {
+    it('should not construct using bad parameters', async () => {
+      assert.throws(
+        () => new VrpcRemote({ broker: 'mqtt://doesNotWork:1883' }),
+        {
+          message: 'The domain must be specified'
+        }
+      )
+      assert.throws(
+        () => new VrpcRemote({
+          broker: 'mqtt://doesNotWork:1883',
+          domain: '*'
+        }),
+        {
+          message: 'The domain must NOT contain any of those characters: "+", "/", "#", "*"'
+        }
+      )
+      assert.throws(
+        () => new VrpcRemote({
+          broker: 'mqtt://doesNotWork:1883',
+          domain: 'a/b'
+        }),
+        {
+          message: 'The domain must NOT contain any of those characters: "+", "/", "#", "*"'
+        }
+      )
+    })
+    it('should not connect when constructed using bad broker under default timeout', async () => {
+      const client = new VrpcRemote({
+        broker: 'mqtt://doesNotWork:1883',
+        domain: 'test.vrpc'
+      })
+      await assert.rejects(
+        async () => client.connect(),
+        {
+          message: 'Connection trial timed out (> 6000 ms)'
+        }
+      )
+    })
+    it('should not connect when constructed using bad broker under different timeout', async () => {
+      const client = new VrpcRemote({
+        broker: 'mqtt://doesNotWork:1883',
+        domain: 'test.vrpc',
+        timeout: 1000
+      })
+      await assert.rejects(
+        async () => client.connect(),
+        {
+          message: 'Connection trial timed out (> 1000 ms)'
+        }
+      )
+    })
+    context('when constructed using good parameters and broker', () => {
+      let client
+      it('should connect', async () => {
+        const connectSpy = sinon.spy()
+        client = new VrpcRemote({
+          broker: 'mqtt://broker',
+          domain: 'test.vrpc'
+        })
+        client.once('connect', connectSpy)
+        await client.connect()
+        assert(connectSpy.calledOnce)
+      })
+      it('should end', async () => {
+        await client.end()
+      })
+    })
+  })
+
+  describe('proxy creation and deletion on an all-default client', () => {
+    let client
+    before(async () => {
+      client = new VrpcRemote({
+        broker: 'mqtt://broker',
+        domain: 'test.vrpc',
+        timeout: 1000
+      })
+      await client.connect()
+    })
+    after(async () => {
+      await client.end()
+    })
+    it('should not create proxy when no agent is specified', async () => {
+      await assert.rejects(
+        async () => client.create({ className: 'Foo' }),
+        { message: 'Agent must be specified' }
+      )
+    })
+    it('should not create proxy when using good class and bad agent', async () => {
+      await assert.rejects(
+        async () => client.create({
+          agent: 'doesNotExist',
+          className: 'Foo'
+        }),
+        {
+          message: 'Proxy creation for class "Foo" on agent "doesNotExist" and domain "test.vrpc" timed out (> 1000 ms)'
+        }
+      )
+    })
+    it('should not create proxy when using bad class and good agent', async () => {
+      await assert.rejects(
+        async () => client.create({
+          agent: 'agent1',
+          className: 'DoesNotExist',
+          args: []
+        }),
+        {
+          message: 'Proxy creation for class "DoesNotExist" on agent "agent1" and domain "test.vrpc" timed out (> 1000 ms)'
+        }
+      )
+    })
+    context('when using good options but no instance', () => {
+      let proxy1
+      let proxy2
+      const classSpy = sinon.spy()
+      const instanceNewSpy = sinon.spy()
+      before(() => {
+        client.on('class', classSpy)
+        client.on('instanceNew', instanceNewSpy)
+      })
+      after(() => {
+        client.off('class', classSpy)
+        client.off('instanceNew', classSpy)
+      })
+      it('should create an anonymous proxy using constructor defaults', async () => {
+        proxy1 = await client.create({
+          agent: 'agent1',
+          className: 'Foo'
+        })
+        const value = await proxy1.increment()
+        assert.strictEqual(value, 1)
+      })
+      it('should create another anonymous proxy using custom arguments', async () => {
+        proxy2 = await client.create({
+          agent: 'agent1',
+          className: 'Foo',
+          args: [41]
+        })
+        const value = await proxy2.increment()
+        assert.strictEqual(value, 42)
+      })
+      it('should not have emitted "class" or "instanceNew" event', () => {
+        assert(classSpy.notCalled)
+        assert(instanceNewSpy.notCalled)
+      })
+      it('should not list any available instances', () => {
+        const instances = client.getAvailableInstances('Foo', 'agent1')
+        assert.strictEqual(instances.length, 0)
+      })
+      // FIXME Explicit deletion of anonymous proxies is not yet implemented
+      it.skip('should delete the anonymous instances', async () => {
+        const result1 = await client.delete(proxy1)
+        const result2 = await client.delete(proxy2)
+        assert.strictEqual(result1, true)
+        assert.strictEqual(result2, true)
+      })
+    })
+    context('when using good options and instance', () => {
+      let proxy1
+      let proxy2
+      const classSpy = sinon.spy()
+      const instanceNewSpy = sinon.spy()
+      const instanceGoneSpy = sinon.spy()
+      before(() => {
+        client.on('class', classSpy)
+        client.on('instanceNew', instanceNewSpy)
+        client.on('instanceGone', instanceGoneSpy)
+      })
+      after(() => {
+        client.off('class', classSpy)
+        client.off('instanceNew', instanceNewSpy)
+        client.off('instanceGone', instanceGoneSpy)
+      })
+      it('should create a named proxy using constructor defaults', async () => {
+        proxy1 = await client.create({
+          agent: 'agent1',
+          className: 'Foo',
+          instance: 'instance1'
+        })
+        const value = await proxy1.increment()
+        assert.strictEqual(value, 1)
+      })
+      it('should create another anonymous proxy using custom arguments', async () => {
+        proxy2 = await client.create({
+          agent: 'agent1',
+          className: 'Foo',
+          instance: 'instance2',
+          args: [41]
+        })
+        const value = await proxy2.increment()
+        assert.strictEqual(value, 42)
+      })
+      it('should have emitted "class" and "instanceNew" event', () => {
+        assert(classSpy.calledTwice)
+        assert.deepStrictEqual(
+          classSpy.args[0][0],
+          {
+            domain: 'test.vrpc',
+            agent: 'agent1',
+            className: 'Foo',
+            instances: ['instance1'],
+            memberFunctions: [
+              'constructor',
+              'increment',
+              'reset',
+              'callback',
+              'resolvePromise',
+              'rejectPromise',
+              'setMaxListeners',
+              'getMaxListeners',
+              'emit',
+              'addListener',
+              'on',
+              'prependListener',
+              'once',
+              'prependOnceListener',
+              'removeListener',
+              'off',
+              'removeAllListeners',
+              'listeners',
+              'rawListeners',
+              'listenerCount',
+              'eventNames'
+            ],
+            // FIXME: Think about hiding the VRPC injected __<function>__ already here
+            staticFunctions: [
+              'staticIncrement',
+              'staticResolvePromise',
+              'staticRejectPromise',
+              'staticCallback',
+              'once',
+              'on',
+              'EventEmitter',
+              'init',
+              'listenerCount',
+              '__create__',
+              '__delete__',
+              '__createNamed__',
+              '__getNamed__',
+              '__callAll__'
+            ],
+            meta: {}
+          })
+        assert(instanceNewSpy.calledTwice)
+        assert.deepStrictEqual(instanceNewSpy.args[1][0], ['instance2'])
+        assert.deepStrictEqual(
+          instanceNewSpy.args[1][1],
+          {
+            domain: 'test.vrpc',
+            agent: 'agent1',
+            className: 'Foo'
+          }
+        )
+      })
+      it('should list the available instances', () => {
+        const instances = client.getAvailableInstances('Foo', 'agent1')
+        assert.deepStrictEqual(instances, ['instance1', 'instance2'])
+      })
+      it('should delete the named instances', async () => {
+        const result1 = await client.delete('instance1')
+        assert.strictEqual(result1, true)
+        assert.strictEqual(classSpy.callCount, 3)
+        assert.strictEqual(classSpy.args[2][0].instances.length, 1)
+        assert.strictEqual(instanceGoneSpy.callCount, 1)
+        const result2 = await client.delete('instance2')
+        assert.strictEqual(result2, true)
+        assert.strictEqual(classSpy.callCount, 4)
+        assert.strictEqual(classSpy.args[3][0].instances.length, 0)
+        assert.strictEqual(instanceGoneSpy.callCount, 2)
+      })
+    })
+  }) // 'proxy creation and deletion on an all-default client'
+
+  describe('remote function calls', () => {
+    let client
+    before(async () => {
+      client = new VrpcRemote({
+        broker: 'mqtt://broker',
+        domain: 'test.vrpc'
+      })
+      await client.connect()
+    })
+    after(async () => {
+      await client.end()
+    })
+    context('static context', () => {
+      it('should work for synchronous functions without arguments', async () => {
+        const value = await client.callStatic({
+          agent: 'agent1',
+          className: 'Foo',
+          functionName: 'staticIncrement'
+        })
+        assert.strictEqual(value, 1)
+      })
+      it('should work for synchronous functions with arguments', async () => {
+        const value = await client.callStatic({
+          agent: 'agent1',
+          className: 'Bar',
+          functionName: 'staticIncrement',
+          args: [41]
+        })
+        assert.strictEqual(value, 42)
+      })
+      it('should work for resolving asynchronous functions', async () => {
+        const value = await client.callStatic({
+          agent: 'agent1',
+          className: 'Foo',
+          functionName: 'staticResolvePromise',
+          args: [100]
+        })
+        assert.strictEqual(value, 'Foo')
+      })
+      it('should work for rejecting asynchronous functions', async () => {
+        await assert.rejects(
+          async () => {
+            await client.callStatic({
+              agent: 'agent1',
+              className: 'Foo',
+              functionName: 'staticRejectPromise',
+              args: [100]
+            })
+          },
+          { message: 'Test Error: 100' }
+        )
+      })
+      it('should work for functions with callback arguments', async () => {
+        const callbackSpy = sinon.spy()
+        await client.callStatic({
+          agent: 'agent1',
+          className: 'Foo',
+          functionName: 'staticCallback',
+          args: [callbackSpy, 50]
+        })
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(callbackSpy.calledOnce)
+        assert.strictEqual(callbackSpy.args[0][0], null)
+        assert.strictEqual(callbackSpy.args[0][1], 50)
+      })
+    })
+    context('instance context', () => {
+      let agent1Foo1
+      before(async () => {
+        agent1Foo1 = await client.create({
+          agent: 'agent1',
+          className: 'Foo',
+          instance: 'agent1Foo1'
+        })
+        await client.create({
+          agent: 'agent1',
+          className: 'Foo',
+          instance: 'agent1Foo2',
+          args: [1]
+        })
+        await client.create({
+          agent: 'agent2',
+          className: 'Foo',
+          instance: 'agent2Foo1',
+          args: [2]
+        })
+        await client.create({
+          agent: 'agent2',
+          className: 'Foo',
+          instance: 'agent2Foo2',
+          args: [2]
+        })
+      })
+      after(async () => {
+        await client.delete('agent1Foo1')
+      })
+      it('should work for synchronous functions', async () => {
+        const value = await agent1Foo1.increment()
+        assert.strictEqual(value, 1)
+      })
+      it('should work for asynchronous functions', async () => {
+        const value = await agent1Foo1.resolvePromise(100)
+        assert.strictEqual(value, 1)
+      })
+      it('should work for functions with callback arguments', async () => {
+        const callbackSpy = sinon.spy()
+        await agent1Foo1.callback(callbackSpy, 50)
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(callbackSpy.calledOnce)
+        assert.strictEqual(callbackSpy.args[0][0], null)
+        assert.strictEqual(callbackSpy.args[0][1], 1)
+      })
+      it('should allow batch-calling synchronous functions on a single agent', async () => {
+        const value = await client.callAll({
+          agent: 'agent1',
+          className: 'Foo',
+          functionName: 'increment'
+        })
+        assert.deepStrictEqual(value.map(({ val }) => val), [2, 2])
+        assert.deepStrictEqual(value.map(({ err }) => err), [null, null])
+        const ids = value.map(({ id }) => id)
+        assert(ids.includes('agent1Foo1'))
+        assert(ids.includes('agent1Foo2'))
+      })
+      it('should allow batch-calling asynchronous functions on a single agent', async () => {
+        const value = await client.callAll({
+          agent: 'agent2',
+          className: 'Foo',
+          functionName: 'resolvePromise'
+        })
+        assert.deepStrictEqual(value.map(({ val }) => val), [2, 2])
+        assert.deepStrictEqual(value.map(({ err }) => err), [null, null])
+        const ids = value.map(({ id }) => id)
+        assert(ids.includes('agent2Foo1'))
+        assert(ids.includes('agent2Foo2'))
+      })
+      it('should allow batch-calling synchronous functions across agents', async () => {
+        const value = await client.callAll({
+          className: 'Foo',
+          functionName: 'increment'
+        })
+        assert.deepStrictEqual(value.map(({ val }) => val), [3, 3, 3, 3])
+        assert.deepStrictEqual(value.map(({ err }) => err), [null, null, null, null])
+        const ids = value.map(({ id }) => id)
+        assert(ids.includes('agent1Foo1'))
+        assert(ids.includes('agent1Foo2'))
+        assert(ids.includes('agent2Foo1'))
+        assert(ids.includes('agent2Foo2'))
+      })
+      it('should allow batch-calling asynchronous functions across agents', async () => {
+        const value = await client.callAll({
+          className: 'Foo',
+          functionName: 'resolvePromise'
+        })
+        assert.deepStrictEqual(value.map(({ val }) => val), [3, 3, 3, 3])
+        assert.deepStrictEqual(value.map(({ err }) => err), [null, null, null, null])
+        const ids = value.map(({ id }) => id)
+        assert(ids.includes('agent1Foo1'))
+        assert(ids.includes('agent1Foo2'))
+        assert(ids.includes('agent2Foo1'))
+        assert(ids.includes('agent2Foo2'))
+      })
+    })
+  })
+})
