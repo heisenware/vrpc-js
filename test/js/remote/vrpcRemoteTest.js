@@ -44,7 +44,7 @@ describe('An instance of the VrpcRemote class', () => {
         })
         assert.fail()
       } catch (err) {
-        assert.equal(err.message, 'Proxy creation timed out (> 1500 ms)')
+        assert.equal(err.message, 'Proxy creation for class "DoesNotExist" on agent "js" and domain "test.vrpc" timed out (> 1500 ms)')
       }
     })
     let testClass
