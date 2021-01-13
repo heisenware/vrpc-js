@@ -4,11 +4,11 @@
 DIR=$(dirname `[[ $0 = /* ]] && echo "$0" || echo "$PWD/${0#./}"`)
 cd $DIR
 
-# Hostname of the container running the test
-TEST_CONT=client
-
 # Create project name
 PROJECT=test
+
+# Name of the container running the test
+export TEST_CONT=${PROJECT}_testrunner
 
 # define some colors to use for output
 RED='\033[0;31m'
@@ -35,9 +35,9 @@ fi
 # give slower CI environments some time to create the containers
 sleep 8
 
-docker logs -f ${PROJECT}_${TEST_CONT}_1
+docker logs -f ${TEST_CONT}
 
-EXIT_CODE=`docker inspect ${PROJECT}_${TEST_CONT}_1 --format='{{.State.ExitCode}}'`
+EXIT_CODE=`docker inspect ${TEST_CONT} --format='{{.State.ExitCode}}'`
 
 if [ -z ${EXIT_CODE+x} ] || [ "$EXIT_CODE" != "0" ]; then
   printf "${RED}Tests Failed (${TEST_CONT})${NC} - Exit Code: $EXIT_CODE\n"
