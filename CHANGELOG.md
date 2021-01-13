@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Improved protection against malformed domain and agent names [NodeJS]
 - Improved log message (more verbose) in case proxy creation timed out [NodeJS]
 
+### Fixed
+
+- Missing events upon failed `agent.serve()` [NodeJS]
+
 ## [2.2.3] - 4 Dec 2020
 
 ### Fixed
