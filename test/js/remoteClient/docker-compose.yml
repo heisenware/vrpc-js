@@ -4,7 +4,7 @@ services:
   client:
     image: node:12.16.1-alpine
     hostname: client
-    container_name: client
+    container_name: ${TEST_CONT}
     volumes:
       - ../../../:/app
       - /var/run/docker.sock:/var/run/docker.sock
@@ -26,14 +26,12 @@ services:
   broker:
     image: eclipse-mosquitto:1.6.12
     hostname: broker
-    container_name: broker
     ports:
       - 1883:1883/tcp
 
   agent1:
     image: node:12.16.1-alpine
     hostname: agent1
-    container_name: agent1
     volumes:
       - ../../../:/app
     working_dir: /app
@@ -50,7 +48,6 @@ services:
   agent2:
     image: node:12.16.1-alpine
     hostname: agent2
-    container_name: agent2
     volumes:
       - ../../../:/app
     working_dir: /app
