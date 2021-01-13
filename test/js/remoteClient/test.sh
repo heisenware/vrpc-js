@@ -24,14 +24,16 @@ trap 'cleanup ; printf "${RED}Tests Failed For Unexpected Reasons${NC}\n"'\
   HUP INT QUIT PIPE TERM
 
 # run the composed services
-docker-compose build &&
-docker-compose -p ${PROJECT} up -d
+docker-compose build && docker-compose -p ${PROJECT} up -d
 
 if [ $? -ne 0 ]; then
   printf "${RED}Docker Compose Failed (${TEST_CONT})${NC}\n"
   cleanup
   exit -1
 fi
+
+# give slower CI environments some time to create the containers
+sleep 8
 
 docker logs -f ${PROJECT}_${TEST_CONT}_1
 
