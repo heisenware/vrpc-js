@@ -11,11 +11,11 @@ services:
     depends_on:
       - broker
     command: [
-      "test/js/distributed/wait-for.sh",
+      "test/js/remoteClient/wait-for.sh",
       "broker:1883",
       "--",
       "node_modules/.bin/mocha",
-      "test/js/distributed/*.js",
+      "test/js/remoteClient/*.js",
       "--colors",
       "--exit",
       "--timeout",
@@ -37,11 +37,11 @@ services:
     depends_on:
       - broker
     command: [
-      "test/js/distributed/wait-for.sh",
+      "test/js/remoteClient/wait-for.sh",
       "broker:1883",
       "--",
       "node",
-      "test/js/distributed/fixtures/agent.js"
+      "test/js/remoteClient/fixtures/agent.js"
     ]
 
   agent2:
@@ -53,9 +53,9 @@ services:
     depends_on:
       - broker
     command: [
-      "test/js/distributed/wait-for.sh",
+      "test/js/remoteClient/wait-for.sh",
       "broker:1883",
       "--",
       "node",
-      "test/js/distributed/fixtures/agent.js"
+      "test/js/remoteClient/fixtures/agent.js"
     ]

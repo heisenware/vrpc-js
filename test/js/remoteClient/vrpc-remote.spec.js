@@ -6,6 +6,9 @@ const assert = require('assert')
 const sinon = require('sinon')
 
 describe('vrpc-remote', () => {
+  /*******************************
+   * construction and connection *
+   *******************************/
   describe('construction and connection', () => {
     it('should not construct using bad parameters', async () => {
       assert.throws(
@@ -75,8 +78,101 @@ describe('vrpc-remote', () => {
       })
     })
   })
-
-  describe('proxy creation and deletion on an all-default client', () => {
+  /*******************************
+   * agent and class information *
+   *******************************/
+  describe('agent and class information', () => {
+    let client
+    const agentSpy = sinon.spy()
+    const classSpy = sinon.spy()
+    before(async () => {
+      client = new VrpcRemote({
+        broker: 'mqtt://broker',
+        domain: 'test.vrpc',
+        timeout: 1000
+      })
+      client.on('agent', agentSpy)
+      client.on('class', classSpy)
+      await client.connect()
+      await new Promise(resolve => setTimeout(resolve, 500))
+    })
+    after(async () => {
+      client.off('agent', agentSpy)
+      client.off('class', classSpy)
+      await client.end()
+    })
+    it('should have received agent information after connect', async () => {
+      assert(agentSpy.calledTwice)
+      assert(agentSpy.calledWith({
+        domain: 'test.vrpc',
+        agent: 'agent1',
+        status: 'online',
+        hostname: 'agent1',
+        version: ''
+      }))
+      assert(agentSpy.calledWith({
+        domain: 'test.vrpc',
+        agent: 'agent2',
+        status: 'online',
+        hostname: 'agent2',
+        version: ''
+      }))
+    })
+    it('should have received class information after connect', async () => {
+      assert.strictEqual(classSpy.callCount, 4)
+      assert(classSpy.calledWith({
+        domain: 'test.vrpc',
+        agent: 'agent1',
+        className: 'Foo',
+        instances: [],
+        memberFunctions: [
+          'constructor',
+          'increment',
+          'reset',
+          'callback',
+          'resolvePromise',
+          'rejectPromise',
+          'setMaxListeners',
+          'getMaxListeners',
+          'emit',
+          'addListener',
+          'on',
+          'prependListener',
+          'once',
+          'prependOnceListener',
+          'removeListener',
+          'off',
+          'removeAllListeners',
+          'listeners',
+          'rawListeners',
+          'listenerCount',
+          'eventNames'
+        ],
+        // FIXME: Think about hiding the VRPC injected __<function>__ already here
+        staticFunctions: [
+          'staticIncrement',
+          'staticResolvePromise',
+          'staticRejectPromise',
+          'staticCallback',
+          'once',
+          'on',
+          'EventEmitter',
+          'init',
+          'listenerCount',
+          '__create__',
+          '__delete__',
+          '__createNamed__',
+          '__getNamed__',
+          '__callAll__'
+        ],
+        meta: {}
+      }))
+    })
+  })
+  /*******************************
+   * proxy creation and deletion *
+   *******************************/
+  describe('proxy creation and deletion', () => {
     let client
     before(async () => {
       client = new VrpcRemote({
@@ -278,8 +374,10 @@ describe('vrpc-remote', () => {
         assert.strictEqual(instanceGoneSpy.callCount, 2)
       })
     })
-  }) // 'proxy creation and deletion on an all-default client'
-
+  })
+  /*************************
+   * remote function calls *
+   *************************/
   describe('remote function calls', () => {
     let client
     before(async () => {
@@ -431,6 +529,7 @@ describe('vrpc-remote', () => {
       })
       it('should allow batch-calling asynchronous functions across agents', async () => {
         const value = await client.callAll({
+          agent: '*',
           className: 'Foo',
           functionName: 'resolvePromise'
         })
