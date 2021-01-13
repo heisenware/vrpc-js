@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- Reference documentation for Node.js based components
+- Reference documentation for Node.js based components [NodeJS]
+- Feature to `callAll` instances of the same class across agents [NodeJS]
+- Initial setup for a new docker-compose based specification testing [NodeJS]
+- Improved protection against malformed domain and agent names [NodeJS]
+- Improved log message (more verbose) in case proxy creation timed out [NodeJS]
 
 ## [2.2.3] - 4 Dec 2020
 

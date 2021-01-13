@@ -10,10 +10,11 @@
   },
   "scripts": {
     "build": "ln -sf binding.gyp.no-auto binding.gyp && third_party/install.sh && node-gyp rebuild && rm binding.gyp",
-    "test": "npm run test:cpp && npm run test:jsLocal && npm run test:jsRemote",
+    "test": "npm run test:cpp && npm run test:jsLocal && npm run test:jsRemote && npm run test:jsRemoteClient",
     "test:cpp": "build/Release/vrpc-test",
     "test:jsLocal": "./node_modules/.bin/mocha test/js/local/*.js --exit",
     "test:jsRemote": "./node_modules/.bin/mocha test/js/remote/lifeCycleTest.js --timeout 30000 --exit && test/js/remote/test.sh",
+    "test:jsRemoteClient": "test/js/remoteClient/test.sh",
     "test:jsPerformance": "test/js/performance/test.sh",
     "example": "node examples/Bar.js",
     "doc": "echo '# API reference documentation for Node.js\n' > docs/reference/nodeJs.md; ./node_modules/.bin/jsdoc2md -f vrpc/*.js --separators >> docs/reference/nodeJs.md"
