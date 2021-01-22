@@ -1,0 +1,7 @@
+# VRPC has been originally written by Burkhard Heisen.
+# Since 2021 he is co-founder of the Heisenware GmbH company that is
+# professionally looking after this open-source project.
+# This CODEOWNERS file is to make sure that @bheisen is requested
+# for a code review in case of a pull request.
+
+* @bheisen
