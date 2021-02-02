@@ -2,8 +2,7 @@ matrix:
   include:
     - language: node_js
       before_install:
-        - echo 'DOCKER_OPTS="$DOCKER_OPTS --registry-mirror=https://mirror.gcr.io"'
-        - sudo service docker restart
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
         - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
         - sudo apt-get update
         - sudo apt-get install -y gcc-5 g++-5
