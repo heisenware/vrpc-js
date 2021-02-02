@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Wrong `break` statements when inspecting the client cache for instances to be
   attached to [NodeJS]
+- Compilation error on non-copyable classes [C++-Addon] (#22)
 
 ## [2.3.0] - 13 Jan 2021
 
