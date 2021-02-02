@@ -1,5 +1,3 @@
-before_install:
-
 matrix:
   include:
     - language: node_js

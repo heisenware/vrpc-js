@@ -60,35 +60,4 @@ TEST_CASE("Test functionality of generic holder", "[Value]") {
     auto ia = v.get<int>();
     REQUIRE(ia == 1);
   }
-  /* NOTE: Currently unsupported because of windows compiler issues
-  SECTION("Check retrieval without get") {
-    // Store an integer to Value
-    Value v(1);
-    // by value
-    int iv = v;
-    REQUIRE(iv == 1);
-    // by const reference
-    const int& ir = v;
-    REQUIRE(ir == 1);
-    // by std::shared_ptr
-    std::shared_ptr<int> ip = v;
-    REQUIRE(*ip == 1);
-  }
-  */
-  SECTION("Check formatting") {
-    Value v;
-    v = 1;
-    REQUIRE(v.format() == "1");
-    v = "foo";
-    REQUIRE(v.format() == "foo");
-    v = 3.1414;
-    REQUIRE(v.format() == "3.141400");
-    v = std::vector<int>({1, 2, 3, 4});
-    REQUIRE(v.format() == "1,2,3,4");
-    v = std::map<std::string, int>({
-      {"1", 1},
-      {"2", 2}});
-    REQUIRE(v.format() == "{1:1,2:2}");
-    v = std::set<int>({1, 2, 3, 4});
-  }
 }

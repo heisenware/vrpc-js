@@ -439,47 +439,6 @@ namespace vrpc {
     return signature.empty() ? signature : "-" + signature;
   }
 
-  template <typename T>
-  inline std::string to_string(const T& value) {
-    std::ostringstream s;
-    s << std::fixed << value;
-    return s.str();
-  }
-
-  template <typename T>
-  inline std::string to_string(const std::shared_ptr<T>& value) {
-    std::ostringstream s;
-    s << std::fixed << *value;
-    return s.str();
-  }
-
-  template <typename T>
-  inline std::string to_string(const std::vector<T>& value) {
-    if (value.empty()) return "";
-    std::ostringstream s;
-    typename std::vector<T>::const_iterator it = value.begin();
-    s << to_string(*it);
-    it++;
-    for (; it != value.end(); ++it) {
-      s << "," << to_string(*it);
-    }
-    return s.str();
-  }
-
-  template <typename KeyType, typename ValueType>
-  inline std::string to_string(const std::map<KeyType, ValueType>& value) {
-    if (value.empty()) return "{}";
-    std::ostringstream s;
-    typename std::map<KeyType, ValueType>::const_iterator it = value.begin();
-    s << "{" << to_string(it->first) << ":" << to_string(it->second);
-    it++;
-    for (; it != value.end(); ++it) {
-      s << "," << to_string(it->first) << ":" << to_string(it->second);
-    }
-    s << "}";
-    return s.str();
-  }
-
   namespace detail {
 
     template <typename T>
@@ -590,12 +549,6 @@ namespace vrpc {
       return content ? content->type() : void_type;
     }
 
-    std::string format() const {
-      return content ? content->format() : std::string();
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const Value& v);
-
     template <typename T>
     inline const T& get() const {
       // TODO Check type correctness here
@@ -631,8 +584,6 @@ namespace vrpc {
       virtual std::type_index type() const noexcept = 0;
 
       virtual placeholder* clone() const = 0;
-
-      virtual std::string format() const = 0;
     };
 
     template<typename T>
@@ -655,10 +606,6 @@ namespace vrpc {
       virtual placeholder* clone() const {
         // This copies a std::shared_ptr!
         return new holder(*held);
-      }
-
-      virtual std::string format() const {
-        return vrpc::to_string(*held);
       }
 
       holder& operator=(const holder&) = delete;
@@ -687,12 +634,7 @@ namespace vrpc {
         return new holder(held);
       }
 
-      virtual std::string format() const {
-        return vrpc::to_string(*held);
-      }
-
       holder& operator=(const holder&) = delete;
-
 
     public: // representation
 
@@ -701,15 +643,6 @@ namespace vrpc {
 
     placeholder* content;
   };
-
-  inline std::ostream& operator<<(std::ostream& os, const Value& value) {
-    try {
-      if (value.content) os << value.content->format();
-    } catch (const std::exception& e) {
-      std::cerr << "Problem formatting value:" << e.what() << std::endl;
-    }
-    return os;
-  }
 
   inline bool operator==(const Value& lhs, const char& rhs) {
     return lhs.get<char>() == rhs;
