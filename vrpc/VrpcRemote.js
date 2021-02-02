@@ -934,15 +934,15 @@ class VrpcRemote extends EventEmitter {
     for (const domain in this._domains) {
       if (options.domain && domain !== options.domain) continue
       const { agents } = this._domains[domain]
-      if (!agents) break
+      if (!agents) continue
       for (const agent in agents) {
         if (options.agent && agent !== options.agent) continue
         const { classes, status } = agents[agent]
-        if (!classes || status === 'offline') break
+        if (!classes || status === 'offline') continue
         for (const className in classes) {
           if (options.className && className !== options.className) continue
           const { instances } = classes[className]
-          if (!instances) break
+          if (!instances) continue
           if (instances.includes(instance)) {
             return { domain, agent, className, instance }
           }
