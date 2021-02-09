@@ -102,7 +102,7 @@ describe('vrpc-remote', () => {
       await client.end()
     })
     it('should have received agent information after connect', async () => {
-      assert(agentSpy.calledTwice)
+      assert(agentSpy.calledThrice)
       assert(agentSpy.calledWith({
         domain: 'test.vrpc',
         agent: 'agent1',
@@ -117,9 +117,16 @@ describe('vrpc-remote', () => {
         hostname: 'agent2',
         version: ''
       }))
+      assert(agentSpy.calledWith({
+        domain: 'test.vrpc',
+        agent: 'agent3',
+        status: 'offline',
+        hostname: 'agent3',
+        version: 3
+      }))
     })
     it('should have received class information after connect', async () => {
-      assert.strictEqual(classSpy.callCount, 4)
+      assert.strictEqual(classSpy.callCount, 6)
       assert(classSpy.calledWith({
         domain: 'test.vrpc',
         agent: 'agent1',
@@ -249,7 +256,7 @@ describe('vrpc-remote', () => {
         assert(instanceNewSpy.notCalled)
       })
       it('should not list any available instances', () => {
-        const instances = client.getAvailableInstances('Foo', 'agent1')
+        const instances = client.getAvailableInstances('Foo', { agent: 'agent1' })
         assert.strictEqual(instances.length, 0)
       })
       // FIXME Explicit deletion of anonymous proxies is not yet implemented
@@ -358,7 +365,7 @@ describe('vrpc-remote', () => {
         )
       })
       it('should list the available instances', () => {
-        const instances = client.getAvailableInstances('Foo', 'agent1')
+        const instances = client.getAvailableInstances('Foo', { agent: 'agent1' })
         assert.deepStrictEqual(instances, ['instance1', 'instance2'])
       })
       it('should delete the named instances', async () => {
