@@ -437,7 +437,7 @@ class VrpcRemote extends EventEmitter {
    * @param {String} options.className Name of the static function's class
    * @param {Array} [options.args] Positional arguments of the static function call
    * @param {String} [options.agent] Agent name. If not provided class default is used
-   * @returns {Promise<Object[]>} An array of objects { id, val, err } carrying
+   * @returns {Promise<Object[]>} An array of objects `{ id, val, err }` carrying
    * the instance id, the return value and potential errors
    */
   async callAll ({
@@ -476,19 +476,25 @@ class VrpcRemote extends EventEmitter {
   /**
    * Retrieves all agents, instances, classes, member and static
    * functions potentially available for remote control.
-   *
-   * @returns {Object} Object with structure:
-   * <domain>.agents.<agent>.classes.<className>.instances: []
-   * <domain>.agents.<agent>.classes.<className>.memberFunctions: []
-   * <domain>.agents.<agent>.classes.<className>.staticFunctions: []
-   * <domain>.agents.<agent>.status: 'offline'|'online'
-   * <domain>.agents.<agent>.hostname: <hostname>
+   * @deprecated
+  * @returns {Object} SystemInformation
+   * ```ts
+   * type SystemInformation = {
+   *   [domain].agents[agent].status: string, // 'offline' or 'online'
+   *   [domain].agents[agent].hostname: string,
+   *   [domain].agents[agent].version: string,
+   *   [domain].agents[agent].classes[className].instances: string[],
+   *   [domain].agents[agent].classes[className].memberFunctions: string[],
+   *   [domain].agents[agent].classes[className].staticFunctions: string[],
+   *   [domain].agents[agent].classes[className].meta?: MetaData
+   * }
+   * ```
    */
   getAvailabilities () {
     process.emitWarning(
       'VrpcRemote.getAvailabilities(): ' +
       'This function is deprecated and will be removed soon, ' +
-      'use `getDistributedSystemInformation()` instead.'
+      'use `getSystemInformation()` instead.'
     )
     return { [this._domain]: { agents: this._agents } }
   }
@@ -496,20 +502,27 @@ class VrpcRemote extends EventEmitter {
   /**
    * Retrieves all information about the currently available components.
    *
-   * @returns {Object} Object with structure:
-   * <agent>.classes.<className>.instances: []
-   * <agent>.classes.<className>.memberFunctions: []
-   * <agent>.classes.<className>.staticFunctions: []
-   * <agent>.status: 'offline'|'online'
-   * <agent>.hostname: <hostname>
+  * @returns {Object} SystemInformation
+   * ```ts
+   * type SystemInformation = {
+   *   [agent].status: string, // 'offline' or 'online'
+   *   [agent].hostname: string,
+   *   [agent].version: string,
+   *   [agent].classes[className].instances: string[],
+   *   [agent].classes[className].memberFunctions: string[],
+   *   [agent].classes[className].staticFunctions: string[],
+   *   [agent].classes[className].meta?: MetaData
+   * }
+   * ```
    */
-  getDistributedSystemInformation () {
+  getSystemInformation () {
     return this._agents
   }
 
   /**
    * Retrieves all domains on which agents can be remote controlled
    *
+   * @deprecated
    * @returns {Array} Array of domain names
    */
   getAvailableDomains () {
