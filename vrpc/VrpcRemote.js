@@ -776,6 +776,28 @@ class VrpcRemote extends EventEmitter {
   }
 
   /**
+   * Unregisters (= removal of persisted information) an offline agent
+   *
+   * @param agent The agent to be unregistered
+   * @returns {Promise<Boolean>} Resolves to true in case of success, false otherwise
+   */
+  async unregisterAgent (agent) {
+    if (this._agents[agent] && this._agents[agent].status === 'offline') {
+      const agentTopic = `${this._domain}/${agent}/__agentInfo__`
+      this._mqttPublish(agentTopic, null, { retain: true })
+      const classes = this.getAvailableClasses({ agent, mustBeOnline: false })
+      for (const className of classes) {
+        const classTopic = `${this._domain}/${agent}/${className}/__classInfo__`
+        this._mqttPublish(classTopic, null, { retain: true })
+      }
+      // Synchronize local cache
+      delete this._agents[agent]
+      return true
+    }
+    return false
+  }
+
+  /**
    * Ends the connection to the broker
    *
    * @returns {Promise} Resolves when ended

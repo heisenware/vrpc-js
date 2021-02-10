@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - converted log-based deprecation warnings to `process.emitWarning()` [NodeJS]
 
+### Added
+
+- possibility to unregister an offline agent [NodeJS] (#32)
+
 ## [2.3.1] - 02 Feb 2021
 
 ### Fixed
