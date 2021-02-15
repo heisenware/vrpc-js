@@ -243,11 +243,7 @@ class VrpcRemote extends EventEmitter {
   }
 
   async connected () {
-    process.emitWarning(
-      'VrpcRemote.connected(): ' +
-      'This API usage is deprecated, use `connect()` instead.',
-      'DeprecationWarning'
-    )
+    this._indicateDeprecation('VrpcRemote.connected(): This API usage is deprecated, use `connect()` instead.')
     return this.connect()
   }
 
@@ -340,7 +336,7 @@ class VrpcRemote extends EventEmitter {
       } = await this._getInstanceData(instance, options)
       return this._createProxy(agent, className, instanceString)
     } else { // deprecate this
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getInstance(): ' +
         'Using an object as single argument is deprecated, ' +
         'use "getInstance(instance, options)" instead.'
@@ -375,7 +371,7 @@ class VrpcRemote extends EventEmitter {
       instanceData = await this._getInstanceData(instance)
       if (options) instanceData = { ...options, ...instanceData }
     } else { // deprecate this
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.delete(): ' +
         'Using an object as single argument is deprecated, ' +
         'use "delete(instance, options)" instead.'
@@ -491,7 +487,7 @@ class VrpcRemote extends EventEmitter {
    * ```
    */
   getAvailabilities () {
-    process.emitWarning(
+    this._indicateDeprecation(
       'VrpcRemote.getAvailabilities(): ' +
       'This function is deprecated and will be removed soon, ' +
       'use `getSystemInformation()` instead.'
@@ -526,12 +522,11 @@ class VrpcRemote extends EventEmitter {
    * @returns {Array} Array of domain names
    */
   getAvailableDomains () {
-    process.emitWarning(
+    this._indicateDeprecation(
       'VrpcRemote.getAvailableDomains(): ' +
       'this function will be removed in the next major release, as the client' +
-      'works with a single domain anyways',
-      'DeprecationWarning'
-    );
+      'works with a single domain anyways'
+    )
     return [this._domain]
   }
 
@@ -546,10 +541,9 @@ class VrpcRemote extends EventEmitter {
     /// DEPRECATION INFORMATION AND WORKAROUND - TO BE REMOVED IN 3.x
     // `options = {}` was `domain = this._domain` before
     if (typeof options === 'string') {
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getAvailableAgents(): ' +
-        'Providing a domain here has no effect and will be an error in future.',
-        'DeprecationWarning'
+        'Providing a domain here has no effect and will be an error in future.'
       )
       options = { mustBeOnline: true }
     }
@@ -582,11 +576,10 @@ class VrpcRemote extends EventEmitter {
     let mustBeOnline = true
     // `options = {}` was `agent = this._agent` before
     if (typeof options === 'string') {
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getAvailableClasses(): ' +
         'setting the agent as string argument is deprecated.`' +
-         'Use `{ agent: <myAgent> }` instead.',
-         'DeprecationWarning'
+         'Use `{ agent: <myAgent> }` instead.'
       )
       agent = options
     } else {
@@ -595,10 +588,9 @@ class VrpcRemote extends EventEmitter {
     }
     // was `domain = this._domain` before
     if (domain) {
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getAvailableClasses(): ' +
-        'Providing a domain here has no effect and will be an error in future.',
-        'DeprecationWarning'
+        'Providing a domain here has no effect and will be an error in future.'
       )
     }
     ///
@@ -629,11 +621,10 @@ class VrpcRemote extends EventEmitter {
     let mustBeOnline = true
     // `options = {}` was `agent = this._agent` before
     if (typeof options === 'string') {
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getAvailableInstances(): ' +
         'Setting the agent as string argument is deprecated.`' +
-         'Use `{ agent: <myAgent> }` instead.',
-         'DeprecationWarning'
+         'Use `{ agent: <myAgent> }` instead.'
       )
       agent = options
     } else {
@@ -642,10 +633,9 @@ class VrpcRemote extends EventEmitter {
     }
     // was `domain = this._domain` before
     if (domain) {
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getAvailableInstances(): ' +
-        'Providing a domain here has no effect and will be an error in future.',
-        'DeprecationWarning'
+        'Providing a domain here has no effect and will be an error in future.'
       )
     }
     ///
@@ -676,11 +666,10 @@ class VrpcRemote extends EventEmitter {
     let mustBeOnline = true
     // `options = {}` was `agent = this._agent` before
     if (typeof options === 'string') {
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getAvailableMemberFunctions(): ' +
         'Setting the agent as string argument is deprecated.`' +
-         'Use `{ agent: <myAgent> }` instead.',
-         'DeprecationWarning'
+         'Use `{ agent: <myAgent> }` instead.'
       )
       agent = options
     } else {
@@ -689,10 +678,9 @@ class VrpcRemote extends EventEmitter {
     }
     // was `domain = this._domain` before
     if (domain) {
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getAvailableMemberFunctions(): ' +
-        'Providing a domain here has no effect and will be an error in future.',
-        'DeprecationWarning'
+        'Providing a domain here has no effect and will be an error in future.'
       )
     }
     ///
@@ -725,11 +713,10 @@ class VrpcRemote extends EventEmitter {
     let mustBeOnline = true
     // `options = {}` was `agent = this._agent` before
     if (typeof options === 'string') {
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getAvailableStaticFunctions(): ' +
         'Setting the agent as string argument is deprecated.`' +
-         'Use `{ agent: <myAgent> }` instead.',
-         'DeprecationWarning'
+         'Use `{ agent: <myAgent> }` instead.'
       )
       agent = options
     } else {
@@ -738,10 +725,9 @@ class VrpcRemote extends EventEmitter {
     }
     // was `domain = this._domain` before
     if (domain) {
-      process.emitWarning(
+      this._indicateDeprecation(
         'VrpcRemote.getAvailableStaticFunctions(): ' +
-        'Providing a domain here has no effect and will be an error in future.',
-        'DeprecationWarning'
+        'Providing a domain here has no effect and will be an error in future.'
       )
     }
     ///
@@ -1134,6 +1120,15 @@ class VrpcRemote extends EventEmitter {
           return { agent, className, instance }
         }
       }
+    }
+  }
+
+  _indicateDeprecation (msg) {
+    // We need to be defensive here because of the in browser usage
+    if (process && process.emitWarning) {
+      process.emitWarning(msg, 'DeprecationWarning')
+    } else {
+      this._log.warn('DEPRECATED ', msg)
     }
   }
 }
