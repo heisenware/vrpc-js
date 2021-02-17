@@ -175,6 +175,37 @@ describe('vrpc-remote', () => {
         meta: {}
       }))
     })
+    it('should be possible to unregister the offline agent', async () => {
+      const ok = await client.unregisterAgent('agent3')
+      assert(ok)
+      const agents = Object.keys(client.getSystemInformation())
+      assert.strictEqual(agents.length, 2)
+      assert(agents.includes('agent1'))
+      assert(agents.includes('agent2'))
+      const tmpClient = new VrpcRemote({
+        broker: 'mqtt://broker',
+        domain: 'test.vrpc'
+      })
+      const tmpAgentSpy = sinon.spy()
+      tmpClient.on('agent', tmpAgentSpy)
+      await tmpClient.connect()
+      await new Promise(resolve => setTimeout(resolve, 500))
+      assert(tmpAgentSpy.calledTwice)
+      tmpClient.off('agent', tmpAgentSpy)
+      await tmpClient.end()
+    })
+    it('should not be possible to unregister an online agent', async () => {
+      const ok = await client.unregisterAgent('agent1')
+      assert(!ok)
+      const agents = Object.keys(client.getSystemInformation())
+      assert.strictEqual(agents.length, 2)
+    })
+    it('should not be possible to unregister a non-existing agent', async () => {
+      const ok = await client.unregisterAgent('doesNotExist')
+      assert(!ok)
+      const agents = Object.keys(client.getSystemInformation())
+      assert.strictEqual(agents.length, 2)
+    })
   })
   /*******************************
    * proxy creation and deletion *
@@ -185,7 +216,7 @@ describe('vrpc-remote', () => {
       client = new VrpcRemote({
         broker: 'mqtt://broker',
         domain: 'test.vrpc',
-        timeout: 1000
+        timeout: 5000
       })
       await client.connect()
     })
@@ -205,7 +236,7 @@ describe('vrpc-remote', () => {
           className: 'Foo'
         }),
         {
-          message: 'Proxy creation for class "Foo" on agent "doesNotExist" and domain "test.vrpc" timed out (> 1000 ms)'
+          message: 'Proxy creation for class "Foo" on agent "doesNotExist" and domain "test.vrpc" timed out (> 5000 ms)'
         }
       )
     })
@@ -217,7 +248,7 @@ describe('vrpc-remote', () => {
           args: []
         }),
         {
-          message: 'Proxy creation for class "DoesNotExist" on agent "agent1" and domain "test.vrpc" timed out (> 1000 ms)'
+          message: 'Proxy creation for class "DoesNotExist" on agent "agent1" and domain "test.vrpc" timed out (> 5000 ms)'
         }
       )
     })
