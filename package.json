@@ -18,7 +18,8 @@
     "test:jsAgent": "test/js/agent/test.sh",
     "test:jsPerformance": "test/js/performance/test.sh",
     "example": "node examples/Bar.js",
-    "doc": "echo '# API reference documentation for Node.js\n' > docs/reference/nodeJs.md; ./node_modules/.bin/jsdoc2md -f vrpc/*.js --separators >> docs/reference/nodeJs.md"
+    "build:doc": "echo '# API reference documentation for Node.js\n' > docs/reference/nodeJs.md; ./node_modules/.bin/jsdoc2md -f vrpc/*.js --separators >> docs/reference/nodeJs.md",
+    "build:browser": "./node_modules/.bin/webpack"
   },
   "bin": {
     "vrpc-agent-js": "./vrpc/vrpc-agent-js"
@@ -45,16 +46,24 @@
   "homepage": "https://vrpc.io",
   "devDependencies": {
     "chai": "^4.2.0",
+    "crypto-browserify": "^3.12.0",
     "dockerode": "^3.2.0",
     "jsdoc-to-markdown": "^6.0.1",
     "mocha": "^6.1.4",
-    "sinon": "^7.3.2"
+    "os-browserify": "^0.3.0",
+    "sinon": "^7.3.2",
+    "stream-browserify": "^3.0.0",
+    "url": "^0.11.0",
+    "webpack": "^5.22.0",
+    "webpack-cli": "^4.5.0"
   },
   "files": [
-    "vrpc/*",
-    "third_party/*",
+    "vrpc/",
+    "third_party/",
+    "browser/",
     "binding.gyp.no-auto"
   ],
+  "browser": "./browser/vrpc.js",
   "dependencies": {
     "ajv": "^6.10.0",
     "argparse": "^2.0.1",

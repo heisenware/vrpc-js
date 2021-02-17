@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - domain inconsistency in the VrpcRemote API [NodeJS] (#33)
+- webpack-5 crash, using custom browser library now (#36)
 
 ### Changed
 
