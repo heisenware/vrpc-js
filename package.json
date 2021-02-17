@@ -58,6 +58,7 @@
     "browser/",
     "binding.gyp.no-auto"
   ],
+  "browser": "./browser/index.js",
   "dependencies": {
     "ajv": "^6.10.0",
     "argparse": "^2.0.1",
