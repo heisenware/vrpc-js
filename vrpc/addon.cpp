@@ -59,6 +59,7 @@ using v8::Object;
 using v8::Persistent;
 using v8::String;
 using v8::Value;
+using v8::CopyablePersistentTraits;
 
 std::string singleArgToString(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -230,23 +231,26 @@ void getStaticFunctions(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(localString);
 }
 
-Persistent<Function> callback_handler;
+typedef Persistent<Function, CopyablePersistentTraits<Function>> CallbackHandler;
+std::vector<CallbackHandler> callback_handlers;
 
 void cppCallbackHandler(Isolate* isolate, const vrpc::json& json) {
   _VRPC_DEBUG << "will call back with " << json << std::endl;
   HandleScope handleScope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
-  Local<Function> cb = Local<Function>::New(isolate, callback_handler);
-  const unsigned argc = 1;
-  Local<Value> argv[argc] = {
-      String::NewFromUtf8(isolate, json.dump().c_str(), NewStringType::kNormal)
-          .ToLocalChecked()};
-  cb->Call(context, Null(isolate), argc, argv).ToLocalChecked();
+  for (const auto& callback_handler : callback_handlers) {
+    Local<Function> cb = Local<Function>::New(isolate, callback_handler);
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = {
+        String::NewFromUtf8(isolate, json.dump().c_str(), NewStringType::kNormal)
+            .ToLocalChecked()};
+    cb->Call(context, Null(isolate), argc, argv).ToLocalChecked();
+  }
 }
 
 void onCallback(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  callback_handler.Reset(isolate, Local<Function>::Cast(args[0]));
+  callback_handlers.push_back(CallbackHandler(isolate, Local<Function>::Cast(args[0])));
   vrpc::Callback::register_callback_handler(
       std::bind(cppCallbackHandler, isolate, std::placeholders::_1));
 }
