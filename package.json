@@ -1,6 +1,6 @@
 {
   "name": "vrpc",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "Variadic Remote Procedure Calls",
   "main": "index.js",
   "directories": {
@@ -25,14 +25,16 @@
     "vrpc-agent-js": "./vrpc/vrpc-agent-js"
   },
   "keywords": [
-    "language bindings",
-    "asynchronous RPC",
-    "asynchronous remote procedural calls",
-    "C++ to Node.js",
-    "C++ to Python",
-    "header-only",
-    "C++14",
-    "mqtt based iot"
+    "communication",
+    "iot",
+    "mqtt",
+    "edge-to-cloud",
+    "rpc",
+    "remote procedural calls",
+    "language binding",
+    "C++",
+    "C++ binding",
+    "header-only"
   ],
   "repository": {
     "type": "git",
