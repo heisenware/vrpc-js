@@ -287,7 +287,7 @@ node index.js
 ```
 
 If you see the program running you are using a good portion of
-native C++ code from within NodeJS, congrats!!
+native C++ code from within Node.js, congrats!!
 
 ### The thing with the C++ callbacks
 

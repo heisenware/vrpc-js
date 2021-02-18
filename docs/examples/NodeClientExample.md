@@ -1,7 +1,7 @@
 # Example - "Remote conversation at the bar"
 
 In the NodeAgent example we prepared some code that representing a bar. This
-code includes some NodeJS language features like classes, static functions,
+code includes some Node.js language features like classes, static functions,
 asynchronous functions, event-emitter callbacks, exceptions and promise
 rejections.
 
@@ -30,12 +30,12 @@ The only VRPC component needed is the `VrpcRemote` client.
 
 > **Important**
 >
-> The C++ agent and the NodeJS agent examples are a bit different, as the NodeJS
+> The C++ agent and the Node.js agent examples are a bit different, as the Node.js
 > agent uses custom language features not easily available under C++.
 > Hence, depending on the agent type you started please select the corresponding
 > client implementation.
 
-### Client for NodeJS agent
+### Client for Node.js agent
 
 *index.js*
 
@@ -90,7 +90,7 @@ async function main () {
     console.log(`So sad, the ${age} year old ${brand} from ${country} is empty.`)
   })
   await bar.removeBottle('rum')
-  // This disconnects the client (= stops putting work on NodeJS' event loop)
+  // This disconnects the client (= stops putting work on Node.js' event loop)
   await vrpcRemote.end()
 }
 
@@ -169,7 +169,7 @@ async function main () {
   console.log('How is your neighbor sorted?')
   console.log(' - Very well:\n', await neighborsBar.getAssortment())
 
-  // This disconnects the client (= stops putting work on NodeJS' event loop)
+  // This disconnects the client (= stops putting work on Node.js' event loop)
   await vrpcRemote.end()
 }
 

@@ -9,39 +9,39 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- domain inconsistency in the VrpcRemote API [NodeJS] (#33)
+- domain inconsistency in the VrpcRemote API [Node.js] (#33)
 - webpack-5 crash, using custom browser library now (#36)
-- missing callback when same native addon was loaded to different VrpcLocal instances [NodeJS] (#31)
+- missing callback when same native addon was loaded to different VrpcLocal instances [Node.js] (#31)
 
 ### Changed
 
-- converted log-based deprecation warnings to `process.emitWarning()` [NodeJS]
+- converted log-based deprecation warnings to `process.emitWarning()` [Node.js]
 
 ### Added
 
-- possibility to unregister an offline agent [NodeJS] (#32)
+- possibility to unregister an offline agent [Node.js] (#32)
 
 ## [2.3.1] - 02 Feb 2021
 
 ### Fixed
 
 - Wrong `break` statements when inspecting the client cache for instances to be
-  attached to [NodeJS]
+  attached to [Node.js]
 - Compilation error on non-copyable classes [C++-Addon] (#22)
 
 ## [2.3.0] - 13 Jan 2021
 
 ### Added
 
-- Reference documentation for Node.js based components [NodeJS]
-- Feature to `callAll` instances of the same class across agents [NodeJS]
-- Initial setup for a new docker-compose based specification testing [NodeJS]
-- Improved protection against malformed domain and agent names [NodeJS]
-- Improved log message (more verbose) in case proxy creation timed out [NodeJS]
+- Reference documentation for Node.js based components [Node.js]
+- Feature to `callAll` instances of the same class across agents [Node.js]
+- Initial setup for a new docker-compose based specification testing [Node.js]
+- Improved protection against malformed domain and agent names [Node.js]
+- Improved log message (more verbose) in case proxy creation timed out [Node.js]
 
 ### Fixed
 
-- Missing events upon failed `agent.serve()` [NodeJS]
+- Missing events upon failed `agent.serve()` [Node.js]
 
 ## [2.2.3] - 4 Dec 2020
 
@@ -58,7 +58,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-- Stopped supporting Node.js 8.0 and included Node.js 14 while testing [NodeJS]
+- Stopped supporting Node.js 8.0 and included Node.js 14 while testing [Node.js]
 
 ## [2.2.1] - 30 Oct 2020
 
@@ -74,7 +74,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - possibility to specify custom defaults for commandline based agent runs
-  [NodeJS]
+  [Node.js]
 
 ## [2.2.0] - 30 Oct 2020
 
@@ -82,11 +82,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Feature of being able to call the same function across all instances of the
   same class (which is executed on the agent and only then send as single
-  message to the client) [NodeJS]
+  message to the client) [Node.js]
 - Added `version` property to agent (thanks to
   [cstim](https://github.com/cstim)), allowing to specify a custom version which
   is taken up in the agent-info message and digested by the remote client
-  [NodeJS]
+  [Node.js]
 
 ### Changed
 
@@ -112,15 +112,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - Feature of parsing js-doc like comments while registering code through the
-  adapter [NodeJS]
-- New option: `bestEffort` which sets all `qos` levels to 0 when true [NodeJS]
+  adapter [Node.js]
+- New option: `bestEffort` which sets all `qos` levels to 0 when true [Node.js]
   (thanks to [psorowka](https://github.com/psorowka) for suggesting this for
   performance improvement)
 
 ### Changed
 
 - Sequential subscription calls to single array-based one, much improving proxy
-  creation performance [NodeJS] (thanks to [cstim](https://github.com/cstim)
+  creation performance [Node.js] (thanks to [cstim](https://github.com/cstim)
   suggesting this)
 
 ### Fixed
@@ -133,7 +133,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - Implementation of event-registration: now dispatching multiple
-  subscribers of a proxy on the client side, not the agent side [NodeJS]
+  subscribers of a proxy on the client side, not the agent side [Node.js]
 - React todos example showing what can be done with react-vrpc v1.x
 
 ## [2.1.3] - 9 Jun 2020
@@ -141,18 +141,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Proper un-registration of local event subscriptions on a proxy instance
-  through `off` or `removeListener` function [NodeJS]
+  through `off` or `removeListener` function [Node.js]
 - Missing `await` statement in `delete()` method of `VrpcRemote` leading to
-  race condition [NodeJS]
+  race condition [Node.js]
 - using `removeListener` instead of `off` for event un-subscription to support
-  older version of NodeJS [NodeJS]
+  older version of Node.js [Node.js]
 
 ## [2.1.2] - 26 May 2020
 
 ### Fixed
 
 - Issues with `VrpcRemote::getInstance` ignoring defaults or throwing wrong
-  exceptions [NodeJS]
+  exceptions [Node.js]
 
 
 ### Added
@@ -165,11 +165,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Compilation error of addon.cpp whe using V8 12.x (solves GH-5) [C++]
 - Unhandled error propagation of `VrpcRemote::#error` event when no handler is
-  subscribed [NodeJS]
+  subscribed [Node.js]
 - Immediate failure of `VrpcRemote::connect` function when MQTT connection takes
-  time [NodeJS]
+  time [Node.js]
 - Wrong RPC timeouts when agent is online only after the
-  client call (but still within `timeout` time) [NodeJS]
+  client call (but still within `timeout` time) [Node.js]
 - Loss of messages and re-subscription issues while `VrpcAgent` re-connects
   - Agent is using a persisted session while being online
 
@@ -183,7 +183,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Possible exception when using deprecated form of `VrpcRemote::getInstance`
-  [NodeJS]
+  [Node.js]
 
 ## [2.1.0-alpha.8] - 19 Mar 2020
 
@@ -192,32 +192,32 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Spuriously occurring RPC timeouts on calls that actually successfully
   travelled the network by removing the promise-based waiting from all mqtt
   pub/sub calls. Turns out that those callbacks may come later then event
-  RPC answer! [NodeJS]
+  RPC answer! [Node.js]
 
 ### Added
 
 - Option `noWait` on `VrpcRemote::getInstance` skipping any waiting for the
-  instance to appear if not currently found in the local cache. [NodeJS]
+  instance to appear if not currently found in the local cache. [Node.js]
 
 ## [2.1.0-alpha.7] - 13 Mar 2020
 
 ### Changed
 
 - `VrpcRemote::getInstance` will try first locally, second remotely to find
-  the instance (exception is thrown after timeout) [NodeJS]
+  the instance (exception is thrown after timeout) [Node.js]
 
 ### Fixed
 
-- VrpcAgent: unregistration of named instances [NodeJS]
-- VrpcAgent: ordering of classInfo message w.r.t. named creation [NodeJS]
+- VrpcAgent: unregistration of named instances [Node.js]
+- VrpcAgent: ordering of classInfo message w.r.t. named creation [Node.js]
 
 ## [2.1.0-alpha.6] - 12 Mar 2020
 
 ### Changed
 
-- handling of agent answer implementation (always using single promise) [NodeJS]
-- improved error message on timed out functions [NodeJS]
-- triggering a deprecation notice upon calling `VrpcRemote::connected()` [NodeJS]
+- handling of agent answer implementation (always using single promise) [Node.js]
+- improved error message on timed out functions [Node.js]
+- triggering a deprecation notice upon calling `VrpcRemote::connected()` [Node.js]
 - naming of info messages:
   - `__agentInfo__`
   - `__classInfo__`
@@ -225,13 +225,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
-- implicit triggering of MQTT connection within VrpcRemote constructor [NodeJS]
-- waiting for retained info messages during connect [NodeJS]
+- implicit triggering of MQTT connection within VrpcRemote constructor [Node.js]
+- waiting for retained info messages during connect [Node.js]
 
 ### Added
 
-- explicit `VrpcRemote::connect()` function, performing the MQTT connect [NodeJS]
-- 'error' and 'connect' event for `VrpcRemote` [NodeJS]
+- explicit `VrpcRemote::connect()` function, performing the MQTT connect [Node.js]
+- 'error' and 'connect' event for `VrpcRemote` [Node.js]
 
 ### Fixed
 
@@ -243,25 +243,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - got rid of the requirement to await twice for asynchronous agent functions
-  [NodeJS]
+  [Node.js]
 
 ### Added
 
-- two events on VrpcRemote: `instanceNew` and `instanceGone` [NodeJS]
+- two events on VrpcRemote: `instanceNew` and `instanceGone` [Node.js]
 
 ## [2.1.0-alpha.4] - 25 Feb 2020
 
 ### Changed
 
-- API for `VrpcRemote::getInstance` and `VrpcRemote::delete` [NodeJS]
+- API for `VrpcRemote::getInstance` and `VrpcRemote::delete` [Node.js]
   - provisioning of instanceId only is acceptable now, explicit context is
     optional.
   - old API usage is still supported, but generates a deprecation report
-- automatic schema validation now injects schema defaults [NodeJS]
+- automatic schema validation now injects schema defaults [Node.js]
 
 ### Fixed
 
-- missing topic un-subscription after client death [NodeJS]
+- missing topic un-subscription after client death [Node.js]
 
 ## [2.1.0-alpha.3] - 20 Feb 2020
 
@@ -367,9 +367,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- `docs` folder with examples for NodeJS, C++ and Python bindings
+- `docs` folder with examples for Node.js, C++ and Python bindings
 - static `fromCommandline` function to VrpcAgent.js
-- support to remotely use event-emitters provided by NodeJS agents
+- support to remotely use event-emitters provided by Node.js agents
 - documentation about rpc call details
 
 ### Fixed

@@ -40,10 +40,10 @@ dynamic linkage), executable or source package.
 
 ## Examples
 
-### Embedding C++ into NodeJS
+### Embedding C++ into Node.js
 
-- [Simple C++ to NodeJS Binding Example](docs/examples/CppNodeExample1.md)
-- [Advanced C++ to NodeJS Binding Example](docs/examples/CppNodeExample2.md)
+- [Simple C++ to Node.js Binding Example](docs/examples/CppNodeExample1.md)
+- [Advanced C++ to Node.js Binding Example](docs/examples/CppNodeExample2.md)
 
 ### Embedding C++ into Python3
 
@@ -55,13 +55,13 @@ dynamic linkage), executable or source package.
 - [Simple C++ Agent Example](docs/examples/CppAgentLinuxExample1.md)
 - [Advanced C++ Agent Example](docs/examples/CppAgentLinuxExample2.md)
 
-### Making existing NodeJS code remotely callable (agent)
+### Making existing Node.js code remotely callable (agent)
 
-- [NodeJS Agent Example](docs/examples/NodeAgentExample.md)
+- [Node.js Agent Example](docs/examples/NodeAgentExample.md)
 
-### Calling code remotely from NodeJS (client)
+### Calling code remotely from Node.js (client)
 
-- [NodeJS Remote Client Example](docs/examples/NodeClientExample.md)
+- [Node.js Remote Client Example](docs/examples/NodeClientExample.md)
 
 ### Frontend-Backend communication
 
@@ -73,4 +73,4 @@ dynamic linkage), executable or source package.
 - [RPC Protocol Details](docs/reference/remoteProtocol.md)
 - [C++ Binding Syntax](docs/reference/cppBinding.md)
 - [C++ Agent](docs/reference/cppAgent.md)
-- [NodeJS API](docs/reference/nodeJs.md)
+- [Node.js API](docs/reference/nodeJs.md)

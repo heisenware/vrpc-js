@@ -38,7 +38,7 @@ class VrpcAgent extends EventEmitter {
   } = {}) {
     const parser = new ArgumentParser({
       add_help: true,
-      description: 'VRPC NodeJS Agent'
+      description: 'VRPC Node.js Agent'
     })
     parser.add_argument(
       '-a',

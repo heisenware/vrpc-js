@@ -1,6 +1,6 @@
 # Example - "Straight to the bar"
 
-With NodeJS being such a nice and easy programming language we will not split
+With Node.js being such a nice and easy programming language we will not split
 the example in two, but directly head to the bar.
 
 > **NOTE**
@@ -15,7 +15,7 @@ the example in two, but directly head to the bar.
 >
 > Finally create a directory `src` and you are good to go.
 
-## STEP 1: NodeJS code that should be bound
+## STEP 1: Node.js code that should be bound
 
 We pretend that the code below already existed and should be made remotely
 accessible.

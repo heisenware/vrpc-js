@@ -385,7 +385,7 @@ backend using [VRPC Live](https://live.vrpc.io).
 > Don't be afraid using events with react-vrpc, it actually is the
 > recommended way to synchronize your frontend state with the backend state.
 >
-> The VRPC API fully implements NodeJS' `event` module, just remember to make
+> The VRPC API fully implements Node.js' `event` module, just remember to make
 > your backend a event emitter by inheriting the EventEmitter class (as is
 > best-practice in the node community anyways).
 >

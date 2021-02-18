@@ -6,7 +6,7 @@ In order to let VRPC generate C++ language bindings you have to mention:
 2. All custom C++ data-types you want to expose
 
 This must be done in a file called `binding.cpp` in case you want to embed
-C++ into NodeJS or Python3.
+C++ into Node.js or Python3.
 
 If you are going to build an agent (in order to make the bound code
 remotely accessible) it is recommended to add the binding code directly to the
