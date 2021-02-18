@@ -45,7 +45,17 @@
     "forward_list": "cpp",
     "unordered_map": "cpp",
     "numeric": "cpp",
-    "cinttypes": "cpp"
+    "cinttypes": "cpp",
+    "atomic": "cpp",
+    "algorithm": "cpp",
+    "iterator": "cpp",
+    "map": "cpp",
+    "memory_resource": "cpp",
+    "optional": "cpp",
+    "regex": "cpp",
+    "set": "cpp",
+    "string": "cpp",
+    "string_view": "cpp"
   },
   "restructuredtext.confPath": "${workspaceFolder}"
 }
