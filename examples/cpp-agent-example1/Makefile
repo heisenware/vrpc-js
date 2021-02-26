@@ -1,7 +1,7 @@
 TARGET = vrpc-foo-agent
 CPPFLAGS = -I./third_party/include -pthread -fPIC -m64 -O3 -std=c++14
 LDFLAGS = -pthread -L./third_party/lib
-LDLIBS = -l:libvrpc_agent_pro.a
+LDLIBS = -l:libvrpc_agent.a
 
 SRCS := $(shell find ./src -name *.cpp)
 OBJS := $(addsuffix .o,$(basename $(SRCS)))
