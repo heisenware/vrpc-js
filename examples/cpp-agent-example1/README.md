@@ -162,7 +162,7 @@ and leave the token empty. You should see your agent online (it uses your user-,
 host- and platform name).
 
 Or call your code from another piece of code written in e.g. Javascript. Just
-follow the `NodeClientExample`.
+follow the `Node.js Client` example.
 
 > **NOTE**
 >

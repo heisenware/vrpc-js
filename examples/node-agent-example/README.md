@@ -25,58 +25,104 @@ accessible.
 ```javascript
 const EventEmitter = require('events')
 
-class Bar extends EventEmitter {
+class Bar {
 
-  constructor (assortment = {}) {
-    super()
-    this._assortment = assortment
-    this._callbacks = new Map()
+  constructor (selection = []) {
+    this._selection = selection
+    this._emitter = new EventEmitter()
   }
 
+  /**
+   * Provides deeper thoughts about bars.
+   */
   static philosophy () {
     return 'I have mixed drinks about feelings.'
   }
 
-  hasDrink (type) {
-    return this._assortment[type] !== undefined
+  /**
+   * Adds a bottle to the bar.
+   *
+   * @param {String} name Name of the bottle
+   * @param {String} [category='n/a'] Category
+   * @param {String} [country='n/a'] Country of production
+   * @emits Bar#new
+   *
+   * @example
+   * bar.addBottle('Botucal', category: 'rum', country: 'Venezuela')
+   */
+  addBottle (name, category = 'n/a', country = 'n/a') {
+    this._selection.push({ name, category, country })
+    this._emitter.emit('add', name)
   }
 
-  addBottle (type, bottle) {
-    const bottles = this._assortment[type]
-    if (bottles) bottles.push(bottle)
-    else {
-      this._assortment[type] = [bottle]
-      this.emit('new', bottle)
+  /**
+   * Removes a bottle from the bar.
+   *
+   * @param {String} name Removes the first bottle found having the given name.
+   * @emits Bar#remove
+   */
+  removeBottle (name) {
+    const index = this._selection.findIndex(x => x.name === name)
+    if (index === -1) {
+      throw new Error('Sorry, this bottle is not in our selection')
     }
+    this._emitter.emit('remove', this._selection[index])
+    return [
+      ...this._selection.slice(0, index),
+      ...this._selection.slice(index + 1)
+    ]
   }
 
-  removeBottle (type) {
-    if (!this.hasDrink(type)) {
-      throw new Error('Can not remove non-existing type')
+  /**
+   * Adds a listener which is triggered whenever a bottle is added.
+   *
+   * @param {Function(Bottle)} listener
+   */
+  onAdd(listener) {
+    this._emitter.on('add', listener)
+  }
+
+  /**
+   * Adds a listener which is triggered whenever a bottle is removed.
+   *
+   * @param {Function(Bottle)} listener
+   */
+  onRemove(listener) {
+    this._emitter.on('remove', listener)
+  }
+
+  /**
+   * Ask the bartender to prepare a drink using the existing selection.
+   *
+   * @param {Function(String)} done Notification that the drink is ready
+   * @returns {String} Some bartender wisdom
+   */
+  async prepareDrink (done) {
+    const a = [this._random(), this._random(), this._random()]
+    if (done) {
+      setTimeout(() => {
+        done(`Your drink is ready! I mixed ${a[0]} with ${a[1]} and a bit of ${a[2]}.`)
+      }, 3000)
     }
-    const bottles = this._assortment[type]
-    const bottle = bottles.pop()
-    if (bottles.length === 0) {
-      delete this._assortment[type]
-      this.emit('empty', bottle)
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return 'In preparation...'
+  }
+
+  /**
+   * Shows the entire selection of the bar.
+   */
+  getSelection () {
+    return this._selection
+  }
+
+  _random () {
+    const nBottles = this._selection.length
+    if (nBottles === 0) {
+      throw new Error('I searched, but couldn\'t find any bottles')
     }
-    return bottle
+    const index = Math.floor(Math.random() * Math.floor(nBottles))
+    return this._selection[index].name
   }
-
-  async prepareDrink (type, callback) {
-    const ms = this._getRandomInt(4) * 1000
-    await new Promise(resolve => setTimeout(resolve, ms))
-    if (!this.hasDrink(type)) {
-      throw new Error('I searched it all, but couldn\'t find proper bottles')
-    }
-    if (callback) callback('Drink is ready')
-    return ms
-  }
-
-  _getRandomInt (max) {
-    return Math.floor(Math.random() * Math.floor(max))
-  }
-
 }
 module.exports = Bar
 ```
@@ -94,10 +140,9 @@ We will do both in a single short `index.js` file, like so:
 
 ```javascript
 const { VrpcAdapter, VrpcAgent } = require('vrpc')
-const Bar = require('./src/Bar')
 
 // Register class "Bar" to be remotely callable
-VrpcAdapter.register(Bar)
+VrpcAdapter.register('./src/Bar')
 
 async function main () {
   try {
@@ -112,11 +157,22 @@ async function main () {
 main()
 ```
 
-That's it, try it by using the free `public.vrpc` domain and type:
+That's it, try it by running the executable in an all-default setting (using the
+vrpc.io broker and the free `public.vrpc` domain):
 
 ```bash
-node index.js -d public.vrpc -a $(hostname)
+node index.js
 ```
+
+With that you made your Node.js code remotely callable!
+
+Convince yourself and point your browser to
+[live.vrpc.io](https://live.vrpc.io). Log in using `public.vrpc` as domain name
+and leave the token empty. You should see your agent online (it uses your user-,
+host- and platform name).
+
+Or call your code from another piece of code running somewhere else on the
+planet. Follow e.g. the `Node.js Client` example.
 
 > **NOTE**
 >
