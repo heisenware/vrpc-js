@@ -111,7 +111,7 @@ describe('An instance of the VrpcRemote class', () => {
           await testClass.removeEntry('test')
           assert.isTrue(false)
         } catch (err) {
-          assert.equal(err.message, 'Can not remove non-existing category')
+          assert.equal(err.message, 'Can not remove non-existing entry')
         }
       })
       it('should properly forward promises', async () => {

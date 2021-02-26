@@ -62,7 +62,7 @@ class VrpcLocalTest(unittest.TestCase):
             self._testClass.removeEntry('test')
             self.assertTrue(False)
         except RuntimeError as err:
-            self.assertEqual(str(err), 'Can not remove non-existing category')
+            self.assertEqual(str(err), 'Can not remove non-existing entry')
 
     def test_g_call_me_back(self):
         was_called = False

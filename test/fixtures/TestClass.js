@@ -53,7 +53,7 @@ class TestClass {
 
   removeEntry (category) {
     if (!this.hasEntry(category)) {
-      throw new Error('Can not remove non-existing category')
+      throw new Error('Can not remove non-existing entry')
     }
     const entries = this._registry[category]
     const entry = entries.pop()
