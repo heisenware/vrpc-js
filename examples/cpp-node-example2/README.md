@@ -32,99 +32,117 @@ corresponding source file.
 #include <unordered_map>
 #include <vector>
 
-namespace bar {
+struct Bottle {
+  std::string name;
+  std::string category;
+  std::string country;
+};
 
-  struct Bottle {
-    std::string brand;
-    std::string country;
-    int age;
-  };
+class Bar {
+ public:
+  typedef std::function<void(const std::string&)> StringCallback;
+  typedef std::function<void(const Bottle&)> BottleCallback;
+  typedef std::vector<BottleCallback> BottleCallbacks;
+  typedef std::vector<Bottle> Selection;
 
-  class Bar {
+  static std::string philosophy();
 
-  public:
+  Bar() = default;
 
-    typedef std::function<void (const std::string& /*type*/)> Callback;
-    typedef std::vector<Bottle> Bottles;
-    typedef std::unordered_map<std::string, Bottles> Assortment;
+  explicit Bar(const Selection& selection);
 
-    Bar() = default;
+  void addBottle(const std::string& name,
+                 const std::string& category = "n/a",
+                 const std::string& country = "n/a");
 
-    explicit Bar(const Assortment& assortment);
+  Bottle removeBottle(const std::string& name);
 
-    static std::string philosophy();
+  void onAdd(const BottleCallback& listener);
 
-    bool hasDrink(const std::string& type) const;
+  void onRemove(const BottleCallback& listener);
 
-    void addBottle(const std::string& type, const Bottle& bottle);
+  std::string prepareDrink(const StringCallback& done) const;
 
-    Bottle removeBottle(const std::string& type);
+  Selection getSelection() const;
 
-    void onEmptyDrink(const Callback& callback);
+ private:
 
-    void prepareDrink(const std::function<void (int)>& done) const;
+  std::string _random() const;
 
-    Assortment getAssortment() const;
-
-  private:
-
-    Callback _callback;
-    Assortment _assortment;
-
-  };
-}
+  BottleCallbacks _addListeners;
+  BottleCallbacks _removeListeners;
+  Selection _selection;
+};
 ```
+
 *src/Bar.cpp*
 
 ```cpp
 #include "Bar.hpp"
 #include <chrono>
+#include <iostream>
 #include <thread>
-#include <stdlib.h>
 
-namespace bar {
+std::string Bar::philosophy() {
+  return "I have mixed drinks about feelings.";
+}
 
-  Bar::Bar(const Assortment& assortment): _assortment(assortment) {}
+Bar::Bar(const Selection& selection) : _selection(selection) {}
 
-  std::string Bar::philosophy() {
-    return "I have mixed drinks about feelings.";
-  }
+void Bar::addBottle(const std::string& name,
+                    const std::string& category,
+                    const std::string& country) {
+  Bottle bottle = {name, category, country};
+  _selection.push_back(bottle);
+  for (const auto& notify : _addListeners) notify(bottle);
+}
 
-  bool Bar::hasDrink(const std::string& type) const {
-    return _assortment.find(type) != _assortment.end();
-  }
-
-  void Bar::addBottle(const std::string& type, const Bottle& bottle) {
-    _assortment[type].push_back(bottle);
-  }
-
-  Bottle Bar::removeBottle(const std::string& type) {
-    if (!hasDrink(type)) {
-      throw std::runtime_error("Can't remove bottle of unavailable category");
+Bottle Bar::removeBottle(const std::string& name) {
+  Selection filtered;
+  Bottle bottle;
+  for (const auto& x : _selection) {
+    if (bottle.name.empty() && (x.name == name)) {
+      for (const auto& notify : _removeListeners) notify(x);
+      bottle = x;
+      continue;
     }
-    Bottles& bottles = _assortment[type];
-    Bottle bottle =  bottles.back();
-    bottles.pop_back();
-    if (bottles.size() == 0) {
-      _callback(type);
-      _assortment.erase(type);
-    }
-    return bottle;
+    filtered.push_back(x);
   }
+  if (bottle.name.empty()) {
+    throw std::runtime_error("Sorry, this bottle is not in our selection");
+  }
+  _selection = filtered;
+  return bottle;
+}
 
-  void Bar::onEmptyDrink(const Bar::Callback& callback) {
-    _callback = callback;
-  }
+void Bar::onAdd(const Bar::BottleCallback& listener) {
+  _addListeners.push_back(listener);
+}
 
-  void Bar::prepareDrink(const std::function<void (int)>& done) const {
-    const int seconds = rand() % 4;
-    std::this_thread::sleep_for(std::chrono::seconds(seconds));
-    done(seconds);
-  }
+void Bar::onRemove(const Bar::BottleCallback& listener) {
+  _removeListeners.push_back(listener);
+}
 
-  Bar::Assortment Bar::getAssortment() const {
-    return _assortment;
+std::string Bar::prepareDrink(const Bar::StringCallback& done) const {
+  const std::vector<std::string> v = {_random(), _random(), _random()};
+  std::thread([=]() {
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    done("Your drink is ready! I mixed " + v[0] + " with " + v[1] +
+         " and a bit of " + v[2] + ".");
+  }).detach();
+  return "In preparation...";
+}
+
+Bar::Selection Bar::getSelection() const {
+  return _selection;
+}
+
+std::string Bar::_random() const {
+  if (_selection.size() == 0) {
+    throw std::runtime_error("I searched, but couldn\'t find any bottles");
   }
+  int index = std::rand() % _selection.size();
+  return _selection[index].name;
 }
 ```
 
@@ -141,32 +159,36 @@ handling callbacks, overloads and static functions.
 
 // NOTE: Do not include <vrpc.hpp>, even if your IDE complains
 
-using namespace bar;
-
 namespace vrpc {
-
   // Register custom type: Bottle
   void to_json(json& j, const Bottle& b) {
-    j = json{{"brand", b.brand}, {"country", b.country}, {"age", b.age}};
+    j = json{{"name", b.name}, {"category", b.category}, {"country", b.country}};
   }
   void from_json(const json& j, Bottle& b) {
-    b.brand = j.at("brand").get<std::string>();
+    b.name = j.at("name").get<std::string>();
+    b.category = j.at("category").get<std::string>();
     b.country = j.at("country").get<std::string>();
-    b.age = j.at("age").get<int>();
   }
 
-  // Register constructors
-  VRPC_VOID_CTOR(Bar)
-  VRPC_CTOR(Bar, const Bar::Assortment&)
-
-  // Register functions
-  VRPC_MEMBER_FUNCTION_CONST(Bar, bool, hasDrink, const std::string&)
-  VRPC_VOID_MEMBER_FUNCTION(Bar, addBottle, const std::string&, const Bottle&)
-  VRPC_MEMBER_FUNCTION(Bar, Bottle, removeBottle, const std::string&)
-  VRPC_VOID_MEMBER_FUNCTION(Bar, onEmptyDrink, VRPC_CALLBACK(const std::string&))
-  VRPC_VOID_MEMBER_FUNCTION_CONST(Bar, prepareDrink, VRPC_CALLBACK(int))
-  VRPC_MEMBER_FUNCTION_CONST(Bar, Bar::Assortment, getAssortment)
+  // Register static function
   VRPC_STATIC_FUNCTION(Bar, std::string, philosophy)
+
+  // Register constructors
+  VRPC_CTOR(Bar)
+  VRPC_CTOR(Bar, const Bar::Selection&)
+
+  // Register member functions
+  VRPC_MEMBER_FUNCTION_X(Bar,
+                      void, "",
+                      addBottle, "Adds a bottle to the bar",
+                      const std::string&, "name", required(), "name of the bottle",
+                      const std::string&, "category", "n/a", "category of the drink",
+                      const std::string&, "country", "n/a", "country of production")
+  VRPC_MEMBER_FUNCTION(Bar, Bottle, removeBottle, const std::string&)
+  VRPC_MEMBER_FUNCTION(Bar, void, onAdd, VRPC_CALLBACK(const Bottle&))
+  VRPC_MEMBER_FUNCTION(Bar, void, onRemove, VRPC_CALLBACK(const Bottle&))
+  VRPC_CONST_MEMBER_FUNCTION(Bar, std::string, prepareDrink, VRPC_CALLBACK(const std::string&))
+  VRPC_CONST_MEMBER_FUNCTION(Bar, Bar::Selection, getSelection)
 }
 ```
 
@@ -236,7 +258,7 @@ const addon = require('./build/Release/vrpc_bar')
 const emitter = new EventEmitter()
 
 emitter.on('empty', what => {
-  console.log(` - Oh no! The ${what} is empty!`)
+  console.log(` - Oh, the ${what.name} went empty!`)
 })
 
 // Create an instance of a local (native-addon) vrpc factory
@@ -248,42 +270,35 @@ console.log(' - Because', vrpc.callStatic('Bar', 'philosophy'))
 // Create a Bar instance (using default constructor)
 const bar = vrpc.create('Bar')
 
-console.log('Do you have rum?')
-console.log(bar.hasDrink('rum') ? ' - Yes' : ' - No')
+console.log('Well then, get me a drink!')
+try {
+  bar.prepareDrink((done) => console.log(done))
+} catch (err) {
+  console.log(` - ${err.message}`)
+  console.log(' - I\'ll get some bottles out of the cellar.')
+}
 
-console.log('Well, then let\'s get a bottle out of the cellar.')
-bar.addBottle('rum', { brand: 'Don Papa', country: 'Philippines', age: 7 })
+bar.addBottle('Don Papa', 'rum', 'Philippines')
+bar.addBottle('Botucal', 'rum', 'Venezuela')
+bar.addBottle('Lustau Solera', 'brandy', 'Spain')
+bar.addBottle('Coke', 'soft', 'USA')
+bar.onRemove({ emitter, event: 'empty' })
 
-console.log('Now, can I have a drink?')
-console.log(bar.hasDrink('rum') ? ' - Yes' : ' - No')
-
-console.log('I would go for a "Dark and Stormy", please.')
-bar.prepareDrink(seconds => {
-  console.log(` - Here's your drink, took only ${seconds}s`)
-})
-
-console.log('Nice! I take another one. Please tell me, once the rum is empty.')
-bar.onEmptyDrink({ emitter: emitter, event: 'empty' })
-bar.prepareDrink(seconds => {
-  console.log(` - Here's your drink, took ${seconds}s this time.`)
-})
-bar.removeBottle('rum')
+console.log('Fine, can I have a drink now?')
+const answer = bar.prepareDrink((done) => console.log(` - ${done}`))
+console.log(` - ${answer}`)
+bar.removeBottle('Coke')
 
 // Create another bar - already equipped - using second constructor
 const neighborsBar = vrpc.create(
   'Bar',
-  {
-    rum: [
-      { brand: 'Botucal', country: 'Venezuela', age: 8 },
-      { brand: 'Plantation XO', country: 'Barbados', age: 20 }
-    ],
-    brandy: [
-      { brand: 'Lustau Solera', country: 'Spain', age: 15 }
-    ]
-  }
+  [
+    { name: 'Adelholzer', category: 'water', country: 'Germany' },
+    { name: 'Hohes C', category: 'juice', country: 'Germany' }
+  ]
 )
 console.log('How is your neighbor sorted?')
-console.log(' - Very well:\n', neighborsBar.getAssortment())
+console.log(' - Not so well... \n', neighborsBar.getSelection())
 ```
 
 Test it using:
@@ -308,7 +323,7 @@ There are two very different categories of callbacks:
   publish/subscribe fashion fall into that category.
 
 The example demonstrates this two different callbacks, `prepareDrink` belonging
-to the first and `onEmptyDrink` to the second category, respectively.
+to the first and `onRemove` to the second category, respectively.
 
 VRPC can handle both of them in their natural way, i.e. use callback functions
 that can be wrapped up to `Promise`s and play nice with `async/await` patterns
