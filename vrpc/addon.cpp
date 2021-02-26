@@ -69,6 +69,7 @@ using v8::Value;
 
 typedef std::pair<Isolate*, std::string> AsyncData;
 static std::vector<AsyncData> _data_queue;
+static std::thread::id _thread_id;
 static std::mutex _data_queue_mutex;
 static uv_async_t async;
 
@@ -269,6 +270,32 @@ typedef Persistent<Function> CallbackHandler;
 static std::vector<CallbackHandler> callback_handlers(_VRPC_MAX_HANDLERS);
 static size_t nHandlers = 0;
 
+void executeCallback(Isolate* isolate, const std::string& jString) {
+  _VRPC_DEBUG << "will call back with " << jString << std::endl;
+  HandleScope handleScope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+  for (size_t i = 0; i < nHandlers; ++i) {
+    Local<Function> cb = Local<Function>::New(isolate, callback_handlers[i]);
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = {
+        String::NewFromUtf8(isolate, jString.c_str(), NewStringType::kNormal)
+            .ToLocalChecked()};
+    cb->Call(context, Null(isolate), argc, argv).ToLocalChecked();
+  }
+}
+
+void triggerAsyncCallback(uv_async_t* handle) {
+  std::vector<AsyncData> data_queue_copy;
+  {
+    std::unique_lock<std::mutex> lock(_data_queue_mutex);
+    data_queue_copy = _data_queue;
+    _data_queue.clear();
+  }
+  for (const auto& x : data_queue_copy) {
+    executeCallback(x.first, x.second);
+  }
+}
+
 void onCallback(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   if (nHandlers >= _VRPC_MAX_HANDLERS) {
@@ -279,43 +306,24 @@ void onCallback(const FunctionCallbackInfo<Value>& args) {
             .ToLocalChecked()));
   }
   callback_handlers[nHandlers++].Reset(isolate, Local<Function>::Cast(args[0]));
+  _thread_id = std::this_thread::get_id();
   vrpc::Callback::register_callback_handler([=](const vrpc::json& j) {
     const std::string jString(j.dump());
-    {
-      std::unique_lock<std::mutex> lock(_data_queue_mutex);
-      _data_queue.push_back({isolate, jString});
+    if (std::this_thread::get_id() == _thread_id) {
+      executeCallback(isolate, jString);
+    } else {
+      {
+        std::unique_lock<std::mutex> lock(_data_queue_mutex);
+        _data_queue.push_back({isolate, jString});
+      }
+      uv_async_send(&async);
     }
-    uv_async_send(&async);
   });
-}
-
-void triggerNodeCallback(uv_async_t* handle) {
-  std::vector<AsyncData> data_queue_copy;
-  {
-    std::unique_lock<std::mutex> lock(_data_queue_mutex);
-    data_queue_copy = _data_queue;
-    _data_queue.clear();
-  }
-  for (const auto& x : data_queue_copy) {
-    const auto& isolate = x.first;
-    const auto& jString = x.second;
-    _VRPC_DEBUG << "will call back with " << x.second << std::endl;
-    HandleScope handleScope(isolate);
-    Local<Context> context = isolate->GetCurrentContext();
-    for (size_t i = 0; i < nHandlers; ++i) {
-      Local<Function> cb = Local<Function>::New(isolate, callback_handlers[i]);
-      const unsigned argc = 1;
-      Local<Value> argv[argc] = {
-          String::NewFromUtf8(isolate, jString.c_str(), NewStringType::kNormal)
-              .ToLocalChecked()};
-      cb->Call(context, Null(isolate), argc, argv).ToLocalChecked();
-    }
-  }
 }
 
 struct Initializer {
   Initializer() {
-    uv_async_init(uv_default_loop(), &async, triggerNodeCallback);
+    uv_async_init(uv_default_loop(), &async, triggerAsyncCallback);
   }
 };
 static Initializer runOnce;
