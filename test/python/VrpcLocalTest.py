@@ -19,7 +19,7 @@ class VrpcLocalTest(unittest.TestCase):
 
     def test_a_create(self):
         self.assertTrue(hasattr(self._testClass.getRegistry, '__call__'))
-        self.assertTrue(hasattr(self._testClass.hasCategory, '__call__'))
+        self.assertTrue(hasattr(self._testClass.hasEntry, '__call__'))
         self.assertTrue(hasattr(self._testClass.notifyOnNew, '__call__'))
         self.assertTrue(hasattr(self._testClass.notifyOnRemoved, '__call__'))
         self.assertTrue(hasattr(self._testClass.addEntry, '__call__'))
@@ -31,7 +31,7 @@ class VrpcLocalTest(unittest.TestCase):
         self.assertEqual(self._testClass.getRegistry(), {})
 
     def test_c_has_category(self):
-        self.assertFalse(self._testClass.hasCategory('test'))
+        self.assertFalse(self._testClass.hasEntry('test'))
 
     def test_d_notify(self):
         self._testClass.notifyOnNew((self._onEvent, 'new'))
@@ -45,7 +45,7 @@ class VrpcLocalTest(unittest.TestCase):
             'member4': [0, 1, 2, 3]
         }
         self._testClass.addEntry('test', entry)
-        self.assertTrue(self._testClass.hasCategory('test'))
+        self.assertTrue(self._testClass.hasEntry('test'))
         self.assertEqual(self._events[0]['member1'], entry['member1'])
         ret = self._testClass.getRegistry()['test'][0]
         self.assertEqual(entry['member1'], ret['member1'])
@@ -56,7 +56,7 @@ class VrpcLocalTest(unittest.TestCase):
     def test_f_remove_entry(self):
         entry = self._testClass.removeEntry('test')
         self.assertEqual(entry['member1'], 'first entry')
-        self.assertFalse(self._testClass.hasCategory('test'))
+        self.assertFalse(self._testClass.hasEntry('test'))
         self.assertEqual(self._events[1]['member1'], 'first entry')
         try:
             self._testClass.removeEntry('test')

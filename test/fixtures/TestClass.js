@@ -19,7 +19,7 @@ class TestClass {
     return this._registry
   }
 
-  hasCategory (category) {
+  hasEntry (category) {
     return this._registry[category] !== undefined
   }
 
@@ -52,7 +52,7 @@ class TestClass {
   }
 
   removeEntry (category) {
-    if (!this.hasCategory(category)) {
+    if (!this.hasEntry(category)) {
       throw new Error('Can not remove non-existing category')
     }
     const entries = this._registry[category]

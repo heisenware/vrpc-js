@@ -78,7 +78,7 @@ describe('The nodejs VrpcAdapter', () => {
   it('should be able to call member function given valid instanceId', () => {
     const json = {
       context: instanceId,
-      method: 'hasCategory',
+      method: 'hasEntry',
       data: { _1: 'test' }
     }
     const ret = JSON.parse(VrpcAdapter.call(JSON.stringify(json)))

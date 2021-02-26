@@ -33,7 +33,7 @@ describe('An instance of the VrpcLocal class', () => {
     describe('The corresponding TestClass proxy', () => {
       it('should have all bound functions as own methods', () => {
         assert.isFunction(testClass.getRegistry)
-        assert.isFunction(testClass.hasCategory)
+        assert.isFunction(testClass.hasEntry)
         assert.isFunction(testClass.notifyOnNew)
         assert.isFunction(testClass.notifyOnRemoved)
         assert.isFunction(testClass.addEntry)
@@ -46,7 +46,7 @@ describe('An instance of the VrpcLocal class', () => {
         assert.isEmpty(testClass.getRegistry())
       })
       it('should return false after calling getCategory(\'test\')', () => {
-        assert.isFalse(testClass.hasCategory('test'))
+        assert.isFalse(testClass.hasEntry('test'))
       })
       it('should allow to register an EventEmitter as callback argument', () => {
         testClass.notifyOnNew({ emitter, event: 'new' })
@@ -60,7 +60,7 @@ describe('An instance of the VrpcLocal class', () => {
           member4: [0, 1, 2, 3]
         }
         testClass.addEntry('test', originalEntry)
-        assert.isTrue(testClass.hasCategory('test'))
+        assert.isTrue(testClass.hasEntry('test'))
         assert.lengthOf(newEntries, 1)
         assert.lengthOf(removedEntries, 0)
         assert.equal(newEntries[0].member1, originalEntry.member1)
@@ -72,7 +72,7 @@ describe('An instance of the VrpcLocal class', () => {
       it('should remove the entry by calling removeEntry(\'test\')', () => {
         const entry = testClass.removeEntry('test')
         assert.equal(entry.member1, 'first entry')
-        assert.isFalse(testClass.hasCategory('test'))
+        assert.isFalse(testClass.hasEntry('test'))
         assert.lengthOf(removedEntries, 1)
       })
       it('should trigger an exception on further attempts to remove an entry', () => {

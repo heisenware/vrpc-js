@@ -62,7 +62,7 @@ describe('An instance of the VrpcRemote class', () => {
     describe('The corresponding TestClass proxy', () => {
       it('should have all bound functions as own methods', () => {
         assert.isFunction(testClass.getRegistry)
-        assert.isFunction(testClass.hasCategory)
+        assert.isFunction(testClass.hasEntry)
         assert.isFunction(testClass.notifyOnNew)
         assert.isFunction(testClass.notifyOnRemoved)
         assert.isFunction(testClass.addEntry)
@@ -76,7 +76,7 @@ describe('An instance of the VrpcRemote class', () => {
         assert.isEmpty(await testClass.getRegistry())
       })
       it('should return false after calling getCategory(\'test\')', async () => {
-        assert.isFalse(await testClass.hasCategory('test'))
+        assert.isFalse(await testClass.hasEntry('test'))
       })
       it('should allow to register an EventEmitter as callback argument', async () => {
         await testClass.notifyOnNew({ emitter, event: 'new' })
@@ -90,7 +90,7 @@ describe('An instance of the VrpcRemote class', () => {
           member4: [0, 1, 2, 3]
         }
         await testClass.addEntry('test', originalEntry)
-        assert.isTrue(await testClass.hasCategory('test'))
+        assert.isTrue(await testClass.hasEntry('test'))
         assert.lengthOf(newEntries, 1)
         assert.lengthOf(removedEntries, 0)
         assert.equal(newEntries[0].member1, originalEntry.member1)
@@ -103,7 +103,7 @@ describe('An instance of the VrpcRemote class', () => {
       it('should remove the entry by calling removeEntry(\'test\')', async () => {
         const entry = await testClass.removeEntry('test')
         assert.equal(entry.member1, 'first entry')
-        assert.isFalse(await testClass.hasCategory('test'))
+        assert.isFalse(await testClass.hasEntry('test'))
         assert.lengthOf(removedEntries, 1)
       })
       it('should trigger an exception on further attempts to remove an entry', async () => {
@@ -204,7 +204,7 @@ describe('Another instance of the VrpcRemote class', () => {
       let test1
       it('should have all bound functions as own methods', () => {
         assert.isFunction(proxy.getRegistry)
-        assert.isFunction(proxy.hasCategory)
+        assert.isFunction(proxy.hasEntry)
         assert.isFunction(proxy.notifyOnNew)
         assert.isFunction(proxy.notifyOnRemoved)
         assert.isFunction(proxy.addEntry)
@@ -241,7 +241,7 @@ describe('Another instance of the VrpcRemote class', () => {
       describe('The attached named instance', () => {
         it('should have all bound functions as own methods', () => {
           assert.isFunction(test1.getRegistry)
-          assert.isFunction(test1.hasCategory)
+          assert.isFunction(test1.hasEntry)
           assert.isFunction(test1.notifyOnNew)
           assert.isFunction(test1.notifyOnRemoved)
           assert.isFunction(test1.addEntry)
