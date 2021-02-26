@@ -1,7 +1,6 @@
 # Example - "Remote conversation at the bar"
 
-In the [C++ Agent](examples/cpp-agent-example2) and
-[Node.js Agent](examples/node-agent-example) example we prepared some code that
+In the `C++ Agent` and `Node.js Agent` example we prepared some code that
 represents a bar. This code includes language features like classes, static
 functions, asynchronous functions, callbacks, and exceptions.
 
