@@ -802,6 +802,7 @@ class VrpcRemote extends EventEmitter {
     os.release() + os.totalmem() + os.type()
     // console.log('ClientInfo:', clientInfo)
     const md5 = crypto.createHash('md5').update(clientInfo).digest('hex').substr(0, 13)
+    // FIXME (3.x): use vrpcp -> vrpcc
     return `vrpcp${this._instance}X${md5}` // 5 + 4 + 1 + 13 = 23 (max clientId)
   }
 

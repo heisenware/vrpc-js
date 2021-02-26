@@ -152,7 +152,7 @@ choose a free domain and hit *Start 30 days trial* button.
 ## STEP C: Test VRPC installation and connectivity
 
 For any agent to work, you must provide it with a valid domain and agent
-token. You get an agent token from your VRPC app using the `Access Control` tab.
+token. You get an access token from your VRPC app using the `Access Control` tab.
 
 Simply copy the *defaultAgentToken* or create a new one and use this.
 

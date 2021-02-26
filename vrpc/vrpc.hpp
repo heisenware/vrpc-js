@@ -675,7 +675,7 @@ namespace vrpc {
     virtual std::shared_ptr<Function> do_clone() = 0;
   };
 
-  template <typename Klass, typename Lambda, typename ...Args>
+  template <typename Klass, typename Lambda, typename Ret, typename ...Args>
   class MemberFunction : public Function {
     Lambda m_lambda;
     std::shared_ptr<Klass> m_ptr;
@@ -710,20 +710,20 @@ namespace vrpc {
   };
 
   template <typename Klass, typename Lambda, typename ...Args>
-  class VoidMemberFunction : public Function {
+  class MemberFunction<Klass, Lambda, void, Args...> : public Function {
     Lambda m_lambda;
     std::shared_ptr<Klass> m_ptr;
 
   public:
 
-    VoidMemberFunction(
+    MemberFunction(
         const Lambda& lambda
         ) : m_lambda(lambda) { }
 
-    virtual ~VoidMemberFunction() = default;
+    virtual ~MemberFunction() = default;
 
-     virtual std::shared_ptr<Function> do_clone() {
-      auto ptr = std::make_shared<VoidMemberFunction>(m_lambda);
+    virtual std::shared_ptr<Function> do_clone() {
+      auto ptr = std::make_shared<MemberFunction>(m_lambda);
       return std::static_pointer_cast<Function>(ptr);
     }
 
@@ -741,7 +741,7 @@ namespace vrpc {
     }
   };
 
-  template <typename Lambda, typename ...Args>
+  template <typename Lambda, typename Ret, typename ...Args>
   class StaticFunction : public Function {
     Lambda m_lambda;
 
@@ -772,16 +772,16 @@ namespace vrpc {
   };
 
   template <typename Lambda, typename ...Args>
-  class VoidStaticFunction : public Function {
+  class StaticFunction<Lambda, void, Args...> : public Function {
     Lambda m_lambda;
 
   public:
 
-    VoidStaticFunction(
+    StaticFunction(
         const Lambda& lambda
         ) : m_lambda(lambda) { }
 
-    virtual ~VoidStaticFunction() = default;
+    virtual ~StaticFunction() = default;
 
     virtual std::shared_ptr<Function> do_clone() {
       auto ptr = std::make_shared<StaticFunction>(m_lambda);
@@ -832,6 +832,54 @@ namespace vrpc {
     }
   };
 
+  struct required {};
+
+
+
+  namespace detail {
+    struct param {
+      json j;
+      template <typename DefaultType>
+      param(const std::string& name,
+            const DefaultType& default_value,
+            const std::string& description) {
+        // json tmp{{"t", type()}};
+        // j["type"] = tmp["t"].type_name();
+        j["name"] = name;
+        j["optional"] = true;
+        j["default"] = default_value;
+        j["description"] = description;
+      }
+      param(const std::string& name,
+            const required& default_value,
+            const std::string& description) {
+        // json tmp{{"t", type()}};
+        // j["type"] = tmp["t"].type_name();
+        j["name"] = name;
+        j["optional"] = false;
+        j["default"] = nullptr;
+        j["description"] = description;
+      }
+    };
+
+    template <typename ValueType>
+    struct ret {
+      json j;
+      ret(const std::string& description) {
+        j["type"] = json(ValueType()).type_name();
+        j["description"] = description;
+      }
+    };
+    template<>
+    struct ret<void>{
+      json j;
+      ret(const std::string& description) {
+        j["type"] = "void";
+        j["description"] = description;
+      }
+    };
+  }
+
   class LocalFactory {
     friend LocalFactory& detail::init<LocalFactory>();
     friend class Proxy;
@@ -841,15 +889,18 @@ namespace vrpc {
     typedef std::unordered_map<std::string, std::shared_ptr<Function> > StringFunctionMap;
     typedef std::unordered_map<std::string, StringFunctionMap> FunctionRegistry;
     typedef std::unordered_map<std::string, std::string > NamedInstances;
+    typedef std::unordered_map<std::string, vrpc::json > MetaData;
 
-    // Maps: className => functionName => functionCallback
+    // Maps: class_name => function_name => functionCallback
     FunctionRegistry m_class_function_registry;
-    // Maps: instanceId => functionName => functionCallback
+    // Maps: instanceId => function_name => functionCallback
     FunctionRegistry m_function_registry;
     // Maps: instanceId => instanceObj
     StringAnyMap m_instances;
-    // Maps: instanceId => className
+    // Maps: instanceId => class_name
     NamedInstances m_named_instances;
+    // Optional schema information
+    MetaData m_meta_data;
 
   public:
 
@@ -861,72 +912,48 @@ namespace vrpc {
       LocalFactory::inject_delete_function<Klass>(class_name);
     }
 
-    template <typename Klass, typename Func, Func f, typename ...Args >
-    static void register_member_function(
-        const std::string& class_name,
-        const std::string& function_name) {
+    template <typename Klass,
+              typename Func,
+              Func f,
+              typename Ret,
+              typename... Args>
+    static void register_member_function(const std::string& class_name,
+                                         const std::string& function_name) {
       auto func = [](const std::shared_ptr<Klass>& ptr) {
         return vrpc::variadic_bind_member<Klass, Func, Args...>(f, ptr);
       };
-      auto funcT = std::make_shared<MemberFunction<Klass, decltype(func), Args...>>(func);
-      const std::string full_name(function_name + vrpc::get_signature<Args...>());
-      detail::init<LocalFactory>().m_class_function_registry[class_name][full_name] =
-          std::static_pointer_cast<Function >(funcT);
-      _VRPC_DEBUG << "Registered: " << class_name
-          << "::" << full_name << std::endl;
+      auto funcT =
+          std::make_shared<MemberFunction<Klass, decltype(func), Ret, Args...>>(
+              func);
+      detail::init<LocalFactory>()
+          .m_class_function_registry[class_name][function_name] =
+          std::static_pointer_cast<Function>(funcT);
+      _VRPC_DEBUG << "Registered: " << class_name << "::" << function_name
+                  << std::endl;
     }
 
-    template <typename Klass, typename Func, Func f, typename ...Args >
-    static void register_void_member_function(
-        const std::string& class_name,
-        const std::string& function_name) {
-      auto func = [](const std::shared_ptr<Klass>& ptr) {
-        return vrpc::variadic_bind_member<Klass, Func, Args...>(f, ptr);
-      };
-      auto funcT = std::make_shared<VoidMemberFunction<Klass, decltype(func), Args...>>(func);
-      const std::string full_name(function_name + vrpc::get_signature<Args...>());
-      detail::init<LocalFactory>().m_class_function_registry[class_name][full_name] =
-          std::static_pointer_cast<Function >(funcT);
-      _VRPC_DEBUG << "Registered: " << class_name
-          << "::" << full_name << std::endl;
+    template <typename Func, Func f, typename Ret, typename... Args>
+    static void register_static_function(const std::string& class_name,
+                                         const std::string& function_name) {
+      auto func = []() { return vrpc::variadic_bind<Func, Args...>(f); };
+      auto funcT =
+          std::make_shared<StaticFunction<decltype(func), Ret, Args...>>(func);
+      detail::init<LocalFactory>().m_function_registry[class_name][function_name] =
+          std::static_pointer_cast<Function>(funcT);
+      _VRPC_DEBUG << "Registered: " << class_name << "::" << function_name
+                  << std::endl;
     }
 
-    template <typename Func, Func f, typename ...Args >
-    static void register_static_function(
-        const std::string& class_name,
-        const std::string& function_name) {
-      auto func = []() {
-        return vrpc::variadic_bind<Func, Args...>(f);
-      };
-      auto funcT = std::make_shared<StaticFunction<decltype(func), Args...>>(func);
-      const std::string full_name(function_name + vrpc::get_signature<Args...>());
-      detail::init<LocalFactory>().m_function_registry[class_name][full_name] =
-          std::static_pointer_cast<Function >(funcT);
-      _VRPC_DEBUG << "Registered: " << class_name
-          << "::" << full_name << std::endl;
-    }
-
-    template <typename Func, Func f, typename ...Args >
-    static void register_void_static_function(
-        const std::string& class_name,
-        const std::string& function_name) {
-      auto func = []() {
-        return vrpc::variadic_bind<Func, Args...>(f);
-      };
-      auto funcT = std::make_shared<VoidStaticFunction<decltype(func), Args...>>(func);
-      const std::string full_name(function_name + vrpc::get_signature<Args...>());
-      detail::init<LocalFactory>().m_function_registry[class_name][full_name] =
-          std::static_pointer_cast<Function >(funcT);
-      _VRPC_DEBUG << "Registered: " << class_name
-          << "::" << full_name << std::endl;
-    }
-
-    static std::vector<std::string> get_classes() {
-      std::vector<std::string> classes;
-      for (const auto& kv : detail::init<LocalFactory>().m_class_function_registry) {
-        classes.push_back(kv.first);
-      }
-      return classes;
+    static void register_meta_data(const std::string& class_name,
+                                   const std::string& function_name,
+                                   const std::string& description,
+                                   const json& params,
+                                   const json& ret) {
+      LocalFactory& rf = detail::init<LocalFactory>();
+      vrpc::json& j = rf.m_meta_data[class_name];
+      j[function_name]["description"] = description;
+      j[function_name]["params"] = params;
+      j[function_name]["ret"] = ret;
     }
 
     static std::vector<std::string> get_instances(const std::string& class_name) {
@@ -961,6 +988,19 @@ namespace vrpc {
       return functions;
     }
 
+    static std::vector<std::string> get_classes() {
+      std::vector<std::string> classes;
+      for (const auto& kv : detail::init<LocalFactory>().m_class_function_registry) {
+        classes.push_back(kv.first);
+      }
+      return classes;
+    }
+
+    static json get_meta_data(const std::string& class_name) {
+      LocalFactory& rf = detail::init<LocalFactory>();
+      return rf.m_meta_data[class_name];
+    }
+
     static std::string call(const std::string& jsonString) {
       vrpc::json json;
       json = vrpc::json::parse(jsonString);
@@ -980,12 +1020,12 @@ namespace vrpc {
         auto it_f = it_t->second.find(function);
         if (it_f != it_t->second.end()) {
           it_f->second->call_function(json);
-        } else {
-          json["data"]["e"] = "Could not find function: " + function;
+          return;
         }
-      } else {
-        json["data"]["e"] = "Could not find context: " + context;
+        json["data"]["e"] = "Could not find function: " + function;
+        return;
       }
+      json["data"]["e"] = "Could not find context: " + context;
     }
 
     static void load_bindings(const std::string& path) {
@@ -1106,681 +1146,955 @@ namespace vrpc {
   namespace detail {
 
     template <class Klass, typename ...Args>
-    struct CtorRegistrator {
+    struct CtorRegistrar {
 
-      CtorRegistrator(const std::string& class_name) {
+      CtorRegistrar(const std::string& class_name) {
         LocalFactory::register_constructor<Klass, Args...> (class_name);
       }
     };
 
     template <class Klass, typename ...Args>
     struct RegisterCtor {
-      static const CtorRegistrator<Klass, Args...> registerAs;
+      static const CtorRegistrar<Klass, Args...> registerAs;
     };
 
-    template <class Klass, typename Func, Func f, typename ...Args>
-    struct MemberFunctionRegistrator {
+    template <class Klass, typename... Args>
+    struct CtorXRegistrar {
+      CtorXRegistrar(const std::string& class_name,
+                     const std::string& ctor_description,
+                     const ret<std::string>& ret,
+                     const std::vector<param> params = {}) {
+        LocalFactory::register_constructor<Klass, Args...>(class_name);
+        const std::string ctor_name("__createNamed__" + vrpc::get_signature<std::string, Args...>());
+        json jp;
+        for (const auto& param : params) {
+          jp.push_back(param.j);
+        }
+        LocalFactory::register_meta_data(class_name, ctor_name,
+                                         ctor_description, jp, ret.j);
+      }
+    };
 
-      MemberFunctionRegistrator(
-          const std::string& className,
-          const std::string& functionName
+    template <class Klass, typename ...Args>
+    struct RegisterCtorX {
+      static const CtorXRegistrar<Klass, Args...> registerAs;
+    };
+
+
+    template <class Klass, typename Func, Func f, typename Ret, typename ...Args>
+    struct MemberFunctionRegistrar {
+
+      MemberFunctionRegistrar(
+          const std::string& class_name,
+          const std::string& function_name
           ) {
-        LocalFactory::register_member_function<Klass, Func, f, Args...>(
-          className,
-          functionName
+        const std::string full_function_name(function_name +
+                                             vrpc::get_signature<Args...>());
+        LocalFactory::register_member_function<Klass, Func, f, Ret, Args...>(
+          class_name,
+          full_function_name
         );
       }
     };
 
-    template <class Klass, typename Func, Func f, typename ...Args>
+    template <class Klass,
+              typename Func,
+              Func f,
+              typename Ret,
+              typename... Args>
+    struct MemberFunctionXRegistrar {
+      MemberFunctionXRegistrar(const std::string& class_name,
+                               const std::string& function_name,
+                               const std::string& function_description,
+                               const ret<Ret>& ret,
+                               const std::vector<param> params = {}) {
+        const std::string full_function_name(function_name +
+                                             vrpc::get_signature<Args...>());
+        LocalFactory::register_member_function<Klass, Func, f, Ret, Args...>(
+            class_name, full_function_name);
+        json jp;
+        for (const auto& param : params) {
+          jp.push_back(param.j);
+        }
+        LocalFactory::register_meta_data(class_name, full_function_name,
+                                         function_description, jp, ret.j);
+      }
+    };
+
+    template <class Klass, typename Func, Func f, typename Ret, typename ...Args>
     struct RegisterMemberFunction {
-      static const MemberFunctionRegistrator<Klass, Func, f, Args...> registerAs;
+      static const MemberFunctionRegistrar<Klass, Func, f, Ret, Args...> registerAs;
     };
 
-    template <class Klass, typename Func, Func f, typename ...Args>
-    struct VoidMemberFunctionRegistrator {
+    template <class Klass, typename Func, Func f, typename Ret, typename ...Args>
+    struct RegisterMemberFunctionX {
+      static const MemberFunctionXRegistrar<Klass, Func, f, Ret, Args...> registerAs;
+    };
 
-      VoidMemberFunctionRegistrator(
-          const std::string& className,
-          const std::string& functionName
-          ) {
-        LocalFactory::register_void_member_function<Klass, Func, f, Args...>(
-          className,
-          functionName
-        );
+    template <typename Func, Func f, typename Ret, typename... Args>
+    struct StaticFunctionRegistrar {
+      StaticFunctionRegistrar(const std::string& class_name,
+                              const std::string& function_name) {
+        const std::string full_function_name(function_name +
+                                             vrpc::get_signature<Args...>());
+        LocalFactory::register_static_function<Func, f, Ret, Args...>(
+            class_name, full_function_name);
       }
     };
 
-    template <class Klass, typename Func, Func f, typename ...Args>
-    struct RegisterVoidMemberFunction {
-      static const VoidMemberFunctionRegistrator<Klass, Func, f, Args...> registerAs;
-    };
-
-    template <typename Func, Func f, typename ...Args>
-    struct StaticFunctionRegistrator {
-
-      StaticFunctionRegistrator(
-          const std::string& className,
-          const std::string& functionName
-          ) {
-        LocalFactory::register_static_function<Func, f, Args...>(
-          className,
-          functionName
-        );
-      }
-    };
-
-    template <typename Func, Func f, typename ...Args>
-    struct VoidStaticFunctionRegistrator {
-
-      VoidStaticFunctionRegistrator(
-          const std::string& className,
-          const std::string& functionName
-          ) {
-        LocalFactory::register_void_static_function<Func, f, Args...>(
-          className,
-          functionName
-        );
-      }
-    };
-
-    template <typename Func, Func f, typename ...Args>
+    template <typename Func, Func f, typename Ret, typename... Args>
     struct RegisterStaticFunction {
-      static const StaticFunctionRegistrator<Func, f, Args...> registerAs;
+      static const StaticFunctionRegistrar<Func, f, Ret, Args...> registerAs;
     };
 
-    template <typename Func, Func f, typename ...Args>
-    struct RegisterVoidStaticFunction {
-      static const VoidStaticFunctionRegistrator<Func, f, Args...> registerAs;
+    template <typename Func, Func f, typename Ret, typename... Args>
+    struct StaticFunctionXRegistrar {
+      StaticFunctionXRegistrar(const std::string& class_name,
+                               const std::string& function_name,
+                               const std::string& function_description,
+                               const ret<Ret>& ret,
+                               const std::vector<param> params = {}) {
+        const std::string full_function_name(function_name +
+                                             vrpc::get_signature<Args...>());
+        LocalFactory::register_static_function<Func, f, Ret, Args...>(
+            class_name, full_function_name);
+        json jp;
+        for (const auto& param : params) {
+          jp.push_back(param.j);
+        }
+        LocalFactory::register_meta_data(class_name, full_function_name,
+                                         function_description, jp, ret.j);
+      }
     };
-  }
 
-#define VRPC_CTOR(Klass, ...) \
-    template<> const vrpc::detail::CtorRegistrator<Klass, __VA_ARGS__> \
-    vrpc::detail::RegisterCtor<Klass, __VA_ARGS__>::registerAs(#Klass);
+    template <typename Func, Func f, typename Ret, typename... Args>
+    struct RegisterStaticFunctionX {
+      static const StaticFunctionXRegistrar<Func, f, Ret, Args...> registerAs;
+    };
+  }  // namespace detail
 
-#define VRPC_VOID_CTOR(Klass) \
-    template<> const vrpc::detail::CtorRegistrator<Klass> \
-    vrpc::detail::RegisterCtor<Klass>::registerAs(#Klass);
+  // ####################### Macro utility #######################
+
+#define CAT(A, B) A##B
+#define SELECT(NAME, NUM) CAT(_##NAME##_, NUM)
+#define GET_COUNT(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, \
+                  _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26,  \
+                  _27, _28, _29, _30 /* ad nauseam */, COUNT, ...)             \
+  COUNT
+#define VA_SIZE(...)                                                         \
+  GET_COUNT(__VA_ARGS__, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, \
+            17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+#define VA_SELECT(NAME, ...) SELECT(NAME, VA_SIZE(__VA_ARGS__))(__VA_ARGS__)
+
+#define VRPC_CTOR(...) VA_SELECT(VRPC_CTOR, __VA_ARGS__)
+#define VRPC_MEMBER_FUNCTION(...) VA_SELECT(VRPC_MEMBER_FUNCTION, __VA_ARGS__)
+#define VRPC_CONST_MEMBER_FUNCTION(...) \
+  VA_SELECT(VRPC_CONST_MEMBER_FUNCTION, __VA_ARGS__)
+#define VRPC_STATIC_FUNCTION(...) VA_SELECT(VRPC_STATIC_FUNCTION, __VA_ARGS__)
+
+#define VRPC_CTOR_X(...) VA_SELECT(VRPC_CTOR_X, __VA_ARGS__)
+#define VRPC_MEMBER_FUNCTION_X(...) \
+  VA_SELECT(VRPC_MEMBER_FUNCTION_X, __VA_ARGS__)
+#define VRPC_STATIC_FUNCTION_X(...) \
+  VA_SELECT(VRPC_STATIC_FUNCTION_X, __VA_ARGS__)
+
+  // deprecate
+#define VRPC_MEMBER_FUNCTION_CONST(...) \
+  VA_SELECT(VRPC_CONST_MEMBER_FUNCTION, __VA_ARGS__)
+#define VRPC_VOID_MEMBER_FUNCTION(...) \
+  VA_SELECT(VRPC_VOID_MEMBER_FUNCTION, __VA_ARGS__)
+#define VRPC_VOID_MEMBER_FUNCTION_CONST(...) \
+  VA_SELECT(VRPC_VOID_MEMBER_FUNCTION_CONST, __VA_ARGS__)
+#define VRPC_VOID_STATIC_FUNCTION(...) \
+  VA_SELECT(VRPC_VOID_STATIC_FUNCTION, __VA_ARGS__)
+
+  //  ####################### Callbacks #######################
 
 #define VRPC_CALLBACK( ... ) const std::function<void (__VA_ARGS__)>&
 
-/*----------------------------- Macro utility --------------------------------*/
+  //  ####################### Constructors #######################
 
-#define CAT( A, B ) A ## B
-#define SELECT( NAME, NUM ) CAT( _ ## NAME ## _, NUM )
-#define GET_COUNT( _1, _2, _3, _4, _5, _6, _7, _8, _9, _10 /* ad nauseam */, COUNT, ... ) COUNT
-#define VA_SIZE( ... ) GET_COUNT( __VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 )
-#define VA_SELECT( NAME, ... ) SELECT( NAME, VA_SIZE(__VA_ARGS__) )(__VA_ARGS__)
+#define _VRPC_CTOR_RET_DESC "returns the id of the created instance"
 
-#define VRPC_MEMBER_FUNCTION( ... ) VA_SELECT( VRPC_MEMBER_FUNCTION, __VA_ARGS__ )
-#define VRPC_VOID_MEMBER_FUNCTION( ... ) VA_SELECT( VRPC_VOID_MEMBER_FUNCTION, __VA_ARGS__ )
-#define VRPC_MEMBER_FUNCTION_CONST( ... ) VA_SELECT( VRPC_MEMBER_FUNCTION_CONST, __VA_ARGS__ )
-#define VRPC_VOID_MEMBER_FUNCTION_CONST( ... ) VA_SELECT( VRPC_VOID_MEMBER_FUNCTION_CONST, __VA_ARGS__ )
+#define _VRPC_CTOR_VA_ARGS(Klass, ...) \
+    template<> const vrpc::detail::CtorRegistrar<Klass, __VA_ARGS__> \
+    vrpc::detail::RegisterCtor<Klass, __VA_ARGS__>::registerAs(#Klass);
 
-#define VRPC_STATIC_FUNCTION( ... ) VA_SELECT( VRPC_STATIC_FUNCTION, __VA_ARGS__ )
-#define VRPC_VOID_STATIC_FUNCTION( ... ) VA_SELECT( VRPC_VOID_STATIC_FUNCTION, __VA_ARGS__ )
+#define _VRPC_CTOR_1(Klass)                \
+  template <>                              \
+  const vrpc::detail::CtorRegistrar<Klass> \
+      vrpc::detail::RegisterCtor<Klass>::registerAs(#Klass);
 
-/*---------------------------- Zero arguments --------------------------------*/
+#define _VRPC_CTOR_2(Klass, A1) _VRPC_CTOR_VA_ARGS(Klass, A1)
+#define _VRPC_CTOR_3(Klass, A1, A2) _VRPC_CTOR_VA_ARGS(Klass, A1, A2)
+#define _VRPC_CTOR_4(Klass, A1, A2, A3) _VRPC_CTOR_VA_ARGS(Klass, A1, A2, A3)
+#define _VRPC_CTOR_5(Klass, A1, A2, A3, A4) \
+  _VRPC_CTOR_VA_ARGS(Klass, A1, A2, A3, A4)
+#define _VRPC_CTOR_6(Klass, A1, A2, A3, A4, A5) \
+  _VRPC_CTOR_VA_ARGS(Klass, A1, A2, A3, A4, A5)
+#define _VRPC_CTOR_7(Klass, A1, A2, A3, A4, A5, A6) \
+  _VRPC_CTOR_VA_ARGS(Klass, A1, A2, A3, A4, A5, A6)
 
-// member
-#define _VRPC_MEMBER_FUNCTION_3(Klass, Ret, Function) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)()>(&Klass::Function)), \
-        &Klass::Function \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)()>(&Klass::Function)), \
-        &Klass::Function \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_CTOR_X_2(Klass, CtorDesc)                                \
+  template <>                                                          \
+  const vrpc::detail::CtorXRegistrar<Klass>                            \
+      vrpc::detail::RegisterCtorX<Klass>::registerAs(#Klass, CtorDesc, \
+                                                     {_VRPC_CTOR_RET_DESC});
 
-// void member
+#define _VRPC_CTOR_X_6(Klass, CtorDesc, A1, A1Name, A1Default, A1Desc) \
+  template <>                                                          \
+  const vrpc::detail::CtorXRegistrar<Klass, A1>                        \
+      vrpc::detail::RegisterCtorX<Klass, A1>::registerAs(              \
+          #Klass, CtorDesc, {_VRPC_CTOR_RET_DESC},                     \
+          {{A1Name, A1Default, A1Desc}});
+
+#define _VRPC_CTOR_X_10(Klass, CtorDesc, A1, A1Name, A1Default, A1Desc, A2, \
+                        A2Name, A2Default, A2Desc)                          \
+  template <>                                                               \
+  const vrpc::detail::CtorXRegistrar<Klass, A1, A2>                         \
+      vrpc::detail::RegisterCtorX<Klass, A1, A2>::registerAs(               \
+          #Klass, CtorDesc, {_VRPC_CTOR_RET_DESC},                          \
+          {{A1Name, A1Default, A1Desc}, {A2Name, A2Default, A2Desc}});
+
+#define _VRPC_CTOR_X_14(Klass, CtorDesc, A1, A1Name, A1Default, A1Desc, A2, \
+                        A2Name, A2Default, A2Desc, A3, A3Name, A3Default,   \
+                        A3Desc)                                             \
+  template <>                                                               \
+  const vrpc::detail::CtorXRegistrar<Klass, A1, A2, A3>                     \
+      vrpc::detail::RegisterCtorX<Klass, A1, A2, A3>::registerAs(           \
+          #Klass, CtorDesc, {_VRPC_CTOR_RET_DESC},                          \
+          {{A1Name, A1Default, A1Desc},                                     \
+           {A2Name, A2Default, A2Desc},                                     \
+           {A3Name, A3Default, A3Desc}});
+
+#define _VRPC_CTOR_X_18(Klass, CtorDesc, A1, A1Name, A1Default, A1Desc, A2, \
+                        A2Name, A2Default, A2Desc, A3, A3Name, A3Default,   \
+                        A3Desc, A4, A4Name, A4Default, A4Desc)              \
+  template <>                                                               \
+  const vrpc::detail::CtorXRegistrar<Klass, A1, A2, A3, A4>                 \
+      vrpc::detail::RegisterCtorX<Klass, A1, A2, A3, A4>::registerAs(       \
+          #Klass, CtorDesc, {_VRPC_CTOR_RET_DESC},                          \
+          {{A1Name, A1Default, A1Desc},                                     \
+           {A2Name, A2Default, A2Desc},                                     \
+           {A3Name, A3Default, A3Desc},                                     \
+           {A4Name, A4Default, A4Desc}});
+
+#define _VRPC_CTOR_X_22(Klass, CtorDesc, A1, A1Name, A1Default, A1Desc, A2, \
+                        A2Name, A2Default, A2Desc, A3, A3Name, A3Default,   \
+                        A3Desc, A4, A4Name, A4Default, A4Desc, A5, A5Name,  \
+                        A5Default, A5Desc)                                  \
+  template <>                                                               \
+  const vrpc::detail::CtorXRegistrar<Klass, A1, A2, A3, A4, A5>             \
+      vrpc::detail::RegisterCtorX<Klass, A1, A2, A3, A4, A5>::registerAs(   \
+          #Klass, CtorDesc, {_VRPC_CTOR_RET_DESC},                          \
+          {{A1Name, A1Default, A1Desc},                                     \
+           {A2Name, A2Default, A2Desc},                                     \
+           {A3Name, A3Default, A3Desc},                                     \
+           {A4Name, A4Default, A4Desc},                                     \
+           {A5Name, A5Default, A5Desc}});
+
+#define _VRPC_CTOR_X_26(Klass, CtorDesc, A1, A1Name, A1Default, A1Desc, A2,   \
+                        A2Name, A2Default, A2Desc, A3, A3Name, A3Default,     \
+                        A3Desc, A4, A4Name, A4Default, A4Desc, A5, A5Name,    \
+                        A5Default, A5Desc, A6, A6Name, A6Default, A6Desc)     \
+  template <>                                                                 \
+  const vrpc::detail::CtorXRegistrar<Klass, A1, A2, A3, A4, A5, A6>           \
+      vrpc::detail::RegisterCtorX<Klass, A1, A2, A3, A4, A5, A6>::registerAs( \
+          #Klass, CtorDesc, {_VRPC_CTOR_RET_DESC},                            \
+          {{A1Name, A1Default, A1Desc},                                       \
+           {A2Name, A2Default, A2Desc},                                       \
+           {A3Name, A3Default, A3Desc},                                       \
+           {A4Name, A4Default, A4Desc},                                       \
+           {A5Name, A5Default, A5Desc},                                       \
+           {A6Name, A6Default, A6Desc}});
+
+  // deprecate
+#define VRPC_VOID_CTOR(Klass)              \
+  template <>                              \
+  const vrpc::detail::CtorRegistrar<Klass> \
+      vrpc::detail::RegisterCtor<Klass>::registerAs(#Klass);
+
+  // ####################### Zero arguments #######################
+
+#define _VRPC_MEMBER_FUNCTION_3(Klass, Ret, Function)                       \
+  template <>                                                               \
+  const vrpc::detail::MemberFunctionRegistrar<                              \
+      Klass, decltype(static_cast<Ret (Klass::*)()>(&Klass::Function)),     \
+      &Klass::Function, Ret>                                                \
+      vrpc::detail::RegisterMemberFunction<                                 \
+          Klass, decltype(static_cast<Ret (Klass::*)()>(&Klass::Function)), \
+          &Klass::Function, Ret>::registerAs(#Klass, #Function);
+
+#define _VRPC_CONST_MEMBER_FUNCTION_3(Klass, Ret, Function)                   \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionRegistrar<                                \
+      Klass, decltype(static_cast<Ret (Klass::*)() const>(&Klass::Function)), \
+      &Klass::Function, Ret>                                                  \
+      vrpc::detail::RegisterMemberFunction<                                   \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)() const>(&Klass::Function)),    \
+          &Klass::Function, Ret>::registerAs(#Klass, #Function);
+
+#define _VRPC_STATIC_FUNCTION_3(Klass, Ret, Function)                          \
+  template <>                                                                  \
+  const vrpc::detail::StaticFunctionRegistrar<decltype(static_cast<Ret (*)()>( \
+                                                  Klass::Function)),           \
+                                              &Klass::Function, Ret>           \
+      vrpc::detail::RegisterStaticFunction<                                    \
+          decltype(static_cast<Ret (*)()>(Klass::Function)), &Klass::Function, \
+          Ret>::registerAs(#Klass, #Function);
+
+#define _VRPC_MEMBER_FUNCTION_X_5(Klass, Ret, RetDesc, Function, FunctionDesc) \
+  template <>                                                                  \
+  const vrpc::detail::MemberFunctionXRegistrar<                                \
+      Klass, decltype(static_cast<Ret (Klass::*)()>(&Klass::Function)),        \
+      &Klass::Function, Ret>                                                   \
+      vrpc::detail::RegisterMemberFunctionX<                                   \
+          Klass, decltype(static_cast<Ret (Klass::*)()>(&Klass::Function)),    \
+          &Klass::Function, Ret>::registerAs(#Klass, #Function, FunctionDesc,  \
+                                             {RetDesc});
+
+#define _VRPC_CONST_MEMBER_FUNCTION_X_5(Klass, Ret, RetDesc, Function,        \
+                                        FunctionDesc)                         \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionXRegistrar<                               \
+      Klass, decltype(static_cast<Ret (Klass::*)() const>(&Klass::Function)), \
+      &Klass::Function, Ret>                                                  \
+      vrpc::detail::RegisterMemberFunctionX<                                  \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)() const>(&Klass::Function)),    \
+          &Klass::Function, Ret>::registerAs(#Klass, #Function, FunctionDesc, \
+                                             {RetDesc});
+
+#define _VRPC_STATIC_FUNCTION_X_5(Klass, Ret, RetDesc, Function, FunctionDesc) \
+  template <>                                                                  \
+  const vrpc::detail::StaticFunctionXRegistrar<                                \
+      decltype(static_cast<Ret (*)()>(Klass::Function)), &Klass::Function,     \
+      Ret>                                                                     \
+      vrpc::detail::RegisterStaticFunctionX<                                   \
+          decltype(static_cast<Ret (*)()>(Klass::Function)), &Klass::Function, \
+          Ret>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc});
+
 #define _VRPC_VOID_MEMBER_FUNCTION_2(Klass, Function) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)()>(&Klass::Function)), \
-        &Klass::Function \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)()>(&Klass::Function)), \
-        &Klass::Function \
-    >::registerAs(#Klass, #Function);
+  _VRPC_MEMBER_FUNCTION_3(Klass, Ret, Function)
 
-// const member
-#define _VRPC_MEMBER_FUNCTION_CONST_3(Klass, Ret, Function) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)() const>(&Klass::Function)), \
-        &Klass::Function \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)() const>(&Klass::Function)), \
-        &Klass::Function \
-    >::registerAs(#Klass, #Function);
-
-// const void member
 #define _VRPC_VOID_MEMBER_FUNCTION_CONST_2(Klass, Function) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)() const>(&Klass::Function)), \
-        &Klass::Function \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)() const>(&Klass::Function)), \
-        &Klass::Function \
-    >::registerAs(#Klass, #Function);
+  _VRPC_CONST_MEMBER_FUNCTION_3(Klass, void, Function)
 
-// static
-#define _VRPC_STATIC_FUNCTION_3(Klass, Ret, Function)\
-    template<> const vrpc::detail::StaticFunctionRegistrator<\
-        decltype(static_cast<Ret(*)()>(Klass::Function)),\
-        &Klass::Function\
-    > vrpc::detail::RegisterStaticFunction<\
-        decltype(static_cast<Ret(*)()>(Klass::Function)),\
-        &Klass::Function\
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_STATIC_FUNCTION_2(Klass, Function) \
+  _VRPC_STATIC_FUNCTION_3(Klass, void, Function)
 
-// void static
-#define _VRPC_VOID_STATIC_FUNCTION_2(Klass, Function)\
-    template<> const vrpc::detail::VoidStaticFunctionRegistrator<\
-        decltype(static_cast<void(*)()>(Klass::Function)),\
-        &Klass::Function\
-    > vrpc::detail::RegisterVoidStaticFunction<\
-        decltype(static_cast<void(*)()>(Klass::Function)),\
-        &Klass::Function\
-    >::registerAs(#Klass, #Function);
+  // ####################### One argument #######################
 
-/*----------------------------- One argument ---------------------------------*/
+#define _VRPC_MEMBER_FUNCTION_4(Klass, Ret, Function, A1)                     \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionRegistrar<                                \
+      Klass, decltype(static_cast<Ret (Klass::*)(A1)>(&Klass::Function)),     \
+      &Klass::Function, Ret, A1>                                              \
+      vrpc::detail::RegisterMemberFunction<                                   \
+          Klass, decltype(static_cast<Ret (Klass::*)(A1)>(&Klass::Function)), \
+          &Klass::Function, Ret, A1>::registerAs(#Klass, #Function);
 
-// member
-#define _VRPC_MEMBER_FUNCTION_4(Klass, Ret, Function, A1) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_CONST_MEMBER_FUNCTION_4(Klass, Ret, Function, A1)              \
+  template <>                                                                \
+  const vrpc::detail::MemberFunctionRegistrar<                               \
+      Klass,                                                                 \
+      decltype(static_cast<Ret (Klass::*)(A1) const>(&Klass::Function)),     \
+      &Klass::Function, Ret, A1>                                             \
+      vrpc::detail::RegisterMemberFunction<                                  \
+          Klass,                                                             \
+          decltype(static_cast<Ret (Klass::*)(A1) const>(&Klass::Function)), \
+          &Klass::Function, Ret, A1>::registerAs(#Klass, #Function);
 
-// void member
-#define _VRPC_VOID_MEMBER_FUNCTION_3(Klass, Function, A1) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_STATIC_FUNCTION_4(Klass, Ret, Function, A1)                    \
+  template <>                                                                \
+  const vrpc::detail::StaticFunctionRegistrar<                               \
+      decltype(static_cast<Ret (*)(A1)>(Klass::Function)), &Klass::Function, \
+      Ret, A1>                                                               \
+      vrpc::detail::RegisterStaticFunction<                                  \
+          decltype(static_cast<Ret (*)(A1)>(Klass::Function)),               \
+          &Klass::Function, Ret, A1>::registerAs(#Klass, #Function);
 
-// const member
-#define _VRPC_MEMBER_FUNCTION_CONST_4(Klass, Ret, Function, A1) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_MEMBER_FUNCTION_X_9(Klass, Ret, RetDesc, Function, FunctionDesc, \
+                                  A1, A1Name, A1Default, A1Desc)               \
+  template <>                                                                  \
+  const vrpc::detail::MemberFunctionXRegistrar<                                \
+      Klass, decltype(static_cast<Ret (Klass::*)(A1)>(&Klass::Function)),      \
+      &Klass::Function, Ret, A1>                                               \
+      vrpc::detail::RegisterMemberFunctionX<                                   \
+          Klass, decltype(static_cast<Ret (Klass::*)(A1)>(&Klass::Function)),  \
+          &Klass::Function, Ret, A1>::registerAs(#Klass, #Function,            \
+                                                 FunctionDesc, {RetDesc},      \
+                                                 {{A1Name, A1Default,          \
+                                                   A1Desc}});
 
-// const void member
+#define _VRPC_CONST_MEMBER_FUNCTION_X_9(Klass, Ret, RetDesc, Function,       \
+                                        FunctionDesc, A1, A1Name, A1Default, \
+                                        A1Desc)                              \
+  template <>                                                                \
+  const vrpc::detail::MemberFunctionXRegistrar<                              \
+      Klass,                                                                 \
+      decltype(static_cast<Ret (Klass::*)(A1) const>(&Klass::Function)),     \
+      &Klass::Function, Ret, A1>                                             \
+      vrpc::detail::RegisterMemberFunctionX<                                 \
+          Klass,                                                             \
+          decltype(static_cast<Ret (Klass::*)(A1) const>(&Klass::Function)), \
+          &Klass::Function, Ret, A1>::registerAs(#Klass, #Function,          \
+                                                 FunctionDesc, {RetDesc},    \
+                                                 {{A1Name, A1Default,        \
+                                                   A1Desc}});
+
+#define _VRPC_STATIC_FUNCTION_X_9(Klass, Ret, RetDesc, Function, FunctionDesc, \
+                                  A1, A1Name, A1Default, A1Desc)               \
+  template <>                                                                  \
+  const vrpc::detail::StaticFunctionXRegistrar<                                \
+      decltype(static_cast<Ret (*)(A1)>(Klass::Function)), &Klass::Function,   \
+      Ret, A1>                                                                 \
+      vrpc::detail::RegisterStaticFunctionX<                                   \
+          decltype(static_cast<Ret (*)(A1)>(Klass::Function)),                 \
+          &Klass::Function, Ret, A1>::registerAs(#Klass, #Function,            \
+                                                 FunctionDesc, {RetDesc},      \
+                                                 {{A1Name, A1Default,          \
+                                                   A1Desc}});
+
 #define _VRPC_VOID_MEMBER_FUNCTION_CONST_3(Klass, Function, A1) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1 \
-    >::registerAs(#Klass, #Function);
+  _VRPC_CONST_MEMBER_FUNCTION_4(Klass, void, Function, A1)
 
-// static
-#define _VRPC_STATIC_FUNCTION_4(Klass, Ret, Function, A1)\
-    template<> const vrpc::detail::StaticFunctionRegistrator<\
-        decltype(static_cast<Ret(*)(A1)>(Klass::Function)),\
-        &Klass::Function,\
-        A1\
-    > vrpc::detail::RegisterStaticFunction<\
-        decltype(static_cast<Ret(*)(A1)>(Klass::Function)),\
-        &Klass::Function,\
-        A1\
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_MEMBER_FUNCTION_3(Klass, Function, A1) \
+  _VRPC_MEMBER_FUNCTION_4(Klass, void, Function, A1)
 
-// void static
-#define _VRPC_VOID_STATIC_FUNCTION_3(Klass, Function, A1)\
-    template<> const vrpc::detail::VoidStaticFunctionRegistrator<\
-        decltype(static_cast<void(*)(A1)>(Klass::Function)),\
-        &Klass::Function,\
-        A1\
-    > vrpc::detail::RegisterVoidStaticFunction<\
-        decltype(static_cast<void(*)(A1)>(Klass::Function)),\
-        &Klass::Function,\
-        A1\
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_STATIC_FUNCTION_3(Klass, Function, A1) \
+  _VRPC_STATIC_FUNCTION_4(Klass, void, Function, A1)
 
-/*---------------------------- Two arguments ---------------------------------*/
+  // ####################### Two arguments #######################
 
-// member
-#define _VRPC_MEMBER_FUNCTION_5(Klass, Ret, Function, A1, A2) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_MEMBER_FUNCTION_5(Klass, Ret, Function, A1, A2)                 \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionRegistrar<                                \
+      Klass, decltype(static_cast<Ret (Klass::*)(A1, A2)>(&Klass::Function)), \
+      &Klass::Function, Ret, A1, A2>                                          \
+      vrpc::detail::RegisterMemberFunction<                                   \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2)>(&Klass::Function)),    \
+          &Klass::Function, Ret, A1, A2>::registerAs(#Klass, #Function);
 
-// void member
-#define _VRPC_VOID_MEMBER_FUNCTION_4(Klass, Function, A1, A2) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_CONST_MEMBER_FUNCTION_5(Klass, Ret, Function, A1, A2)          \
+  template <>                                                                \
+  const vrpc::detail::MemberFunctionRegistrar<                               \
+      Klass,                                                                 \
+      decltype(static_cast<Ret (Klass::*)(A1, A2) const>(&Klass::Function)), \
+      &Klass::Function, Ret, A1, A2>                                         \
+      vrpc::detail::RegisterMemberFunction<                                  \
+          Klass,                                                             \
+          decltype(                                                          \
+              static_cast<Ret (Klass::*)(A1, A2) const>(&Klass::Function)),  \
+          &Klass::Function, Ret, A1, A2>::registerAs(#Klass, #Function);
 
-// const member
-#define _VRPC_MEMBER_FUNCTION_CONST_5(Klass, Ret, Function, A1, A2) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_STATIC_FUNCTION_5(Klass, Ret, Function, A1, A2)      \
+  template <>                                                      \
+  const vrpc::detail::StaticFunctionRegistrar<                     \
+      decltype(static_cast<Ret (*)(A1, A2)>(Klass::Function)),     \
+      &Klass::Function, Ret, A1, A2>                               \
+      vrpc::detail::RegisterStaticFunction<                        \
+          decltype(static_cast<Ret (*)(A1, A2)>(Klass::Function)), \
+          &Klass::Function, Ret, A1, A2>::registerAs(#Klass, #Function);
 
-// const void member
+#define _VRPC_MEMBER_FUNCTION_X_13(Klass, Ret, RetDesc, Function,             \
+                                   FunctionDesc, A1, A1Name, A1Default,       \
+                                   A1Desc, A2, A2Name, A2Default, A2Desc)     \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionXRegistrar<                               \
+      Klass, decltype(static_cast<Ret (Klass::*)(A1, A2)>(&Klass::Function)), \
+      &Klass::Function, Ret, A1, A2>                                          \
+      vrpc::detail::RegisterMemberFunctionX<                                  \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2)>(&Klass::Function)),    \
+          &Klass::Function, Ret, A1, A2>::registerAs(#Klass, #Function,       \
+                                                     FunctionDesc, {RetDesc}, \
+                                                     {{A1Name, A1Default,     \
+                                                       A1Desc},               \
+                                                      {A2Name, A2Default,     \
+                                                       A2Desc}});
+
+#define _VRPC_CONST_MEMBER_FUNCTION_X_13(                                     \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,       \
+    A1Desc, A2, A2Name, A2Default, A2Desc)                                    \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionXRegistrar<                               \
+      Klass,                                                                  \
+      decltype(static_cast<Ret (Klass::*)(A1, A2) const>(&Klass::Function)),  \
+      &Klass::Function, Ret, A1, A2>                                          \
+      vrpc::detail::RegisterMemberFunctionX<                                  \
+          Klass,                                                              \
+          decltype(                                                           \
+              static_cast<Ret (Klass::*)(A1, A2) const>(&Klass::Function)),   \
+          &Klass::Function, Ret, A1, A2>::registerAs(#Klass, #Function,       \
+                                                     FunctionDesc, {RetDesc}, \
+                                                     {{A1Name, A1Default,     \
+                                                       A1Desc},               \
+                                                      {A2Name, A2Default,     \
+                                                       A2Desc}});
+
+#define _VRPC_STATIC_FUNCTION_X_13(Klass, Ret, RetDesc, Function,             \
+                                   FunctionDesc, A1, A1Name, A1Default,       \
+                                   A1Desc, A2, A2Name, A2Default, A2Desc)     \
+  template <>                                                                 \
+  const vrpc::detail::StaticFunctionXRegistrar<                               \
+      decltype(static_cast<Ret (*)(A1, A2)>(Klass::Function)),                \
+      &Klass::Function, Ret, A1, A2>                                          \
+      vrpc::detail::RegisterStaticFunctionX<                                  \
+          decltype(static_cast<Ret (*)(A1, A2)>(Klass::Function)),            \
+          &Klass::Function, Ret, A1, A2>::registerAs(#Klass, #Function,       \
+                                                     FunctionDesc, {RetDesc}, \
+                                                     {{A1Name, A1Default,     \
+                                                       A1Desc},               \
+                                                      {A2Name, A2Default,     \
+                                                       A2Desc}});
+
 #define _VRPC_VOID_MEMBER_FUNCTION_CONST_4(Klass, Function, A1, A2) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2 \
-    >::registerAs(#Klass, #Function);
+  _VRPC_CONST_MEMBER_FUNCTION_5(Klass, void, Function, A1, A2)
 
-// static
-#define _VRPC_STATIC_FUNCTION_5(Klass, Ret, Function, A1, A2)\
-    template<> const vrpc::detail::StaticFunctionRegistrator<\
-        decltype(static_cast<Ret(*)(A1, A2)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2\
-    > vrpc::detail::RegisterStaticFunction<\
-        decltype(static_cast<Ret(*)(A1, A2)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2\
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_MEMBER_FUNCTION_4(Klass, Function, A1, A2) \
+  _VRPC_MEMBER_FUNCTION_5(Klass, void, Function, A1, A2)
 
-// void static
-#define _VRPC_VOID_STATIC_FUNCTION_4(Klass, Function, A1, A2)\
-    template<> const vrpc::detail::VoidStaticFunctionRegistrator<\
-        decltype(static_cast<void(*)(A1, A2)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2\
-    > vrpc::detail::RegisterVoidStaticFunction<\
-        decltype(static_cast<void(*)(A1, A2)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2\
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_STATIC_FUNCTION_4(Klass, Function, A1, A2) \
+  _VRPC_STATIC_FUNCTION_5(Klass, void, Function, A1, A2)
 
-/*---------------------------- Three arguments -------------------------------*/
+  // ####################### Three arguments #######################
 
-//member
-#define _VRPC_MEMBER_FUNCTION_6(Klass, Ret, Function, A1, A2, A3) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_MEMBER_FUNCTION_6(Klass, Ret, Function, A1, A2, A3)              \
+  template <>                                                                  \
+  const vrpc::detail::MemberFunctionRegistrar<                                 \
+      Klass,                                                                   \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3)>(&Klass::Function)),     \
+      &Klass::Function, Ret, A1, A2, A3>                                       \
+      vrpc::detail::RegisterMemberFunction<                                    \
+          Klass,                                                               \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3)>(&Klass::Function)), \
+          &Klass::Function, Ret, A1, A2, A3>::registerAs(#Klass, #Function);
 
-// void member
-#define _VRPC_VOID_MEMBER_FUNCTION_5(Klass, Function, A1, A2, A3) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_CONST_MEMBER_FUNCTION_6(Klass, Ret, Function, A1, A2, A3)     \
+  template <>                                                               \
+  const vrpc::detail::MemberFunctionRegistrar<                              \
+      Klass,                                                                \
+      decltype(                                                             \
+          static_cast<Ret (Klass::*)(A1, A2, A3) const>(&Klass::Function)), \
+      &Klass::Function, Ret, A1, A2, A3>                                    \
+      vrpc::detail::RegisterMemberFunction<                                 \
+          Klass,                                                            \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3) const>(           \
+              &Klass::Function)),                                           \
+          &Klass::Function, Ret, A1, A2, A3>::registerAs(#Klass, #Function);
 
-// const member
-#define _VRPC_MEMBER_FUNCTION_CONST_6(Klass, Ret, Function, A1, A2, A3) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_STATIC_FUNCTION_6(Klass, Ret, Function, A1, A2, A3)      \
+  template <>                                                          \
+  const vrpc::detail::StaticFunctionRegistrar<                         \
+      decltype(static_cast<Ret (*)(A1, A2, A3)>(Klass::Function)),     \
+      &Klass::Function, Ret, A1, A2, A3>                               \
+      vrpc::detail::RegisterStaticFunction<                            \
+          decltype(static_cast<Ret (*)(A1, A2, A3)>(Klass::Function)), \
+          &Klass::Function, Ret, A1, A2, A3>::registerAs(#Klass, #Function);
 
-// const void member
+#define _VRPC_MEMBER_FUNCTION_X_17(                                            \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,        \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc)      \
+  template <>                                                                  \
+  const vrpc::detail::MemberFunctionXRegistrar<                                \
+      Klass,                                                                   \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3)>(&Klass::Function)),     \
+      &Klass::Function, Ret, A1, A2, A3>                                       \
+      vrpc::detail::RegisterMemberFunctionX<                                   \
+          Klass,                                                               \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3)>(&Klass::Function)), \
+          &Klass::Function, Ret, A1, A2,                                       \
+          A3>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},          \
+                          {{A1Name, A1Default, A1Desc},                        \
+                           {A2Name, A2Default, A2Desc},                        \
+                           {A3Name, A3Default, A3Desc}});
+
+#define _VRPC_CONST_MEMBER_FUNCTION_X_17(                                   \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,     \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc)   \
+  template <>                                                               \
+  const vrpc::detail::MemberFunctionXRegistrar<                             \
+      Klass,                                                                \
+      decltype(                                                             \
+          static_cast<Ret (Klass::*)(A1, A2, A3) const>(&Klass::Function)), \
+      &Klass::Function, Ret, A1, A2, A3>                                    \
+      vrpc::detail::RegisterMemberFunctionX<                                \
+          Klass,                                                            \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3) const>(           \
+              &Klass::Function)),                                           \
+          &Klass::Function, Ret, A1, A2,                                    \
+          A3>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},       \
+                          {{A1Name, A1Default, A1Desc},                     \
+                           {A2Name, A2Default, A2Desc},                     \
+                           {A3Name, A3Default, A3Desc}});
+
+#define _VRPC_STATIC_FUNCTION_X_17(                                       \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,   \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc) \
+  template <>                                                             \
+  const vrpc::detail::StaticFunctionXRegistrar<                           \
+      decltype(static_cast<Ret (*)(A1, A2, A3)>(Klass::Function)),        \
+      &Klass::Function, Ret, A1, A2, A3>                                  \
+      vrpc::detail::RegisterStaticFunctionX<                              \
+          decltype(static_cast<Ret (*)(A1, A2, A3)>(Klass::Function)),    \
+          &Klass::Function, Ret, A1, A2,                                  \
+          A3>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},     \
+                          {{A1Name, A1Default, A1Desc},                   \
+                           {A2Name, A2Default, A2Desc},                   \
+                           {A3Name, A3Default, A3Desc}});
+
 #define _VRPC_VOID_MEMBER_FUNCTION_CONST_5(Klass, Function, A1, A2, A3) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3 \
-    >::registerAs(#Klass, #Function);
+  _VRPC_CONST_MEMBER_FUNCTION_6(Klass, void, Function, A1, A2, A3)
 
-// static
-#define _VRPC_STATIC_FUNCTION_6(Klass, Ret, Function, A1, A2, A3)\
-    template<> const vrpc::detail::StaticFunctionRegistrator<\
-        decltype(static_cast<Ret(*)(A1, A2, A3)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3\
-    > vrpc::detail::RegisterStaticFunction<\
-        decltype(static_cast<Ret(*)(A1, A2, A3)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3\
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_MEMBER_FUNCTION_5(Klass, Function, A1, A2, A3) \
+  _VRPC_MEMBER_FUNCTION_6(Klass, void, Function, A1, A2, A3)
 
-// void static
-#define _VRPC_VOID_STATIC_FUNCTION_5(Klass, Function, A1, A2, A3)\
-    template<> const vrpc::detail::VoidStaticFunctionRegistrator<\
-        decltype(static_cast<void(*)(A1, A2, A3)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3\
-    > vrpc::detail::RegisterVoidStaticFunction<\
-        decltype(static_cast<void(*)(A1, A2, A3)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3\
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_STATIC_FUNCTION_5(Klass, Function, A1, A2, A3) \
+  _VRPC_STATIC_FUNCTION_6(Klass, void, Function, A1, A2, A3)
 
-/*----------------------------- Four arguments -------------------------------*/
+  // ####################### Four arguments #######################
 
-// member
-#define _VRPC_MEMBER_FUNCTION_7(Klass, Ret, Function, A1, A2, A3, A4) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_MEMBER_FUNCTION_7(Klass, Ret, Function, A1, A2, A3, A4)          \
+  template <>                                                                  \
+  const vrpc::detail::MemberFunctionRegistrar<                                 \
+      Klass,                                                                   \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4)>(&Klass::Function)), \
+      &Klass::Function, Ret, A1, A2, A3, A4>                                   \
+      vrpc::detail::RegisterMemberFunction<                                    \
+          Klass,                                                               \
+          decltype(                                                            \
+              static_cast<Ret (Klass::*)(A1, A2, A3, A4)>(&Klass::Function)),  \
+          &Klass::Function, Ret, A1, A2, A3, A4>::registerAs(#Klass,           \
+                                                             #Function);
 
-// void member
-#define _VRPC_VOID_MEMBER_FUNCTION_6(Klass, Function, A1, A2, A3, A4) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_CONST_MEMBER_FUNCTION_7(Klass, Ret, Function, A1, A2, A3, A4) \
+  template <>                                                               \
+  const vrpc::detail::MemberFunctionRegistrar<                              \
+      Klass,                                                                \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4) const>(           \
+          &Klass::Function)),                                               \
+      &Klass::Function, Ret, A1, A2, A3, A4>                                \
+      vrpc::detail::RegisterMemberFunction<                                 \
+          Klass,                                                            \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4) const>(       \
+              &Klass::Function)),                                           \
+          &Klass::Function, Ret, A1, A2, A3, A4>::registerAs(#Klass,        \
+                                                             #Function);
 
-// const member
-#define _VRPC_MEMBER_FUNCTION_CONST_7(Klass, Ret, Function, A1, A2, A3, A4) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_STATIC_FUNCTION_7(Klass, Ret, Function, A1, A2, A3, A4)      \
+  template <>                                                              \
+  const vrpc::detail::StaticFunctionRegistrar<                             \
+      decltype(static_cast<Ret (*)(A1, A2, A3, A4)>(Klass::Function)),     \
+      &Klass::Function, Ret, A1, A2, A3, A4>                               \
+      vrpc::detail::RegisterStaticFunction<                                \
+          decltype(static_cast<Ret (*)(A1, A2, A3, A4)>(Klass::Function)), \
+          &Klass::Function, Ret, A1, A2, A3, A4>::registerAs(#Klass,       \
+                                                             #Function);
 
-// const void member
+#define _VRPC_MEMBER_FUNCTION_X_21(                                            \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,        \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc, A4,  \
+    A4Name, A4Default, A4Desc)                                                 \
+  template <>                                                                  \
+  const vrpc::detail::MemberFunctionXRegistrar<                                \
+      Klass,                                                                   \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4)>(&Klass::Function)), \
+      &Klass::Function, Ret, A1, A2, A3, A4>                                   \
+      vrpc::detail::RegisterMemberFunctionX<                                   \
+          Klass,                                                               \
+          decltype(                                                            \
+              static_cast<Ret (Klass::*)(A1, A2, A3, A4)>(&Klass::Function)),  \
+          &Klass::Function, Ret, A1, A2, A3,                                   \
+          A4>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},          \
+                          {{A1Name, A1Default, A1Desc},                        \
+                           {A2Name, A2Default, A2Desc},                        \
+                           {A3Name, A3Default, A3Desc},                        \
+                           {A4NAme, A4Default, A4Desc}});
+
+#define _VRPC_CONST_MEMBER_FUNCTION_X_21(                                     \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,       \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc, A4, \
+    A4Name, A4Default, A4Desc)                                                \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionXRegistrar<                               \
+      Klass,                                                                  \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4) const>(             \
+          &Klass::Function)),                                                 \
+      &Klass::Function, Ret, A1, A2, A3, A4>                                  \
+      vrpc::detail::RegisterMemberFunctionX<                                  \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4) const>(         \
+              &Klass::Function)),                                             \
+          &Klass::Function, Ret, A1, A2, A3,                                  \
+          A4>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},         \
+                          {{A1Name, A1Default, A1Desc},                       \
+                           {A2Name, A2Default, A2Desc},                       \
+                           {A3Name, A3Default, A3Desc},                       \
+                           {A4NAme, A4Default, A4Desc}});
+
+#define _VRPC_STATIC_FUNCTION_X_21(                                           \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,       \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc, A4, \
+    A4Name, A4Default, A4Desc)                                                \
+  template <>                                                                 \
+  const vrpc::detail::StaticFunctionXRegistrar<                               \
+      decltype(static_cast<Ret (*)(A1, A2, A3, A4)>(Klass::Function)),        \
+      &Klass::Function, Ret, A1, A2, A3, A4>                                  \
+      vrpc::detail::RegisterStaticFunctionX<                                  \
+          decltype(static_cast<Ret (*)(A1, A2, A3, A4)>(Klass::Function)),    \
+          &Klass::Function, Ret, A1, A2, A3,                                  \
+          A4>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},         \
+                          {{A1Name, A1Default, A1Desc},                       \
+                           {A2Name, A2Default, A2Desc},                       \
+                           {A3Name, A3Default, A3Desc},                       \
+                           {A4NAme, A4Default, A4Desc}});
+
 #define _VRPC_VOID_MEMBER_FUNCTION_CONST_6(Klass, Function, A1, A2, A3, A4) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4 \
-    >::registerAs(#Klass, #Function);
+  _VRPC_CONST_MEMBER_FUNCTION_7(Klass, void, Function, A1, A2, A3, A4)
 
-// static
-#define _VRPC_STATIC_FUNCTION_7(Klass, Ret, Function, A1, A2, A3, A4)\
-    template<> const vrpc::detail::StaticFunctionRegistrator<\
-        decltype(static_cast<Ret(*)(A1, A2, A3, A4)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4\
-    > vrpc::detail::RegisterStaticFunction<\
-        decltype(static_cast<Ret(*)(A1, A2, A3, A4)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4\
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_MEMBER_FUNCTION_6(Klass, Function, A1, A2, A3, A4) \
+  _VRPC_MEMBER_FUNCTION_7(Klass, void, Function, A1, A2, A3, A4)
 
-// void static
-#define _VRPC_VOID_STATIC_FUNCTION_6(Klass, Function, A1, A2, A3, A4)\
-    template<> const vrpc::detail::VoidStaticFunctionRegistrator<\
-        decltype(static_cast<void(*)(A1, A2, A3, A4)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4\
-    > vrpc::detail::RegisterVoidStaticFunction<\
-        decltype(static_cast<void(*)(A1, A2, A3, A4)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4\
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_STATIC_FUNCTION_6(Klass, Function, A1, A2, A3, A4) \
+  _VRPC_STATIC_FUNCTION_7(Klass, void, Function, A1, A2, A3, A4)
 
-/*----------------------------- Five arguments -------------------------------*/
+  // ####################### Five arguments #######################
 
-// member
-#define _VRPC_MEMBER_FUNCTION_8(Klass, Ret, Function, A1, A2, A3, A4, A5) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4, A5)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4, A5)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_MEMBER_FUNCTION_8(Klass, Ret, Function, A1, A2, A3, A4, A5)     \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionRegistrar<                                \
+      Klass,                                                                  \
+      decltype(                                                               \
+          static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5)>(&Klass::Function)), \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5>                              \
+      vrpc::detail::RegisterMemberFunction<                                   \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5)>(           \
+              &Klass::Function)),                                             \
+          &Klass::Function, Ret, A1, A2, A3, A4, A5>::registerAs(#Klass,      \
+                                                                 #Function);
 
-// void member
+#define _VRPC_CONST_MEMBER_FUNCTION_8(Klass, Ret, Function, A1, A2, A3, A4, \
+                                      A5)                                   \
+  template <>                                                               \
+  const vrpc::detail::MemberFunctionRegistrar<                              \
+      Klass,                                                                \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5) const>(       \
+          &Klass::Function)),                                               \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5>                            \
+      vrpc::detail::RegisterMemberFunction<                                 \
+          Klass,                                                            \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5) const>(   \
+              &Klass::Function)),                                           \
+          &Klass::Function, Ret, A1, A2, A3, A4, A5>::registerAs(#Klass,    \
+                                                                 #Function);
+
+#define _VRPC_STATIC_FUNCTION_8(Klass, Ret, Function, A1, A2, A3, A4, A5)      \
+  template <>                                                                  \
+  const vrpc::detail::StaticFunctionRegistrar<                                 \
+      decltype(static_cast<Ret (*)(A1, A2, A3, A4, A5)>(Klass::Function)),     \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5>                               \
+      vrpc::detail::RegisterStaticFunction<                                    \
+          decltype(static_cast<Ret (*)(A1, A2, A3, A4, A5)>(Klass::Function)), \
+          &Klass::Function, Ret, A1, A2, A3, A4, A5>::registerAs(#Klass,       \
+                                                                 #Function);
+
+#define _VRPC_MEMBER_FUNCTION_X_25(                                           \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,       \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc, A4, \
+    A4Name, A4Default, A4Desc, A5, A5Name, A5Default, A5Desc)                 \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionXRegistrar<                               \
+      Klass,                                                                  \
+      decltype(                                                               \
+          static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5)>(&Klass::Function)), \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5>                              \
+      vrpc::detail::RegisterMemberFunctionX<                                  \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5)>(           \
+              &Klass::Function)),                                             \
+          &Klass::Function, Ret, A1, A2, A3, A4,                              \
+          A5>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},         \
+                          {{A1Name, A1Default, A1Desc},                       \
+                           {A2Name, A2Default, A2Desc},                       \
+                           {A3Name, A3Default, A3Desc},                       \
+                           {A4NAme, A4Default, A4Desc},                       \
+                           {A5Name, A5Default, A5Desc}});
+
+#define _VRPC_CONST_MEMBER_FUNCTION_X_25(                                     \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,       \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc, A4, \
+    A4Name, A4Default, A4Desc, A5, A5Name, A5Default, A5Desc)                 \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionXRegistrar<                               \
+      Klass,                                                                  \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5) const>(         \
+          &Klass::Function)),                                                 \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5>                              \
+      vrpc::detail::RegisterMemberFunctionX<                                  \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5) const>(     \
+              &Klass::Function)),                                             \
+          &Klass::Function, Ret, A1, A2, A3, A4,                              \
+          A5>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},         \
+                          {{A1Name, A1Default, A1Desc},                       \
+                           {A2Name, A2Default, A2Desc},                       \
+                           {A3Name, A3Default, A3Desc},                       \
+                           {A4NAme, A4Default, A4Desc},                       \
+                           {A5Name, A5Default, A5Desc}});
+
+#define _VRPC_STATIC_FUNCTION_X_25(                                            \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,        \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc, A4,  \
+    A4Name, A4Default, A4Desc, A5, A5Name, A5Default, A5Desc)                  \
+  template <>                                                                  \
+  const vrpc::detail::StaticFunctionXRegistrar<                                \
+      decltype(static_cast<Ret (*)(A1, A2, A3, A4, A5)>(Klass::Function)),     \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5>                               \
+      vrpc::detail::RegisterStaticFunctionX<                                   \
+          decltype(static_cast<Ret (*)(A1, A2, A3, A4, A5)>(Klass::Function)), \
+          &Klass::Function, Ret, A1, A2, A3, A4,                               \
+          A5>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},          \
+                          {{A1Name, A1Default, A1Desc},                        \
+                           {A2Name, A2Default, A2Desc},                        \
+                           {A3Name, A3Default, A3Desc},                        \
+                           {A4NAme, A4Default, A4Desc},                        \
+                           {A5Name, A5Default, A5Desc}});
+
+#define _VRPC_VOID_MEMBER_FUNCTION_CONST_7(Klass, Function, A1, A2, A3, A4, \
+                                           A5)                              \
+  _VRPC_CONST_MEMBER_FUNCTION_8(Klass, void, Function, A1, A2, A3, A4, A5)
+
 #define _VRPC_VOID_MEMBER_FUNCTION_7(Klass, Function, A1, A2, A3, A4, A5) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4, A5)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4, A5)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5 \
-    >::registerAs(#Klass, #Function);
+  _VRPC_MEMBER_FUNCTION_8(Klass, void, Function, A1, A2, A3, A4, A5)
 
-// const member
-#define _VRPC_MEMBER_FUNCTION_CONST_8(Klass, Ret, Function, A1, A2, A3, A4, A5) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4, A5) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4, A5) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_STATIC_FUNCTION_7(Klass, Function, A1, A2, A3, A4, A5) \
+  _VRPC_STATIC_FUNCTION_8(Klass, void, Function, A1, A2, A3, A4, A5)
 
-// void const member
-#define _VRPC_VOID_MEMBER_FUNCTION_CONST_7(Klass, Function, A1, A2, A3, A4, A5) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4, A5) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4, A5) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5 \
-    >::registerAs(#Klass, #Function);
+  // ####################### Six arguments #######################
 
-// static
-#define _VRPC_STATIC_FUNCTION_8(Klass, Ret, Function, A1, A2, A3, A4, A5)\
-    template<> const vrpc::detail::StaticFunctionRegistrator<\
-        decltype(static_cast<Ret(*)(A1, A2, A3, A4, A5)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4, A5\
-    > vrpc::detail::RegisterStaticFunction<\
-        decltype(static_cast<Ret(*)(A1, A2, A3, A4, A5)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4, A5\
-    >::registerAs(#Klass, #Function);
-
-// void static
-#define _VRPC_VOID_STATIC_FUNCTION_7(Klass, Function, A1, A2, A3, A4, A5)\
-    template<> const vrpc::detail::VoidStaticFunctionRegistrator<\
-        decltype(static_cast<void(*)(A1, A2, A3, A4, A5)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4, A5\
-    > vrpc::detail::RegisterVoidStaticFunction<\
-        decltype(static_cast<void(*)(A1, A2, A3, A4, A5)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4, A5\
-    >::registerAs(#Klass, #Function);
-
-/*------------------------------ Six arguments -------------------------------*/
-
-// member
 #define _VRPC_MEMBER_FUNCTION_9(Klass, Ret, Function, A1, A2, A3, A4, A5, A6) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4, A5, A6)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5, A6 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4, A5, A6)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5, A6 \
-    >::registerAs(#Klass, #Function);
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionRegistrar<                                \
+      Klass,                                                                  \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5, A6)>(           \
+          &Klass::Function)),                                                 \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5, A6>                          \
+      vrpc::detail::RegisterMemberFunction<                                   \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5, A6)>(       \
+              &Klass::Function)),                                             \
+          &Klass::Function, Ret, A1, A2, A3, A4, A5,                          \
+          A6>::registerAs(#Klass, #Function);
 
-// void member
+#define _VRPC_CONST_MEMBER_FUNCTION_9(Klass, Ret, Function, A1, A2, A3, A4,   \
+                                      A5, A6)                                 \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionRegistrar<                                \
+      Klass,                                                                  \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5, A6) const>(     \
+          &Klass::Function)),                                                 \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5, A6>                          \
+      vrpc::detail::RegisterMemberFunction<                                   \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5, A6) const>( \
+              &Klass::Function)),                                             \
+          &Klass::Function, Ret, A1, A2, A3, A4, A5,                          \
+          A6>::registerAs(#Klass, #Function);
+
+#define _VRPC_STATIC_FUNCTION_9(Klass, Ret, Function, A1, A2, A3, A4, A5, A6)  \
+  template <>                                                                  \
+  const vrpc::detail::StaticFunctionRegistrar<                                 \
+      decltype(static_cast<Ret (*)(A1, A2, A3, A4, A5, A6)>(Klass::Function)), \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5, A6>                           \
+      vrpc::detail::RegisterStaticFunction<                                    \
+          decltype(                                                            \
+              static_cast<Ret (*)(A1, A2, A3, A4, A5, A6)>(Klass::Function)),  \
+          &Klass::Function, Ret, A1, A2, A3, A4, A5,                           \
+          A6>::registerAs(#Klass, #Function);
+
+#define _VRPC_MEMBER_FUNCTION_X_29(                                           \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,       \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc, A4, \
+    A4Name, A4Default, A4Desc, A5, A5Name, A5Default, A5Desc, A6, A6Name,     \
+    A6Default, A6Desc)                                                        \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionXRegistrar<                               \
+      Klass,                                                                  \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5, A6)>(           \
+          &Klass::Function)),                                                 \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5, A6>                          \
+      vrpc::detail::RegisterMemberFunctionX<                                  \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5, A6)>(       \
+              &Klass::Function)),                                             \
+          &Klass::Function, Ret, A1, A2, A3, A4, A5,                          \
+          A6>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},         \
+                          {{A1Name, A1Default, A1Desc},                       \
+                           {A2Name, A2Default, A2Desc},                       \
+                           {A3Name, A3Default, A3Desc},                       \
+                           {A4NAme, A4Default, A4Desc},                       \
+                           {A5Name, A5Default, A5Desc},                       \
+                           {A6Name, A6Default, A6Desc}});
+
+#define _VRPC_CONST_MEMBER_FUNCTION_X_29(                                     \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,       \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc, A4, \
+    A4Name, A4Default, A4Desc, A5, A5Name, A5Default, A5Desc, A6, A6Name,     \
+    A6Default, A6Desc)                                                        \
+  template <>                                                                 \
+  const vrpc::detail::MemberFunctionXRegistrar<                               \
+      Klass,                                                                  \
+      decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5, A6) const>(     \
+          &Klass::Function)),                                                 \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5, A6>                          \
+      vrpc::detail::RegisterMemberFunctionX<                                  \
+          Klass,                                                              \
+          decltype(static_cast<Ret (Klass::*)(A1, A2, A3, A4, A5, A6) const>( \
+              &Klass::Function)),                                             \
+          &Klass::Function, Ret, A1, A2, A3, A4, A5,                          \
+          A6>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},         \
+                          {{A1Name, A1Default, A1Desc},                       \
+                           {A2Name, A2Default, A2Desc},                       \
+                           {A3Name, A3Default, A3Desc},                       \
+                           {A4NAme, A4Default, A4Desc},                       \
+                           {A5Name, A5Default, A5Desc},                       \
+                           {A6Name, A6Default, A6Desc}});
+
+#define _VRPC_STATIC_FUNCTION_X_29(                                            \
+    Klass, Ret, RetDesc, Function, FunctionDesc, A1, A1Name, A1Default,        \
+    A1Desc, A2, A2Name, A2Default, A2Desc, A3, A3Name, A3Default, A3Desc, A4,  \
+    A4Name, A4Default, A4Desc, A5, A5Name, A5Default, A5Desc, A6, A6Name,      \
+    A6Default, A6Desc)                                                         \
+  template <>                                                                  \
+  const vrpc::detail::StaticFunctionXRegistrar<                                \
+      decltype(static_cast<Ret (*)(A1, A2, A3, A4, A5, A6)>(Klass::Function)), \
+      &Klass::Function, Ret, A1, A2, A3, A4, A5, A6>                           \
+      vrpc::detail::RegisterStaticFunctionX<                                   \
+          decltype(                                                            \
+              static_cast<Ret (*)(A1, A2, A3, A4, A5, A6)>(Klass::Function)),  \
+          &Klass::Function, Ret, A1, A2, A3, A4, A5,                           \
+          A6>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc},          \
+                          {{A1Name, A1Default, A1Desc},                        \
+                           {A2Name, A2Default, A2Desc},                        \
+                           {A3Name, A3Default, A3Desc},                        \
+                           {A4NAme, A4Default, A4Desc},                        \
+                           {A5Name, A5Default, A5Desc},                        \
+                           {A6Name, A6Default, A6Desc}});
+
+#define _VRPC_VOID_MEMBER_FUNCTION_CONST_8(Klass, Function, A1, A2, A3, A4, \
+                                           A5, A6)                          \
+  _VRPC_CONST_MEMBER_FUNCTION_9(Klass, void, Function, A1, A2, A3, A4, A5, A6)
+
 #define _VRPC_VOID_MEMBER_FUNCTION_8(Klass, Function, A1, A2, A3, A4, A5, A6) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4, A5, A6)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5, A6 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4, A5, A6)>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5, A6 \
-    >::registerAs(#Klass, #Function);
+  _VRPC_MEMBER_FUNCTION_9(Klass, void, Function, A1, A2, A3, A4, A5, A6)
 
-// const member
-#define _VRPC_MEMBER_FUNCTION_CONST_9(Klass, Ret, Function, A1, A2, A3, A4, A5, A6) \
-    template<> const vrpc::detail::MemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4, A5, A6) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5, A6 \
-    > vrpc::detail::RegisterMemberFunction< \
-        Klass, \
-        decltype(static_cast<Ret(Klass::*)(A1, A2, A3, A4, A5, A6) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5, A6 \
-    >::registerAs(#Klass, #Function);
+#define _VRPC_VOID_STATIC_FUNCTION_8(Klass, Function, A1, A2, A3, A4, A5, A6) \
+  _VRPC_STATIC_FUNCTION_9(Klass, void, Function, A1, A2, A3, A4, A5, A6)
 
-// void const member
-#define _VRPC_VOID_MEMBER_FUNCTION_CONST_8(Klass, Function, A1, A2, A3, A4, A5, A6) \
-    template<> const vrpc::detail::VoidMemberFunctionRegistrator< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4, A5, A6) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5, A6 \
-    > vrpc::detail::RegisterVoidMemberFunction< \
-        Klass, \
-        decltype(static_cast<void(Klass::*)(A1, A2, A3, A4, A5, A6) const>(&Klass::Function)), \
-        &Klass::Function, \
-        A1, A2, A3, A4, A5, A6 \
-    >::registerAs(#Klass, #Function);
+} // namespace vrpc
 
-// static
-#define _VRPC_STATIC_FUNCTION_9(Klass, Ret, Function, A1, A2, A3, A4, A5, A6)\
-    template<> const vrpc::detail::StaticFunctionRegistrator<\
-        decltype(static_cast<Ret(*)(A1, A2, A3, A4, A5, A6)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4, A5, A6\
-    > vrpc::detail::RegisterStaticFunction<\
-        decltype(static_cast<Ret(*)(A1, A2, A3, A4, A5, A6)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4, A5, A6\
-    >::registerAs(#Klass, #Function);
-
-// void static
-#define _VRPC_VOID_STATIC_FUNCTION_8(Klass, Function, A1, A2, A3, A4, A5, A6)\
-    template<> const vrpc::detail::VoidStaticFunctionRegistrator<\
-        decltype(static_cast<void(*)(A1, A2, A3, A4, A5, A6)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4, A5, A6\
-    > vrpc::detail::RegisterVoidStaticFunction<\
-        decltype(static_cast<void(*)(A1, A2, A3, A4, A5, A6)>(Klass::Function)),\
-        &Klass::Function,\
-        A1, A2, A3, A4, A5, A6\
-    >::registerAs(#Klass, #Function);
-}
 #endif

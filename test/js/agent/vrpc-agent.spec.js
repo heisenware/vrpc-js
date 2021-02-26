@@ -12,7 +12,7 @@ describe('vrpc-agent', () => {
   describe('construction and connection', () => {
     it('should not construct using bad parameters', async () => {
       assert.throws(
-        () => new VrpcAgent({ broker: 'mqtt://doesNotWork:1883' }),
+        () => new VrpcAgent({ broker: 'mqtt://doesNotWork:1883', domain: null }),
         {
           message: 'The domain must be specified'
         }
@@ -33,15 +33,6 @@ describe('vrpc-agent', () => {
         }),
         {
           message: 'The domain must NOT contain any of those characters: "+", "/", "#", "*"'
-        }
-      )
-      assert.throws(
-        () => new VrpcAgent({
-          broker: 'mqtt://doesNotWork:1883',
-          domain: 'test.vrpc'
-        }),
-        {
-          message: 'The agent must be specified'
         }
       )
     })

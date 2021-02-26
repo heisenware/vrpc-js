@@ -35,8 +35,8 @@ namespace vrpc_test {
       return _registry;
     }
 
-    bool hasCategory(const std::string& category) const {
-      return _registry.find(category) != _registry.end();
+    bool hasEntry(const std::string& key) const {
+      return _registry.find(key) != _registry.end();
     }
 
     void notifyOnNew(const Callback& callback) {
@@ -47,27 +47,27 @@ namespace vrpc_test {
       _callbacks["removed"] = callback;
     }
 
-    void addEntry(const std::string& category, const Entry& entry) {
-      _registry[category].push_back(entry);
-      if (_registry[category].size() == 1) {
+    void addEntry(const std::string& key, const Entry& entry) {
+      _registry[key].push_back(entry);
+      if (_registry[key].size() == 1) {
         if (_callbacks.find("new") != _callbacks.end()) {
           _callbacks["new"](entry);
         }
       }
     }
 
-    Entry removeEntry(const std::string& category) {
-      if (!hasCategory(category)) {
-        throw std::runtime_error("Can not remove non-existing category");
+    Entry removeEntry(const std::string& key) {
+      if (!hasEntry(key)) {
+        throw std::runtime_error("Can not remove non-existing entry");
       }
-      Entries& entries = _registry[category];
+      Entries& entries = _registry[key];
       Entry entry =  entries.back();
       entries.pop_back();
       if (entries.size() == 0) {
         if (_callbacks.find("removed") != _callbacks.end()) {
           _callbacks["removed"](entry);
         }
-        _registry.erase(category);
+        _registry.erase(key);
       }
       return entry;
     }
@@ -75,6 +75,14 @@ namespace vrpc_test {
     void callMeBack(const std::function<void (int32_t)>& done) const {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       done(100);
+    }
+
+    bool usingDefaults(const std::string& arg1, bool arg2 = true) {
+      return arg2;
+    }
+
+    static std::string usingStaticDefaults(const std::string& arg1, const std::string& arg2 = "", int arg3 = 42) {
+      return arg1 + arg2 + std::to_string(arg3);
     }
 
     static std::string crazy() {

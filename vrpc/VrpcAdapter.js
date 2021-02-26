@@ -248,19 +248,6 @@ class VrpcAdapter {
   }
 
   /**
-   * @typedef {Object} MetaData
-   * @param {String} MetaData.[function].description Function description
-   * @param {Object} MetaData.[function].params Object associating further information to parameters
-   * @param {Object} MetaData.[function].ret Object associating further information to return value
-   * @param {String} MetaData.[function].params.[parameter].name Parameter name
-   * @param {String} MetaData.[function].params.[parameter].description Parameter description
-   * @param {String} MetaData.[function].params.[parameter].type Parameter type
-   * @param {Boolean} MetaData.[function].params.[parameter].optional Whether parameter is optional
-   * @param {String} MetaData.[function].ret.description Return value description
-   * @param {String} MetaData.[function].ret.type Return value type
-   */
-
-  /**
    * Provides all available meta data of the registered class.
    *
    * @param {String} className Name of class to provide meta data for
@@ -269,6 +256,32 @@ class VrpcAdapter {
   static getAvailableMetaData (className) {
     return VrpcAdapter._getMetaData(className)
   }
+
+  /**
+   * @typedef {Object.<String, Func>} MetaData Associates meta data to any function
+   */
+
+   /**
+    * @typedef Func
+    * @param {String} description Function description
+    * @param {Array.<Param>} params Array of parameter details in order of signature
+    * @param {Ret} ret Object associating further information to return value
+    */
+
+   /**
+   * @typedef {Object} Param
+   * @param {String} name Parameter name
+   * @param {Boolean} optional Whether parameter is optional
+   * @param {String} description Parameter description
+   * @param {String} [type] Parameter type
+   * @param {Any} [default] The default to be injected when not provided
+   */
+
+   /**
+    * @typedef {Object} Ret
+    * @param {String} description Return value description
+    * @param {String} [type] Return value type
+    */
 
   // private:
 

@@ -55,7 +55,9 @@
     "regex": "cpp",
     "set": "cpp",
     "string": "cpp",
-    "string_view": "cpp"
+    "string_view": "cpp",
+    "condition_variable": "cpp",
+    "mutex": "cpp"
   },
   "restructuredtext.confPath": "${workspaceFolder}"
 }

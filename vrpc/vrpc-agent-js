@@ -7,10 +7,10 @@ const VrpcAgent = require('./VrpcAgent')
 const path = require('path')
 
 const parser = new ArgumentParser({
-  addHelp: true,
+  add_help: true,
   description: 'Starts a vrpc agent for node.js'
 })
-parser.addArgument(
+parser.add_argument(
   ['-d', '--domain'],
   {
     help: 'The prefix for all vrpc communication',
@@ -18,7 +18,7 @@ parser.addArgument(
     required: true
   }
 )
-parser.addArgument(
+parser.add_argument(
   ['-a', '--agent'],
   {
     help: 'Name of the agent for remote addressing',
@@ -26,31 +26,31 @@ parser.addArgument(
     required: true
   }
 )
-parser.addArgument(
+parser.add_argument(
   ['-t', '--token'],
   {
     help: 'Token for authentication and authorization',
     type: 'string'
   }
 )
-parser.addArgument(
+parser.add_argument(
   ['-f', '--file'],
   {
     help: 'Name of the binding file (Default is \'PATH/binding.js\')',
     type: 'string',
-    defaultValue: './binding.js'
+    default: './binding.js'
   }
 )
-parser.addArgument(
+parser.add_argument(
   ['-b', '--broker'],
   {
     help: 'The broker to use',
     type: 'string',
-    defaultValue: 'mqtts://vrpc.io:8883'
+    default: 'mqtts://vrpc.io:8883'
   }
 )
 
-const args = parser.parseArgs()
+const args = parser.parse_args()
 
 // Load the bindings
 try {

@@ -19,19 +19,36 @@ namespace vrpc_test {
     b.member_4 = j.at("member4").get<std::vector<uint16_t>>();
   }
 
-  VRPC_VOID_CTOR(TestClass);
-  VRPC_CTOR(TestClass, const TestClass::Registry&)
+  VRPC_CTOR_X(TestClass, "Creates an empty TestClass")
+  VRPC_CTOR_X(TestClass,
+            "Creates a pre-filled TestClass",
+            const TestClass::Registry&,
+            "registry",
+            required(),
+            "Registry information")
 
-  VRPC_MEMBER_FUNCTION_CONST(TestClass, const TestClass::Registry&, getRegistry)
-  VRPC_MEMBER_FUNCTION_CONST(TestClass, bool, hasCategory, const std::string&)
-  VRPC_VOID_MEMBER_FUNCTION(TestClass, notifyOnNew, VRPC_CALLBACK(const Entry&))
-  VRPC_VOID_MEMBER_FUNCTION(TestClass, notifyOnRemoved, VRPC_CALLBACK(const Entry&))
-  VRPC_VOID_MEMBER_FUNCTION(TestClass, addEntry, const std::string&, const Entry&)
+  VRPC_CONST_MEMBER_FUNCTION(TestClass, const TestClass::Registry&, getRegistry)
+  VRPC_CONST_MEMBER_FUNCTION(TestClass, bool, hasEntry, const std::string&)
+  VRPC_MEMBER_FUNCTION(TestClass, void, notifyOnNew, VRPC_CALLBACK(const Entry&))
+  VRPC_MEMBER_FUNCTION(TestClass, void, notifyOnRemoved, VRPC_CALLBACK(const Entry&))
+  VRPC_MEMBER_FUNCTION(TestClass, void, addEntry, const std::string&, const Entry&)
   VRPC_MEMBER_FUNCTION(TestClass, Entry, removeEntry, const std::string&);
-  VRPC_VOID_MEMBER_FUNCTION_CONST(TestClass, callMeBack, VRPC_CALLBACK(int32_t))
+  VRPC_CONST_MEMBER_FUNCTION(TestClass, void, callMeBack, VRPC_CALLBACK(int32_t))
+  VRPC_MEMBER_FUNCTION_X(
+    TestClass,
+    bool, "by default returns true",
+    usingDefaults, "test to check proper injection of defaults",
+    const std::string&, "dummy", required(), "some placeholder string",
+    bool, "didWork", true, "toggles the return value"
+  )
 
-  VRPC_STATIC_FUNCTION(TestClass, std::string, crazy);
-  VRPC_STATIC_FUNCTION(TestClass, std::string, crazy, const std::string&)
+  VRPC_STATIC_FUNCTION(TestClass, std::string, crazy)
+  VRPC_STATIC_FUNCTION_X(
+    TestClass,
+    std::string, "returned message",
+    crazy, "Generates a composed message",
+    const std::string&, "who", required(), "Provides customized part of the message"
+  )
 
 }
 

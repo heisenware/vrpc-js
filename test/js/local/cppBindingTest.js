@@ -74,7 +74,7 @@ describe('The native addon', () => {
     it('should be able to call member function given valid instanceId', () => {
       const json = {
         context: instanceId,
-        method: 'hasCategory',
+        method: 'hasEntry',
         data: { _1: 'test' }
       }
       const ret = JSON.parse(addon.call(JSON.stringify(json)))
@@ -135,7 +135,7 @@ describe('The native addon', () => {
     it('should be able to call member function given named instanceId', () => {
       const json = {
         context: 'test1',
-        method: 'hasCategory',
+        method: 'hasEntry',
         data: { _1: 'test' }
       }
       const ret = JSON.parse(addon.call(JSON.stringify(json)))
@@ -180,7 +180,7 @@ describe('The native addon', () => {
     it('should not be possible to call functions on a deleted instance', () => {
       const json = {
         context: 'test1',
-        method: 'hasCategory',
+        method: 'hasEntry',
         data: { _1: 'test' }
       }
       const ret = JSON.parse(addon.call(JSON.stringify(json)))

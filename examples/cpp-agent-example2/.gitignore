@@ -1,0 +1,4 @@
+/third_party
+vrpc-bar-agent
+*.o
+*.tar.gz

@@ -14,7 +14,8 @@ file that implements the `main` function.
 
 ---
 **IMPORTANT**
-Always define binding macros and function within the vrpc namespace, i.e.
+Always define binding macros and functions within the vrpc namespace, i.e.
+
 ```cpp
 namespace vrpc {
   // Binding code goes here
@@ -35,11 +36,6 @@ VRPC_CTOR(<className>, <args>)
 Use this macro to register constructors with arguments. Repeat
 this macro for all overloads you need.
 
-For constructors without arguments use:
-```cpp
-VRPC_VOID_CTOR(<className>)
-```
-
 ## 2. Member functions
 
 ```cpp
@@ -49,29 +45,20 @@ VRPC_MEMBER_FUNCTION(<className>, <returnValue>, <functionName>[, <args>])
 Use this macro to register class member functions. Repeat this macro for
 all overloads you need.
 
-For member functions with **void return value** use:
-```cpp
-VRPC_VOID_MEMBER_FUNCTION(<className>, <functionName>[, <args>])
-```
-
 For **const**ant member functions use:
+
 ```cpp
-VRPC_MEMBER_FUNCTION_CONST(<className>, <functionName>[, <args>])
+VRPC_CONST_MEMBER_FUNCTION(<className>, <returnValue>, <functionName>[, <args>])
 ```
 
 ## 3. Static functions
 
 ```cpp
-VRPC_STATIC_FUNCTION(<className>, <returnValue>, <functionName>, <args>)
+VRPC_STATIC_FUNCTION(<className>, <returnValue>, <functionName>[, <args>])
 ```
 
   Use this macro to register static functions. Repeat this macro for all
   overloads you need.
-
-For static functions with **void return value** use:
-```cpp
-VRPC_VOID_STATIC_FUNCTION(<className>, <functionName>[, <args>])
-```
 
 ## 4. Callbacks
 
@@ -102,7 +89,50 @@ use:
 ```cpp
 _VRPC_MEMBER_FUNCTION_5(Foo, std::string, bar, int, float)
 ```
+
 ---
+
+## Adding function and parameter documentation
+
+You may want to add function and parameter documentation to the bound functions
+in order to help other users to understand how your API works.
+
+**IMPORTANT** If you want to support **default values** for function arguments,
+adding such meta information is essential!
+
+Use a `_X` suffix to the binding macro which then allows for the following input:
+
+```cpp
+VRPC_MEMBER_FUNCTION_X(
+  <className>,
+  <returnValue>, "<return value description>",
+  <functionName>, "<function description>"[,
+  <arg1>, "<arg name>", <defaultValue> | required(), "<arg description>"[,
+  ...]]
+)
+```
+
+To e.g. bind this member function of class `Foo`:
+
+```cpp
+bool hasUser(const std::string& username, bool onlyLocal = false);
+```
+
+use:
+
+```cpp
+VRPC_MEMBER_FUNCTION_X(
+  Foo,
+  bool, "returns true if user was found, false otherwise",
+  hasUser, "checks whether a given user exists",
+  const std::string&, "username", required(), "the username to be checked",
+  bool, "onlyLocal", false, "set true to only check local users"
+)
+```
+
+**NOTE** Whenever your are using the `_X` suffix you must fully document the
+return value, the function and each argument. There is no possibility to skip
+any documentation information.
 
 ## Binding of custom data types
 
@@ -122,6 +152,7 @@ namespace ns {
   };
 }
 ```
+
 Then on the top of your binding file (before the macros) add:
 
 ```cpp

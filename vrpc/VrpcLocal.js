@@ -152,6 +152,10 @@ class VrpcLocal {
     return JSON.parse(this._adapter.getStaticFunctions(className))
   }
 
+  getMetaData (className) {
+    return JSON.parse(this._adapter.getMetaData(className))
+  }
+
   // private:
 
   _create ({ className, instance, args = [] }) {

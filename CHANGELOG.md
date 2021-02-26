@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Added
+
+- possibility to use `VRPC_CTOR`, `VRPC_MEMBER_FUNCTION` and
+  `VRPC_STATIC_FUNCTION` for `void` return values as well. This obsoletes all
+  macros including the `*_VOID_*` tag. [C++]
+- `*_X` version of all macros allowing to add function meta information.
+  See documentation for more details. [C++]
+- support for C++ code that executes callbacks within threads
+- fresh examples (including code) exploring the new features
+
+### Changed
+
+- upgraded json.hpp version to latest [C++]
+- made domain and agent optional when starting commandline agents [All]
+
+### Fixed
+
+- documentation w.r.t. to meta data API [Node.js]
+
 ## [2.3.2] - 18 Feb 2021
 
 ### Fixed

@@ -98,11 +98,11 @@ General RPC **response** payload pattern:
 2. VRPC generates an MQTT client ID like so:
 
     ```xml
-    vrpca<agentInstance>
+    vrpca<agentInstance>X<random>
     ```
 
-    where `<agentInstance>` reflects the first 18 chars of an md5 hash composed
-    out of domain and agent.
+    where `<agentInstance>` reflects the first 13 chars of an md5 hash composed
+    out of domain and agent and random being composed of 4 chars.
 
 3. VRPC **publishes** the (retained) agent info message:
 
