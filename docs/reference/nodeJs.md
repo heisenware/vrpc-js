@@ -64,11 +64,10 @@ communication.
 Automatically requires .js files for auto-registration.
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| dirPath | <code>String</code> | Relative path to start the auto-registration from |
-| [maxLevel] | <code>Number</code> | Maximum search depth (default: unlimited) |
+- dirPath <code>String</code> - Relative path to start the auto-registration from
+- [maxLevel] <code>Number</code> - Maximum search depth (default: unlimited)
 
 
 * * *
@@ -79,15 +78,22 @@ Automatically requires .js files for auto-registration.
 Registers existing code and makes it (remotely) callable
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
+**Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| code | <code>Object</code> \| <code>string</code> |  | Existing code to be registered, can be a class or function object or a relative path to a module |
-| [options] | <code>Object</code> |  |  |
-| [options.onlyPublic] | <code>Boolean</code> | <code>true</code> | If true, only registers functions that do not begin with an underscore |
-| [options.withNew] | <code>Boolean</code> | <code>true</code> | If true, class will be constructed using the `new` operator |
-| [options.schema] | <code>Object</code> | <code></code> | If provided is used to validate ctor parameters (only works if registered code reflects a single class) |
-| options.jsdocPath | <code>Boolean</code> |  | if provided, parses documentation and provides it as meta information (if the code parameter reflects a path this is automatically taken as default) NOTE: This function currently only supports registration of classes (either when provided as object or when exported on the provided module path) |
+- code <code>Any</code> - Existing code to be registered, can be a class
+or function object or a relative path to a module
+- [options] <code>Object</code>
+    - [.onlyPublic] <code>Boolean</code> <code> = true</code> - If true, only registers
+functions that do not begin with an underscore
+    - [.withNew] <code>Boolean</code> <code> = true</code> - If true, class will be constructed
+using the `new` operator
+    - [.schema] <code>Object</code> <code> = </code> - If provided is used to validate ctor
+parameters (only works if registered code reflects a single class)
+    - .jsdocPath <code>Boolean</code> - if provided, parses documentation and
+provides it as meta information
+
+NOTE: This function currently only supports registration of classes (either
+when provided as object or when exported on the provided module path)
 
 
 * * *
@@ -99,11 +105,10 @@ Creates an un-managed, anonymous instance
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Object</code> - The real instance (not a proxy!)  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of the class to create an instance of |
-| ...args | <code>any</code> | Arguments to provide to the constructor |
+- className <code>String</code> - Name of the class to create an instance of
+- ...args <code>any</code> - Arguments to provide to the constructor
 
 
 * * *
@@ -115,12 +120,11 @@ Creates a managed named instance
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Object</code> - The real instance (not a proxy!)  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of the class to create an instance of |
-| instance | <code>String</code> | Name of the instance |
-| ...args | <code>any</code> | Arguments to provide to the constructor |
+- className <code>String</code> - Name of the class to create an instance of
+- instance <code>String</code> - Name of the instance
+- ...args <code>any</code> - Arguments to provide to the constructor
 
 
 * * *
@@ -132,10 +136,9 @@ Deletes a managed instance
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Boolean</code> - True in case of success, false otherwise  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| instance | <code>String</code> | Name of the instance to be deleted |
+- instance <code>String</code> - Name of the instance to be deleted
 
 
 * * *
@@ -147,10 +150,9 @@ Retrieves an existing instance by name
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Object</code> - The real instance (not a proxy!)  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| instance | <code>String</code> | Name of the instance to be acquired |
+- instance <code>String</code> - Name of the instance to be acquired
 
 
 * * *
@@ -172,10 +174,9 @@ Provides the names of all currently running instances.
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Array.&lt;String&gt;</code> - Array of instance names  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of class to retrieve the instances for |
+- className <code>String</code> - Name of class to retrieve the instances for
 
 
 * * *
@@ -187,10 +188,9 @@ Provides all available member functions of the specified class.
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Array.&lt;String&gt;</code> - Array of member function names  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of class to provide member functions for |
+- className <code>String</code> - Name of class to provide member functions for
 
 
 * * *
@@ -202,10 +202,9 @@ Provides all available static functions of a registered class.
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Array.&lt;String&gt;</code> - Array of static function names  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of class to provide static functions for |
+- className <code>String</code> - Name of class to provide static functions for
 
 
 * * *
@@ -217,10 +216,9 @@ Provides all available meta data of the registered class.
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: [<code>MetaData</code>](#MetaData) - Meta Data  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of class to provide meta data for |
+- className <code>String</code> - Name of class to provide meta data for
 
 
 * * *
@@ -256,19 +254,18 @@ Agent capable of making existing code available to remote control by clients.
 ### new VrpcAgent(obj)
 Constructs an agent instance
 
+**Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| obj | <code>Object</code> |  |  |
-| [obj.username] | <code>String</code> |  | MQTT username (if no token is used) |
-| [obj.password] | <code>String</code> |  | MQTT password (if no token is provided) |
-| [obj.token] | <code>String</code> |  | Access token as generated by: https://app.vrpc.io (only optional when using default domain and broker) |
-| [obj.domain] | <code>String</code> | <code>&#x27;public.vrpc&#x27;</code> | The domain under which the agent-provided code is reachable |
-| [obj.agent] | <code>String</code> | <code>&#x27;&lt;user&gt;-&lt;pathId&gt;@&lt;hostname&gt;-&lt;platform&gt;-js&#x27;</code> | This agent's name |
-| [obj.broker] | <code>String</code> | <code>&#x27;mqtts://vrpc.io:8883&#x27;</code> | Broker url in form: `<scheme>://<host>:<port>` |
-| [obj.log] | <code>Object</code> | <code>console</code> | Log object (must support debug, info, warn, and error level) |
-| [obj.bestEffort] | <code>String</code> | <code>false</code> | If true, message will be sent with best effort, i.e. no caching if offline |
-| [obj.version] | <code>String</code> | <code>&#x27;&#x27;</code> | The (user-defined) version of this agent |
+- obj <code>Object</code>
+    - [.username] <code>String</code> - MQTT username (if no token is used)
+    - [.password] <code>String</code> - MQTT password (if no token is provided)
+    - [.token] <code>String</code> - Access token as generated by: https://app.vrpc.io (only optional when using default domain and broker)
+    - [.domain] <code>String</code> <code> = &#x27;public.vrpc&#x27;</code> - The domain under which the agent-provided code is reachable
+    - [.agent] <code>String</code> <code> = &#x27;&lt;user&gt;-&lt;pathId&gt;@&lt;hostname&gt;-&lt;platform&gt;-js&#x27;</code> - This agent's name
+    - [.broker] <code>String</code> <code> = &#x27;mqtts://vrpc.io:8883&#x27;</code> - Broker url in form: `<scheme>://<host>:<port>`
+    - [.log] <code>Object</code> <code> = console</code> - Log object (must support debug, info, warn, and error level)
+    - [.bestEffort] <code>String</code> <code> = false</code> - If true, message will be sent with best effort, i.e. no caching if offline
+    - [.version] <code>String</code> <code> = &#x27;&#x27;</code> - The (user-defined) version of this agent
 
 **Example**  
 ```js
@@ -307,11 +304,10 @@ Stops the agent
 
 **Kind**: instance method of [<code>VrpcAgent</code>](#VrpcAgent)  
 **Returns**: <code>Promise</code> - Resolves when disconnected and ended  
+**Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| [obj] | <code>Object</code> |  |  |
-| [unregister] | <code>Boolean</code> | <code>false</code> | If true, fully un-registers agent from broker |
+- [obj] <code>Object</code>
+- [unregister] <code>Boolean</code> <code> = false</code> - If true, fully un-registers agent from broker
 
 
 * * *
@@ -411,17 +407,16 @@ Constructs an agent by parsing command line arguments
 
 **Kind**: static method of [<code>VrpcAgent</code>](#VrpcAgent)  
 **Returns**: <code>Agent</code> - Agent instance  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| defaults | <code>Object</code> | Allows to specify defaults for the various command line options |
-| defaults.domain | <code>String</code> | The domain under which the agent-provided code is reachable |
-| defaults.agent | <code>String</code> | This agent's name |
-| defaults.username | <code>String</code> | MQTT username (if no token is used) |
-| defaults.password | <code>String</code> | MQTT password (if no token is provided) |
-| defaults.token | <code>String</code> | Access token as generated by: https://app.vrpc.io |
-| defaults.broker | <code>String</code> | Broker url in form: `<scheme>://<host>:<port>` |
-| defaults.version | <code>String</code> | The (custom) version of this agent |
+- defaults <code>Object</code> - Allows to specify defaults for the various command line options
+    - .domain <code>String</code> - The domain under which the agent-provided code is reachable
+    - .agent <code>String</code> - This agent's name
+    - .username <code>String</code> - MQTT username (if no token is used)
+    - .password <code>String</code> - MQTT password (if no token is provided)
+    - .token <code>String</code> - Access token as generated by: https://app.vrpc.io
+    - .broker <code>String</code> - Broker url in form: `<scheme>://<host>:<port>`
+    - .version <code>String</code> - The (custom) version of this agent
 
 **Example**  
 ```js
@@ -452,10 +447,9 @@ functions as provided through native addons.
 <a name="new_VrpcLocal_new"></a>
 
 ### new VrpcLocal(adapter)
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| adapter | <code>Object</code> | An adapter object, typically loaded as native addon |
+- adapter <code>Object</code> - An adapter object, typically loaded as native addon
 
 
 * * *
@@ -467,11 +461,10 @@ Creates an instance of the specified class.
 
 **Kind**: instance method of [<code>VrpcLocal</code>](#VrpcLocal)  
 **Returns**: <code>Object</code> - Proxy to the created instance  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of the class to create an instance of |
-| ...args | <code>Any</code> | Arguments to provide to the constructor |
+- className <code>String</code> - Name of the class to create an instance of
+- ...args <code>Any</code> - Arguments to provide to the constructor
 
 
 * * *
@@ -493,10 +486,9 @@ Provides the names of all currently running instances.
 
 **Kind**: instance method of [<code>VrpcLocal</code>](#VrpcLocal)  
 **Returns**: <code>Array.&lt;String&gt;</code> - Array of instance names  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of class to retrieve the instances for |
+- className <code>String</code> - Name of class to retrieve the instances for
 
 
 * * *
@@ -508,10 +500,9 @@ Provides all available member functions of the specified class.
 
 **Kind**: instance method of [<code>VrpcLocal</code>](#VrpcLocal)  
 **Returns**: <code>Array.&lt;String&gt;</code> - Array of member function names  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of class to provide member functions for |
+- className <code>String</code> - Name of class to provide member functions for
 
 
 * * *
@@ -523,10 +514,9 @@ Provides all available static functions of a registered class.
 
 **Kind**: instance method of [<code>VrpcLocal</code>](#VrpcLocal)  
 **Returns**: <code>Array.&lt;String&gt;</code> - Array of static function names  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| className | <code>String</code> | Name of class to provide static functions for |
+- className <code>String</code> - Name of class to provide static functions for
 
 
 * * *
@@ -580,19 +570,18 @@ Constructs a remote client, able to communicate with any distributed agents
 
 NOTE: Each instance creates its own physical connection to the broker.
 
+**Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| options | <code>Object</code> |  |  |
-| options.token | <code>String</code> |  | Access token as generated by: https://app.vrpc.io |
-| options.username | <code>String</code> |  | MQTT username (if no token is used) |
-| options.password | <code>String</code> |  | MQTT password (if no token is provided) |
-| options.domain | <code>String</code> |  | Sets the domain |
-| [options.agent] | <code>String</code> | <code>&quot;*&quot;</code> | Sets default agent |
-| [options.broker] | <code>String</code> | <code>&quot;mqtts://vrpc.io:8883&quot;</code> | Broker url in form: `<scheme>://<host>:<port>` |
-| [options.timeout] | <code>Number</code> | <code>6000</code> | Maximum time in ms to wait for a RPC answer |
-| [options.log] | <code>Object</code> | <code>console</code> | Log object (must support debug, info, warn, and error level) |
-| [options.bestEffort] | <code>Boolean</code> | <code>false</code> | If true, message will be sent with best effort, i.e. no caching if offline |
+- options <code>Object</code>
+    - .token <code>String</code> - Access token as generated by: https://app.vrpc.io
+    - .username <code>String</code> - MQTT username (if no token is used)
+    - .password <code>String</code> - MQTT password (if no token is provided)
+    - .domain <code>String</code> - Sets the domain
+    - [.agent] <code>String</code> <code> = &quot;*&quot;</code> - Sets default agent
+    - [.broker] <code>String</code> <code> = &quot;mqtts://vrpc.io:8883&quot;</code> - Broker url in form: `<scheme>://<host>:<port>`
+    - [.timeout] <code>Number</code> <code> = 6000</code> - Maximum time in ms to wait for a RPC answer
+    - [.log] <code>Object</code> <code> = console</code> - Log object (must support debug, info, warn, and error level)
+    - [.bestEffort] <code>Boolean</code> <code> = false</code> - If true, message will be sent with best effort, i.e. no caching if offline
 
 **Example**  
 ```js
@@ -645,14 +634,16 @@ called.
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Promise.&lt;Proxy&gt;</code> - Object reflecting a proxy to the original one
 handled by the agent  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| options | <code>Object</code> |  |
-| options.className | <code>String</code> | Name of the class which should be instantiated |
-| [options.instance] | <code>String</code> | Name of the created instance. If not provided an (invisible) id will be generated |
-| [options.args] | <code>Array</code> | Positional arguments for the constructor call |
-| [options.agent] | <code>String</code> | Agent name. If not provided class default is used |
+- options <code>Object</code>
+    - .className <code>String</code> - Name of the class which should be
+instantiated
+    - [.instance] <code>String</code> - Name of the created instance. If not
+provided an (invisible) id will be generated
+    - [.args] <code>Array</code> - Positional arguments for the constructor call
+    - [.agent] <code>String</code> - Agent name. If not provided class default
+is used
 
 **Example**  
 ```js
@@ -686,14 +677,13 @@ data.
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Promise.&lt;Proxy&gt;</code> - Proxy object reflecting the remotely existing instance  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| instance | <code>String</code> | The instance to be retrieved |
-| [options] | <code>Object</code> | Explicitly define agent and class |
-| options.className | <code>String</code> | Name of the instance's class |
-| options.agent | <code>String</code> | Agent name. If not provided class default is used |
-| options.noWait | <code>bool</code> | If true immediately fail if instance could not be found in local cache |
+- instance <code>String</code> - The instance to be retrieved
+- [options] <code>Object</code> - Explicitly define agent and class
+    - .className <code>String</code> - Name of the instance's class
+    - .agent <code>String</code> - Agent name. If not provided class default is used
+    - .noWait <code>bool</code> - If true immediately fail if instance could not be found in local cache
 
 
 * * *
@@ -708,13 +698,12 @@ client information, or provide an object with explicit meta data.
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Promise.&lt;Boolean&gt;</code> - true if successful, false otherwise  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| instance | <code>String</code> | The instance to be deleted |
-| [options] | <code>Object</code> | Explicitly define agent and class |
-| options.className | <code>String</code> | Name of the instance's class |
-| options.agent | <code>String</code> | Agent name. If not provided class default is used |
+- instance <code>String</code> - The instance to be deleted
+- [options] <code>Object</code> - Explicitly define agent and class
+    - .className <code>String</code> - Name of the instance's class
+    - .agent <code>String</code> - Agent name. If not provided class default is used
 
 
 * * *
@@ -726,14 +715,13 @@ Calls a static function on a remote class
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Promise.&lt;Any&gt;</code> - Return value of the remotely called function  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| options | <code>Object</code> |  |
-| options.className | <code>String</code> | Name of the static function's class |
-| options.functionName | <code>String</code> | Name of the static function to be called |
-| [options.args] | <code>Array</code> | Positional arguments of the static function call |
-| [options.agent] | <code>String</code> | Agent name. If not provided class default is used |
+- options <code>Object</code>
+    - .className <code>String</code> - Name of the static function's class
+    - .functionName <code>String</code> - Name of the static function to be called
+    - [.args] <code>Array</code> - Positional arguments of the static function call
+    - [.agent] <code>String</code> - Agent name. If not provided class default is used
 
 
 * * *
@@ -752,13 +740,12 @@ a wildcard (*) as agent value.
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code> - An array of objects `{ id, val, err }` carrying
 the instance id, the return value and potential errors  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| options | <code>Object</code> |  |
-| options.className | <code>String</code> | Name of the static function's class |
-| [options.args] | <code>Array</code> | Positional arguments of the static function call |
-| [options.agent] | <code>String</code> | Agent name. If not provided class default is used |
+- options <code>Object</code>
+    - .className <code>String</code> - Name of the static function's class
+    - [.args] <code>Array</code> - Positional arguments of the static function call
+    - [.agent] <code>String</code> - Agent name. If not provided class default is used
 
 
 * * *
@@ -827,11 +814,10 @@ Retrieves all available agents.
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Array</code> - Array of agent names.  
+**Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| [options] | <code>Object</code> |  |  |
-| [options.mustBeOnline] | <code>Boolean</code> | <code>true</code> | Only retrieve currently online agents |
+- [options] <code>Object</code>
+    - [.mustBeOnline] <code>Boolean</code> <code> = true</code> - Only retrieve currently online agents
 
 
 * * *
@@ -843,12 +829,11 @@ Retrieves all available classes on specific agent.
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Array</code> - Array of class names.  
+**Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| [options] | <code>Object</code> |  |  |
-| [options.agent] | <code>String</code> |  | Agent name. If not provided class default is used. |
-| [options.mustBeOnline] | <code>Boolean</code> | <code>true</code> | Only retrieve currently online classes |
+- [options] <code>Object</code>
+    - [.agent] <code>String</code> - Agent name. If not provided class default is used.
+    - [.mustBeOnline] <code>Boolean</code> <code> = true</code> - Only retrieve currently online classes
 
 
 * * *
@@ -860,13 +845,12 @@ Retrieves all (named) instances on specific class and agent.
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Array</code> - Array of instance names  
+**Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| className | <code>String</code> |  | Class name |
-| [options] | <code>Object</code> |  |  |
-| [options.agent] | <code>String</code> |  | Agent name. If not provided class default is used |
-| [options.mustBeOnline] | <code>Boolean</code> | <code>true</code> | Only retrieve currently online classes |
+- className <code>String</code> - Class name
+- [options] <code>Object</code>
+    - [.agent] <code>String</code> - Agent name. If not provided class default is used
+    - [.mustBeOnline] <code>Boolean</code> <code> = true</code> - Only retrieve currently online classes
 
 
 * * *
@@ -878,13 +862,12 @@ Retrieves all member functions of specific class and agent.
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Array</code> - Array of member function names  
+**Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| className | <code>String</code> |  | Class name |
-| [options] | <code>Object</code> |  |  |
-| [options.agent] | <code>String</code> |  | Agent name. If not provided class default is used |
-| [options.mustBeOnline] | <code>Boolean</code> | <code>true</code> | Only retrieve currently online classes |
+- className <code>String</code> - Class name
+- [options] <code>Object</code>
+    - [.agent] <code>String</code> - Agent name. If not provided class default is used
+    - [.mustBeOnline] <code>Boolean</code> <code> = true</code> - Only retrieve currently online classes
 
 
 * * *
@@ -896,13 +879,12 @@ Retrieves all static functions of specific class and agent.
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Array</code> - Array of static function names  
+**Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| className | <code>String</code> |  | Class name |
-| [options] | <code>Object</code> |  |  |
-| [options.agent] | <code>String</code> |  | Agent name. If not provided class default is used |
-| [options.mustBeOnline] | <code>Boolean</code> | <code>true</code> | Only retrieve currently online classes |
+- className <code>String</code> - Class name
+- [options] <code>Object</code>
+    - [.agent] <code>String</code> - Agent name. If not provided class default is used
+    - [.mustBeOnline] <code>Boolean</code> <code> = true</code> - Only retrieve currently online classes
 
 
 * * *
@@ -914,12 +896,11 @@ Reconnects to the broker by using a different token
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Promise</code> - Promise that resolves once re-connected  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| token | <code>String</code> | Access token as generated by: https://app.vrpc.io |
-| [options] | <code>Object</code> |  |
-| options.agent | <code>String</code> | Agent name. If not provided class default is used |
+- token <code>String</code> - Access token as generated by: https://app.vrpc.io
+- [options] <code>Object</code>
+    - .agent <code>String</code> - Agent name. If not provided class default is used
 
 
 * * *
@@ -931,10 +912,9 @@ Unregisters (= removal of persisted information) an offline agent
 
 **Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
 **Returns**: <code>Promise.&lt;Boolean&gt;</code> - Resolves to true in case of success, false otherwise  
+**Params**
 
-| Param | Description |
-| --- | --- |
-| agent | The agent to be unregistered |
+- agent - The agent to be unregistered
 
 
 * * *
@@ -958,15 +938,14 @@ This event is fired whenever an agent is added or removed, or whenever
 an agent changes its status (switches between online or offline).
 
 **Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| info | <code>Object</code> |  |
-| info.domain | <code>String</code> | Domain name |
-| info.agent | <code>String</code> | Agent name |
-| info.status | <code>String</code> | Agent status, can be 'offline' or 'online' |
-| info.hostname | <code>String</code> | Name of the host running the agent |
-| info.version | <code>String</code> | User-defined version of the agent |
+- info <code>Object</code>
+    - .domain <code>String</code> - Domain name
+    - .agent <code>String</code> - Agent name
+    - .status <code>String</code> - Agent status, can be 'offline' or 'online'
+    - .hostname <code>String</code> - Name of the host running the agent
+    - .version <code>String</code> - User-defined version of the agent
 
 
 * * *
@@ -980,17 +959,16 @@ Emitted whenever a class is added or removed, or when instances
 or functions of this class have changed.
 
 **Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| info | <code>Object</code> |  |
-| info.domain | <code>String</code> | Domain name |
-| info.agent | <code>String</code> | Agent name |
-| info.className | <code>String</code> | Class name |
-| info.instances | <code>Array.&lt;String&gt;</code> | Array of named instances |
-| info.memberFunctions | <code>Array.&lt;String&gt;</code> | Array of member functions |
-| info.staticFunctions | <code>Array.&lt;String&gt;</code> | Array of static functions |
-| info.meta | [<code>MetaData</code>](#MetaData) | Object associating further information to functions |
+- info <code>Object</code>
+    - .domain <code>String</code> - Domain name
+    - .agent <code>String</code> - Agent name
+    - .className <code>String</code> - Class name
+    - .instances <code>Array.&lt;String&gt;</code> - Array of named instances
+    - .memberFunctions <code>Array.&lt;String&gt;</code> - Array of member functions
+    - .staticFunctions <code>Array.&lt;String&gt;</code> - Array of static functions
+    - .meta [<code>MetaData</code>](#MetaData) - Object associating further information to functions
 
 
 * * *
@@ -1003,14 +981,13 @@ Event 'instanceNew'
 Emitted whenever a new instance was created.
 
 **Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| addedInstances | <code>Array.&lt;String&gt;</code> | An array of newly added instances |
-| info | <code>Object</code> |  |
-| info.domain | <code>String</code> | Domain name |
-| info.agent | <code>String</code> | Agent name |
-| info.className | <code>String</code> | Class name |
+- addedInstances <code>Array.&lt;String&gt;</code> - An array of newly added instances
+- info <code>Object</code>
+    - .domain <code>String</code> - Domain name
+    - .agent <code>String</code> - Agent name
+    - .className <code>String</code> - Class name
 
 
 * * *
@@ -1023,14 +1000,13 @@ Event 'instanceGone'
 Emitted whenever a new instance was removed.
 
 **Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| removedInstances | <code>Array.&lt;String&gt;</code> | An array of removed instances |
-| info | <code>Object</code> |  |
-| info.domain | <code>String</code> | Domain name |
-| info.agent | <code>String</code> | Agent name |
-| info.className | <code>String</code> | Class name |
+- removedInstances <code>Array.&lt;String&gt;</code> - An array of removed instances
+- info <code>Object</code>
+    - .domain <code>String</code> - Domain name
+    - .agent <code>String</code> - Agent name
+    - .className <code>String</code> - Class name
 
 
 * * *
@@ -1128,12 +1104,11 @@ Associates meta data to any function
 
 ## Func
 **Kind**: global typedef  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| description | <code>String</code> | Function description |
-| params | [<code>Array.&lt;Param&gt;</code>](#Param) | Array of parameter details in order of signature |
-| ret | [<code>Ret</code>](#Ret) | Object associating further information to return value |
+- description <code>String</code> - Function description
+- params [<code>Array.&lt;Param&gt;</code>](#Param) - Array of parameter details in order of signature
+- ret [<code>Ret</code>](#Ret) - Object associating further information to return value
 
 
 * * *
@@ -1142,14 +1117,13 @@ Associates meta data to any function
 
 ## Param : <code>Object</code>
 **Kind**: global typedef  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| name | <code>String</code> | Parameter name |
-| optional | <code>Boolean</code> | Whether parameter is optional |
-| description | <code>String</code> | Parameter description |
-| [type] | <code>String</code> | Parameter type |
-| [default] | <code>Any</code> | The default to be injected when not provided |
+- name <code>String</code> - Parameter name
+- optional <code>Boolean</code> - Whether parameter is optional
+- description <code>String</code> - Parameter description
+- [type] <code>String</code> - Parameter type
+- [default] <code>Any</code> - The default to be injected when not provided
 
 
 * * *
@@ -1158,11 +1132,10 @@ Associates meta data to any function
 
 ## Ret : <code>Object</code>
 **Kind**: global typedef  
+**Params**
 
-| Param | Type | Description |
-| --- | --- | --- |
-| description | <code>String</code> | Return value description |
-| [type] | <code>String</code> | Return value type |
+- description <code>String</code> - Return value description
+- [type] <code>String</code> - Return value type
 
 
 * * *

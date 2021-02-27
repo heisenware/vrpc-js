@@ -85,18 +85,17 @@ class VrpcAdapter {
   /**
    * Registers existing code and makes it (remotely) callable
    *
-   * @param {Object|string} code Existing code to be registered, can be a class
+   * @param {Any} code Existing code to be registered, can be a class
    * or function object or a relative path to a module
    * @param {Object} [options]
-   * @param {Boolean} [options.onlyPublic=true] If true, only registers functions
-   * that do not begin with an underscore
+   * @param {Boolean} [options.onlyPublic=true] If true, only registers
+   * functions that do not begin with an underscore
    * @param {Boolean} [options.withNew=true] If true, class will be constructed
    * using the `new` operator
    * @param {Object} [options.schema=null] If provided is used to validate ctor
    * parameters (only works if registered code reflects a single class)
    * @param {Boolean} options.jsdocPath if provided, parses documentation and
-   * provides it as meta information (if the code parameter reflects a path this
-   * is automatically taken as default)
+   * provides it as meta information
    *
    * NOTE: This function currently only supports registration of classes (either
    * when provided as object or when exported on the provided module path)

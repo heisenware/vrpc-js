@@ -18,7 +18,7 @@
     "test:jsAgent": "test/js/agent/test.sh",
     "test:jsPerformance": "test/js/performance/test.sh",
     "example": "node examples/Bar.js",
-    "build:doc": "echo '# API reference documentation for Node.js\n' > docs/reference/nodeJs.md; ./node_modules/.bin/jsdoc2md -f vrpc/*.js --separators >> docs/reference/nodeJs.md",
+    "build:doc": "echo '# API reference documentation for Node.js\n' > docs/reference/nodeJs.md; ./node_modules/.bin/jsdoc2md -f vrpc/*.js --param-list-format=list --separators >> docs/reference/nodeJs.md",
     "build:browser": "./node_modules/.bin/webpack"
   },
   "bin": {
