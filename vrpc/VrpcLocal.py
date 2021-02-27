@@ -68,12 +68,32 @@ class Caller(object):
 
 
 class VrpcLocal(object):
+    """Client capable of calling functions as provided by native modules."""
 
     def __init__(self, module=None):
+        """Constructs an instance of a local client.
+
+        Args:
+            module (obj): A module object, typically loaded as native addon
+
+        Todo:
+            * Existing code reflects only an initial, minimal implementation
+            * Still missing: availability functions, deletion, meta data, etc.
+            * More sophisticated handling of potential threading in loaded addon
+        """
         self._vrpc = module
         self._caller = Caller(self._vrpc)
 
     def create(self, class_name, *args):
+        """Creates an instance of the specified class.
+
+        Args:
+            class_name (str): Name of the class to create an instance of
+            *args Variable number of arguments to provide to the constructor
+
+        Returns:
+            Proxy to the created instance
+        """
         json_string = {
             'context': class_name,
             'method': '__create__',
@@ -101,12 +121,24 @@ class VrpcLocal(object):
         return instance
 
     def call_static(self, class_name, function_name, *args):
+        """Calls a static function as made available through the native addon.
+
+        Args:
+            class_name (str): Name of the static function's class
+            function_name (str): Name of the static function to be called
+            *args: Positional arguments of the static function call
+
+        Returns:
+            any: The return value of the via-proxy called function
+
+        Todo:
+            * Support callbacks
+        """
         json_string = {
             'context': class_name,
             'method': function_name,
             'data': {}
         }
-        # TODO Support callbacks!
         data = json_string['data']
         for index, a in enumerate(args):
             data["_{}".format(index + 1)] = a

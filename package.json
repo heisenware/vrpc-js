@@ -18,7 +18,9 @@
     "test:jsAgent": "test/js/agent/test.sh",
     "test:jsPerformance": "test/js/performance/test.sh",
     "example": "node examples/Bar.js",
-    "build:doc": "echo '# API reference documentation for Node.js\n' > docs/reference/nodeJs.md; ./node_modules/.bin/jsdoc2md -f vrpc/*.js --param-list-format=list --separators >> docs/reference/nodeJs.md",
+    "build:pydoc": "pydoc-markdown -I vrpc -m VrpcLocal --render-toc > docs/reference/python.md",
+    "build:jsdoc": "./node_modules/.bin/jsdoc2md -f vrpc/*.js --param-list-format=list --separators >> docs/reference/nodeJs.md",
+    "build:doc": "npm run build:pydoc; npm run build:jsdoc",
     "build:browser": "./node_modules/.bin/webpack"
   },
   "bin": {
