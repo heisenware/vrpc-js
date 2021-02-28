@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   See documentation for more details. [C++]
 - support for C++ code that executes callbacks within threads
 - fresh examples (including code) exploring the new features
+- version information to agent cli [Node.js]
+- userVersion configuration possibility to external agent [Node.js]
 
 ### Changed
 
