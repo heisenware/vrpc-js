@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - documentation w.r.t. to meta data API [Node.js]
 
+### Removed
+
+- old examples documentation under `docs/examples`
+- old example code under `examples`
+
 ## [2.3.2] - 18 Feb 2021
 
 ### Fixed
