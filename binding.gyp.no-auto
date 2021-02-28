@@ -59,25 +59,6 @@
           }
         }]
       ]
-    },
-    {
-      'target_name': 'vrpc_example',
-      'target_conditions': [
-        ['"<!(echo $VRPC_DEBUG)"=="1"', {'defines': ['VRPC_DEBUG']}],
-      ],
-      'defines': [],
-      'cflags_cc!': ['-std=gnu++0x', '-fno-rtti', '-fno-exceptions'],
-      'cflags_cc': ['-std=c++14'],
-      'conditions': [
-        ['OS=="mac"', {
-          'xcode_settings': {
-            'GCC_ENABLE_CPP_RTTI': 'YES',
-            'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
-          }
-        }]
-      ],
-      'sources': ['vrpc/addon.cpp'],
-      'include_dirs': ['vrpc', 'examples']
     }
   ]
 }
