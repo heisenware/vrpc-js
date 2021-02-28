@@ -15,17 +15,10 @@ typedef std::function<void (std::string topic, std::string payload)> MessageCall
 
 ## Options Struct
 
----
-
-`struct vrpc::VrpcAgent::Options`
-
----
-
-Simple struct holding configuration options needed for `VrpcAgent` construction.
 
 ```cpp
 struct Options {
-  std::string domain;
+  std::string domain = "public.vrpc";
   std::string agent;
   std::string token;
   // All parameters below are advanced settings and only configurable
@@ -47,53 +40,49 @@ struct Options {
 };
 ```
 
+Simple struct holding configuration options needed for `VrpcAgent` construction.
+
 ## Static functions
 
----
-
-`std::shared_ptr<vrpc::VrpcAgent> vrpc::VrpcAgent::create( const Options& options );`
-
----
-
-Creates a VrpcAgent instance from provided options.
-
-### Parameters
-
-**options** - Option object providing configuration information
-
-### Return Value
-
-Shared pointer to an VrpcAgent instance.
-
-
----
-
-`std::shared_ptr<vrpc::VrpcAgent> vrpc::VrpcAgent::from_commandline( int argc, char** argv );`
-
----
+```cpp
+std::shared_ptr<vrpc::VrpcAgent> vrpc::VrpcAgent::from_commandline( int argc, char** argv );
+```
 
 Creates a VrpcAgent instance from commandline parameters. The corresponding
 arguments of the `main` function can simply be handed over.
 
+**Parameters**
 
-### Parameters
+`argc` - Argument count
 
-**argc** - Argument count
+`argv` - Array of argument values
 
-**argv** - Array of argument values
-
-### Return Value
+**Return Value**
 
 Shared pointer to an VrpcAgent instance. Will be a null pointer in case
 of wrong commandline arguments or if the help function was triggered.
 
+* * *
+
+```cpp
+std::shared_ptr<vrpc::VrpcAgent> vrpc::VrpcAgent::create( const Options& options ); // PRO VERSION ONLY
+```
+
+Creates a VrpcAgent instance from provided options.
+
+**Parameters**
+
+`options` - Option object providing configuration information
+
+**Return Value**
+
+Shared pointer to an VrpcAgent instance.
+
 ## Member functions
 
----
-
-`void serve()`
-
----
+```cpp
+void serve();
+```
 
 Tries to establish a connection to the configured MQTT broker (bound to vrpc.io
 in the community edition) and if successful starts an underlying event-loop.
@@ -101,61 +90,9 @@ in the community edition) and if successful starts an underlying event-loop.
 If not successful, `serve` tries re-connecting to the broker.
 
 **NOTE**: This function is blocking, but can be continued by the signals`SIGINT`,
-`SIGTERM` or `SIGSEV`, which stop the event-loop.
+`SIGTERM` or `SIGSEV`, which stops the event-loop.
 
----
-
-`void async( const std::function<void ()>& callback )`
-
----
-
-Places any function for immediate execution on VrpcAgent's event-loop.
-
-**NOTE**: In a single-thread environment you have to use this function before
-calling `serve()`. The registered callbacks will be executed once a connection
-to the broker could be established (i.e. the event-loop is started).
-
-### Parameters
-
-
-**callback** - Function callback to be executed on the internal event-loop
-
----
-
-`void publish( const std::string& topic, const std::string& payload, int32_t qos, bool retained );`
-
----
-
-Publishes a message to the broker.
-
-### Parameters
-
-**topic** - The topic name
-
-**payload** - The message's payload as std::string
-
-**qos** - The quality of service for the message transport (1, 2 or 3)
-
-**retained** - A flag indicating whether a message should be retained
-
----
-
-`void subscribe( const std::string& topic, int32_t qos, const VrpcAgent::MessageCallback& callback );`
-
----
-
-Subscribe to messages on the specified topic.
-
-### Parameters
-
-**topic** - The topic name
-
-**qos** - The quality of service for the message transport (1, 2 or 3)
-
-**callback** - Message callback, providing topic and message payload as string
-
-
-## Example
+**Example**
 
 ```cpp
 #include <vrpc.hpp>
@@ -170,3 +107,53 @@ int main(int argc, char** argv) {
   return EXIT_SUCCESS;
 }
 ```
+
+* * *
+
+```cpp
+void async( const std::function<void ()>& callback );
+```
+
+Places any function for immediate execution on VrpcAgent's event-loop.
+
+**NOTE**: In a single-thread environment you have to use this function before
+calling `serve()`. The registered callbacks will be executed once a connection
+to the broker could be established (i.e. the event-loop is started).
+
+**Parameters**
+
+`callback` - Function callback to be executed on the internal event-loop
+
+* * *
+
+```cpp
+void publish( const std::string& topic, const std::string& payload, int32_t qos, bool retained ); // PRO VERSION ONLY
+```
+
+Publishes a message to the broker.
+
+**Parameters**
+
+`topic` - The topic name
+
+`payload` - The message's payload as std::string
+
+`qos` - The quality of service for the message transport (1, 2 or 3)
+
+`retained` - A flag indicating whether a message should be retained
+
+* * *
+
+```cpp
+void subscribe( const std::string& topic, int32_t qos, const VrpcAgent::MessageCallback& callback ); // PRO VERSION ONLY
+```
+
+Subscribe to messages on the specified topic.
+
+**Parameters**
+
+`topic` - The topic name
+
+`qos` - The quality of service for the message transport (1, 2 or 3)
+
+`callback` - Message callback, providing topic and message payload as string
