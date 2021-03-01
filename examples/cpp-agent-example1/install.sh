@@ -7,7 +7,7 @@ cd $(dirname `[[ $0 = /* ]] && echo "$0" || echo "$PWD/${0#./}"`)
 
 PLATFORM=ubuntu-18.04
 
-wget http://media.vrpc.io:8080/vrpc-cpp-agent-${PLATFORM}.tar.gz
+wget http://heisenware.com:4433/vrpc-cpp-agent/latest/vrpc-cpp-agent-${PLATFORM}.tar.gz
 
 tar -xzf vrpc-cpp-agent-${PLATFORM}.tar.gz
 
