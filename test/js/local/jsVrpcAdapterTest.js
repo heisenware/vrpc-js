@@ -2,6 +2,7 @@
 
 const EventEmitter = require('events')
 const { assert } = require('chai')
+const sinon = require('sinon')
 const TestClass = require('../../fixtures/TestClass')
 const { VrpcAdapter } = require('../../../index')
 
@@ -67,12 +68,50 @@ describe('The nodejs VrpcAdapter', () => {
       method: '__create__',
       data: {} // No data => default ctor
     }
+    const createSpy = sinon.spy()
+    VrpcAdapter.once('create', createSpy)
     const ret = JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
     assert.property(ret, 'data')
     assert.isString(ret.data.r)
     assert.property(ret, 'context')
     assert.property(ret, 'method')
+    assert(createSpy.notCalled)
     instanceId = ret.data.r
+  })
+
+  it('should be able to create a named instance of a TestClass', () => {
+    const json = {
+      context: 'TestClass',
+      method: '__createNamed__',
+      data: { _1: 'testClass', _2: 'nice', _3: 1 } // First argument -> instance id
+    }
+    const createSpy = sinon.spy()
+    VrpcAdapter.once('create', createSpy)
+    const ret = JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
+    assert.equal(ret.data.r, 'testClass')
+    assert(createSpy.calledOnce)
+    assert(createSpy.calledWith({
+      className: 'TestClass',
+      instance: 'testClass',
+      args: ['nice', 1]
+    }))
+  })
+
+  it('should be able to delete the just created named instance', () => {
+    const json = {
+      context: 'TestClass',
+      method: '__delete__',
+      data: { _1: 'testClass' } // First argument -> instance id
+    }
+    const deleteSpy = sinon.spy()
+    VrpcAdapter.once('delete', deleteSpy)
+    const ret = JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
+    assert.equal(ret.data.r, true)
+    assert(deleteSpy.calledOnce)
+    assert(deleteSpy.calledWith({
+      className: 'TestClass',
+      instance: 'testClass',
+    }))
   })
 
   it('should be able to call member function given valid instanceId', () => {

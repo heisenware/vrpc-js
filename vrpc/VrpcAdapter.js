@@ -44,6 +44,7 @@ const Ajv = require('ajv')
 const caller = require('caller')
 const shortid = require('shortid')
 const commentParser = require('./comment-parser')
+const EventEmitter = require('events')
 
 /**
  * Generates an adapter layer for existing code and enables further VRPC-based
@@ -282,6 +283,23 @@ class VrpcAdapter {
     * @param {String} [type] Return value type
     */
 
+
+  static on (eventName, listener) {
+    VrpcAdapter._emitter.on(eventName, listener)
+  }
+
+  static once (eventName, listener) {
+    VrpcAdapter._emitter.once(eventName, listener)
+  }
+
+  static off (eventName, listener) {
+    VrpcAdapter._emitter.off(eventName, listener)
+  }
+
+  static removeAllListeners (eventName) {
+    VrpcAdapter._emitter.removeAllListeners(eventName)
+  }
+
   // private:
 
   static _registerClass (
@@ -383,15 +401,24 @@ class VrpcAdapter {
         try {
           const instanceId = wrappedArgs[0]
           data.r = VrpcAdapter._delete(instanceId)
+          VrpcAdapter._emitter.emit('delete', {
+            className: context,
+            instance: wrappedArgs[0]
+          })
         } catch (err) {
           data.e = err.message
         }
         break
-        // Special case: named construction
+      // Special case: named construction
       case '__createNamed__':
         try {
           VrpcAdapter._createNamed(context, ...wrappedArgs)
           data.r = wrappedArgs[0] // First argument is instanceId
+          VrpcAdapter._emitter.emit('create', {
+            className: context,
+            instance: wrappedArgs[0],
+            args: wrappedArgs.slice(1)
+          })
         } catch (err) {
           data.e = err.message
         }
@@ -421,9 +448,11 @@ class VrpcAdapter {
             }
             // check wether function returned a promise
             if (VrpcAdapter._isPromise(v)) {
-              calls.push(v
-                .then(val => ({ id, val, err: null }))
-                .catch(err => ({ id, err, val: null })))
+              calls.push(
+                v
+                  .then((val) => ({ id, val, err: null }))
+                  .catch((err) => ({ id, err, val: null }))
+              )
             } else {
               calls.push({ id, val: v, err: e })
             }
@@ -437,7 +466,8 @@ class VrpcAdapter {
       default: {
         // Check whether context is a registered class
         const entry = VrpcAdapter._functionRegistry.get(context)
-        if (entry !== undefined) { // entry is class -> function is static
+        if (entry !== undefined) {
+          // entry is class -> function is static
           const { Klass } = entry
           // TODO Think about whether to do live checking (like here) or
           // rather sticking to those functions registered before...
@@ -454,7 +484,8 @@ class VrpcAdapter {
               data.e = err.message
             }
           } else throw new Error(`Could not find function: ${method}`)
-        } else { // is not static
+        } else {
+          // is not static
           const entry = VrpcAdapter._instances.get(context)
           if (entry === undefined) {
             throw new Error(`Could not find context: ${context}`)
@@ -693,9 +724,33 @@ class VrpcAdapter {
   }
 }
 
+/**
+ * Event 'create'
+ *
+ * Emitted on creation of named instance
+ *
+ * @event VrpcAdapter#create
+ * @type {Object}
+ * @property {String} className The class name of the create instance
+ * @property {String} instance The instance name
+ * @property {Array.<Any>} args The constructor arguments
+*/
+
+/**
+ * Event 'delete'
+ *
+ * Emitted on deletion of named instance
+ *
+ * @event VrpcAdapter#delete
+ * @type {Object}
+ * @property {String} className The class name of the deleted instance
+ * @property {String} instance The instance name
+*/
+
 // Initialize static members
 VrpcAdapter._functionRegistry = new Map()
 VrpcAdapter._instances = new Map()
+VrpcAdapter._emitter = new EventEmitter()
 VrpcAdapter._correlationId = 0
 VrpcAdapter._listeners = {}
 
