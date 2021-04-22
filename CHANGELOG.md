@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - events `create` and `delete` to VrpcAdapter [Node.js]
 
+### Fixed
+
+- performance issue when clients silently go offline while still being
+  subscribed to callbacks [Node.js]
+
 ## [2.4.0] - 01 Mar 2021
 
 ### Added

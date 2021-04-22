@@ -542,6 +542,7 @@ class VrpcAdapter {
         VrpcAdapter.getInstance(i).removeListener(e, f)
       })
     }
+    delete VrpcAdapter._listeners[clientId]
   }
 
   static _validate (schema, params) {
@@ -553,12 +554,15 @@ class VrpcAdapter {
   }
 
   static _wrapCallbacks (json) {
-    const args = VrpcAdapter._extractDataToArray(json.data)
+    const { method, sender, data, context } = json
+    const args = VrpcAdapter._extractDataToArray(data)
     const wrappedArgs = []
     args.forEach(arg => {
       // Find those args that actually need to be function callbacks
       if (typeof arg === 'string' && arg.substr(0, 5) === '__f__') {
         const f = (...innerArgs) => {
+          // do not even trigger a callback for already offline clients
+          if (sender && !VrpcAdapter._listeners[sender]) return
           const data = {}
           innerArgs.forEach((value, index) => {
             data[`_${index + 1}`] = value
@@ -567,28 +571,28 @@ class VrpcAdapter {
           const callbackJsonString = VrpcAdapter._stringifySafely(callbackJson)
           VrpcAdapter._callback(callbackJsonString, callbackJson)
         }
+        wrappedArgs.push(f)
+        if (!sender) return
+        // Register this client to later know when he is dead and skip callbacks
+        if (!VrpcAdapter._listeners[sender]) VrpcAdapter._listeners[sender] = []
         // Check whether injected callback is an EventEmitter registration
-        if (json.method === 'on' && typeof args[0] === 'string') {
+        if (method === 'on' && typeof args[0] === 'string') {
           const e = args[0]
-          const i = json.context
+          const i = context
           const r = arg
-          VrpcAdapter._listeners[json.sender]
-            ? VrpcAdapter._listeners[json.sender].push({ i, e, f, r })
-            : VrpcAdapter._listeners[json.sender] = [{ i, e, f, r }]
+          VrpcAdapter._listeners[sender].push({ i, e, f, r })
         }
-        if ((json.method === 'off' || json.method === 'removeListener') &&
+        if ((method === 'off' || method === 'removeListener') &&
           typeof args[0] === 'string') {
           const r = arg
-          const sender = VrpcAdapter._listeners[json.sender]
-          const entry = sender && sender.find(x => x.r === r)
+          const s = VrpcAdapter._listeners[sender]
+          const entry = s && s.find(x => x.r === r)
           if (entry) {
             const { i, e, f } = entry
             VrpcAdapter.getInstance(i).removeListener(e, f)
           }
         }
-        wrappedArgs.push(f)
-      // Leave the others untouched
-      } else {
+      } else { // Leave the others untouched
         wrappedArgs.push(arg)
       }
     })
