@@ -424,6 +424,13 @@ class VrpcAgent extends EventEmitter {
     classes.forEach(className => {
       this._publishClassInfoMessage(className)
     })
+    // Register all pre-existing instances
+    for (const [
+      instanceId,
+      { className }
+    ] of VrpcAdapter._instances.entries()) {
+      this._subscribeToMethodsOfNewInstance(className, instanceId)
+    }
     this.emit('connect')
   }
 

@@ -10,11 +10,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - events `create` and `delete` to VrpcAdapter [Node.js]
+- possibility to register already existing instances [Node.js]
 
 ### Fixed
 
 - performance issue when clients silently go offline while still being
   subscribed to callbacks [Node.js]
+- issue when providing an explicit jsonDoc path while registering a class
+  [Node.js]
 
 ## [2.4.0] - 01 Mar 2021
 

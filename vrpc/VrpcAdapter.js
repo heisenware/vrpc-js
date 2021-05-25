@@ -111,12 +111,38 @@ class VrpcAdapter {
     } else {
       const { jsdocPath } = options
       if (jsdocPath) {
-        const absJsdocPath = path.resolve(caller(), '../', jsdocPath, '.js')
+        const absJsdocPath = path.resolve(caller(), '../', `${jsdocPath}.js`)
         this._registerClass(code, absJsdocPath, { ...options, jsdoc: true })
       } else {
         this._registerClass(code, null, options)
       }
     }
+  }
+
+  static registerInstance (
+    obj,
+    { className, instance, onlyPublic = true } = {}
+  ) {
+    let memberFunctions = VrpcAdapter._extractMemberFunctions(obj)
+    if (onlyPublic) {
+      memberFunctions = memberFunctions.filter(f => !f.startsWith('_'))
+    }
+    let meta = null
+    if (jsdocPath) {
+      const absJsdocPath = path.resolve(caller(), '../', `${jsdocPath}.js`)
+      const content = fs.readFileSync(absJsdocPath).toString('utf8')
+      meta = this._parseComments(content)
+    }
+    VrpcAdapter._functionRegistry.set(className, {
+      memberFunctions,
+      meta,
+      Klass: {},
+      withNew: false,
+      staticFunctions: ['__getNamed__'],
+      schema: null,
+      meta: null
+    })
+    VrpcAdapter._instances.set(instance, { className, instance: obj })
   }
 
   static getClasses () {
