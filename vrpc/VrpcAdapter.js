@@ -95,7 +95,7 @@ class VrpcAdapter {
    * using the `new` operator
    * @param {Object} [options.schema=null] If provided is used to validate ctor
    * parameters (only works if registered code reflects a single class)
-   * @param {Boolean} options.jsdocPath if provided, parses documentation and
+   * @param {String} options.jsdocPath if provided, parses documentation and
    * provides it as meta information
    *
    * NOTE: This function currently only supports registration of classes (either
@@ -119,9 +119,21 @@ class VrpcAdapter {
     }
   }
 
+  /**
+   * Registers an existing instance and make it (remotely) callable
+   *
+   * @param {Object} obj The instance to be registered
+   * @param {Object} options
+   * @param {String} options.className Class name of the instance
+   * @param {Boolean} options.instance Name of the instance
+   * @param {Boolean} [options.onlyPublic=true] If true, only registers
+   * functions that do not begin with an underscore
+   * @param {String} [options.jsdocPath] if provided, parses documentation and
+   * provides it as meta information
+   */
   static registerInstance (
     obj,
-    { className, instance, onlyPublic = true } = {}
+    { className, instance, jsdocPath, onlyPublic = true } = {}
   ) {
     let memberFunctions = VrpcAdapter._extractMemberFunctions(obj)
     if (onlyPublic) {
@@ -139,8 +151,7 @@ class VrpcAdapter {
       Klass: {},
       withNew: false,
       staticFunctions: ['__getNamed__'],
-      schema: null,
-      meta: null
+      schema: null
     })
     VrpcAdapter._instances.set(instance, { className, instance: obj })
   }
