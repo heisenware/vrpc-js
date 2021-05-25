@@ -109,6 +109,7 @@ class VrpcRemote extends EventEmitter {
     this._invokeId = 0
     this._client = null
     this._cachedSubscriptions = new Map()
+    this._proxies = {}
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -272,6 +273,8 @@ class VrpcRemote extends EventEmitter {
    * @param {Array} [options.args] Positional arguments for the constructor call
    * @param {String} [options.agent] Agent name. If not provided class default
    * is used
+   * @param {bool} [options.cacheProxy=false] If true the proxy object for a given
+   * instance is cached and used in subsequent calls
    * @returns {Promise<Proxy>} Object reflecting a proxy to the original one
    * handled by the agent
    * @example
@@ -295,7 +298,8 @@ class VrpcRemote extends EventEmitter {
     className,
     instance,
     args = [],
-    agent = this._agent
+    agent = this._agent,
+    cacheProxy = false
   } = {}) {
     if (agent === '*') throw new Error('Agent must be specified')
     const data = instance ? { _1: instance } : {}
@@ -310,7 +314,9 @@ class VrpcRemote extends EventEmitter {
       sender: `${this._domain}/${os.hostname()}/${this._instance}`,
       data
     }
-    return this._getProxy(agent, className, json)
+    const proxy = await this._getProxy(agent, className, json)
+    if (instance && cacheProxy) this._proxies[instance] = proxy
+    return proxy
   }
 
   /**
@@ -328,6 +334,7 @@ class VrpcRemote extends EventEmitter {
    * @returns {Promise<Proxy>} Proxy object reflecting the remotely existing instance
    */
   async getInstance (instance, options) {
+    if (this._proxies[instance]) return this._proxies[instance]
     if (typeof instance === 'string') {
       const {
         agent,
@@ -388,6 +395,7 @@ class VrpcRemote extends EventEmitter {
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
     this._mqttPublish(topic, JSON.stringify(json))
+    if (this._proxies[instance]) delete this._proxies[instance]
     return this._handleAgentAnswer(json)
   }
 

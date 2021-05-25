@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - events `create` and `delete` to VrpcAdapter [Node.js]
 - possibility to register already existing instances [Node.js]
+- possibility to cache the proxy object [Node.js]
 
 ### Fixed
 
