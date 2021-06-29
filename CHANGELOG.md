@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Fixed
+
+- replaced the deprecated shortid package with nanoid
+- prolonged the `proxyId` to 9 characters, reducing the collision probability to
+  1% after having generated 19M ids
+
 ## [2.5.0] - 25 May 2021
 
 ### Added

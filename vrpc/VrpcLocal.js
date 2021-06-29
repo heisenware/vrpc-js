@@ -38,7 +38,7 @@ SOFTWARE.
 */
 
 const EventEmitter = require('events')
-const crypto = require('crypto')
+const { nanoid } = require('nanoid')
 
 /**
  * Client capable of creating proxy objects and locally calling
@@ -176,7 +176,7 @@ class VrpcLocal {
     // Create instance
     const ret = JSON.parse(this._adapter.call(JSON.stringify(json)))
     const instanceId = ret.data.r
-    const proxyId = crypto.randomBytes(2).toString('hex')
+    const proxyId = nanoid(9)
     const proxy = {
       _targetId: instanceId,
       _proxyId: proxyId
