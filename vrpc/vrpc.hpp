@@ -42,7 +42,7 @@ SOFTWARE.
 
 #define VRPC_VERSION_MAJOR 2
 #define VRPC_VERSION_MINOR 5
-#define VRPC_VERSION_PATCH 0
+#define VRPC_VERSION_PATCH 1
 
 #include <cstdint>
 #include <functional>
