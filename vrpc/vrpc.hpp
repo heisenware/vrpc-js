@@ -1476,7 +1476,7 @@ namespace vrpc {
           Ret>::registerAs(#Klass, #Function, FunctionDesc, {RetDesc});
 
 #define _VRPC_VOID_MEMBER_FUNCTION_2(Klass, Function) \
-  _VRPC_MEMBER_FUNCTION_3(Klass, Ret, Function)
+  _VRPC_MEMBER_FUNCTION_3(Klass, void, Function)
 
 #define _VRPC_VOID_MEMBER_FUNCTION_CONST_2(Klass, Function) \
   _VRPC_CONST_MEMBER_FUNCTION_3(Klass, void, Function)

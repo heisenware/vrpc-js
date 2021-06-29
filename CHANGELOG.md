@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   using `registerInstance`
 - missing class info messages when successfully reconnecting against a restarted
   broker
+- compiler error when using deprecated C++ binding macros on zero arguments
+  function
 
 ## [2.5.0] - 25 May 2021
 
