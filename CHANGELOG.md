@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   1% after having generated 19M ids
 - bug in `extractMemberFunctions` that would miss function in certain cases when
   using `registerInstance`
+- missing class info messages when successfully reconnecting against a restarted
+  broker
 
 ## [2.5.0] - 25 May 2021
 

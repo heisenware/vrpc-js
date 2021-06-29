@@ -12,7 +12,6 @@ const EventEmitter = require('events')
  * @extends EventEmitter
  */
 class VrpcAgent extends EventEmitter {
-
   /**
    * Constructs an agent by parsing command line arguments
    *
@@ -41,79 +40,47 @@ class VrpcAgent extends EventEmitter {
       add_help: true,
       description: 'VRPC Node.js Agent'
     })
-    parser.add_argument(
-      '-a',
-      '--agent',
-      {
-        help: 'Agent name',
-        default: agent || VrpcAgent._generateAgentName()
-      }
-    )
-    parser.add_argument(
-      '-d',
-      '--domain',
-      {
-        help: 'Domain name',
-        default: domain || 'public.vrpc'
-      }
-    )
-    parser.add_argument(
-      '-t',
-      '--token',
-      {
-        help: 'access token',
-        default: token
-      }
-    )
-    parser.add_argument(
-      '-b',
-      '--broker',
-      {
-        help: 'Broker url',
-        default: broker || 'mqtts://vrpc.io:8883'
-      }
-    )
-    parser.add_argument(
-      '-u',
-      '--username',
-      {
-        help: 'Username',
-        default: username
-      }
-    )
-    parser.add_argument(
-      '-P',
-      '--password',
-      {
-        help: 'Password',
-        default: password
-      }
-    )
-    parser.add_argument(
-      '--bestEffort',
-      {
-        help: 'Calls function on best-effort. Improves performance but may fail under unstable network connections.',
-        action: 'store_true'
-      }
-    )
-    parser.add_argument(
-      '-V', '-v',
-      '--userVersion',
-      {
-        help: 'User defined agent version. May be checked on the remote side for compatibility checks.',
-        required: false,
-        default: version,
-        dest: 'version'
-      }
-    )
-    parser.add_argument(
-      '--version',
-      {
-        help: 'Returns the VRPC version this client was built with.',
-        action: 'version',
-        version: 'v2.3.2'
-      }
-    )
+    parser.add_argument('-a', '--agent', {
+      help: 'Agent name',
+      default: agent || VrpcAgent._generateAgentName()
+    })
+    parser.add_argument('-d', '--domain', {
+      help: 'Domain name',
+      default: domain || 'public.vrpc'
+    })
+    parser.add_argument('-t', '--token', {
+      help: 'access token',
+      default: token
+    })
+    parser.add_argument('-b', '--broker', {
+      help: 'Broker url',
+      default: broker || 'mqtts://vrpc.io:8883'
+    })
+    parser.add_argument('-u', '--username', {
+      help: 'Username',
+      default: username
+    })
+    parser.add_argument('-P', '--password', {
+      help: 'Password',
+      default: password
+    })
+    parser.add_argument('--bestEffort', {
+      help:
+        'Calls function on best-effort. Improves performance but may fail under unstable network connections.',
+      action: 'store_true'
+    })
+    parser.add_argument('-V', '-v', '--userVersion', {
+      help:
+        'User defined agent version. May be checked on the remote side for compatibility checks.',
+      required: false,
+      default: version,
+      dest: 'version'
+    })
+    parser.add_argument('--version', {
+      help: 'Returns the VRPC version this client was built with.',
+      action: 'version',
+      version: 'v2.3.2'
+    })
     const args = parser.parse_args()
     return new VrpcAgent(args)
   }
@@ -149,8 +116,7 @@ class VrpcAgent extends EventEmitter {
     log = 'console',
     bestEffort = false,
     version = ''
-  } = {}
-  ) {
+  } = {}) {
     super()
     this._validateDomain(domain)
     this._validateAgent(agent)
@@ -176,7 +142,7 @@ class VrpcAgent extends EventEmitter {
     this._namedInstances = new Map()
 
     // Handle the internal error event in case the user forgot to implement it
-    this.on('error', (err) => {
+    this.on('error', err => {
       this._log.debug(`Encountered an error: ${err.message}`)
     })
   }
@@ -197,8 +163,11 @@ class VrpcAgent extends EventEmitter {
    * rejects
    */
   async serve () {
-    const md5 = crypto.createHash('md5')
-      .update(this._domain + this._agent).digest('hex').substr(0, 18)
+    const md5 = crypto
+      .createHash('md5')
+      .update(this._domain + this._agent)
+      .digest('hex')
+      .substr(0, 18)
     let username = this._username
     let password = this._password
     if (this._token) {
@@ -225,10 +194,10 @@ class VrpcAgent extends EventEmitter {
     this._log.info('Connecting to MQTT server...')
     const wasEnded = await this._clearPersistedSession()
     if (wasEnded) return
-    this._client = mqtt.connect(
-      this._broker,
-      { ...this._options, clean: false }
-    )
+    this._client = mqtt.connect(this._broker, {
+      ...this._options,
+      clean: false
+    })
     this._client.on('connect', this._handleConnect.bind(this))
     this._client.on('reconnect', this._handleReconnect.bind(this))
     this._client.on('error', this._handleError.bind(this))
@@ -269,30 +238,35 @@ class VrpcAgent extends EventEmitter {
       await new Promise(resolve => this._client.end(false, {}, resolve))
       await this._clearPersistedSession()
     } catch (err) {
-      this._log.error(
-        err,
-        `Problem during disconnecting agent: ${err.message}`
-      )
+      this._log.error(err, `Problem during disconnecting agent: ${err.message}`)
     }
   }
 
   static _generateAgentName () {
     const { username } = os.userInfo()
-    const pathId = crypto.createHash('md5').update(path.resolve()).digest('hex').substr(0, 4)
+    const pathId = crypto
+      .createHash('md5')
+      .update(path.resolve())
+      .digest('hex')
+      .substr(0, 4)
     return `${username}-${pathId}@${os.hostname()}-${os.platform()}-js`
   }
 
   _validateDomain (domain) {
     if (!domain) throw new Error('The domain must be specified')
     if (domain.match(/[+/#*]/)) {
-      throw new Error('The domain must NOT contain any of those characters: "+", "/", "#", "*"')
+      throw new Error(
+        'The domain must NOT contain any of those characters: "+", "/", "#", "*"'
+      )
     }
   }
 
   _validateAgent (agent) {
     if (!agent) throw new Error('The agent must be specified')
     if (agent.match(/[+/#*]/)) {
-      throw new Error('The agent must NOT contain any of those characters: "+", "/", "#", "*"')
+      throw new Error(
+        'The agent must NOT contain any of those characters: "+", "/", "#", "*"'
+      )
     }
   }
 
@@ -309,11 +283,8 @@ class VrpcAgent extends EventEmitter {
    */
   async _clearPersistedSession () {
     // Clear potentially existing persisted sessions
-    const client = mqtt.connect(
-      this._broker,
-      { ...this._options, clean: true }
-    )
-    client.on('error', (err) => this.emit('error', err))
+    const client = mqtt.connect(this._broker, { ...this._options, clean: true })
+    client.on('error', err => this.emit('error', err))
     client.on('offline', () => this.emit('offline'))
     client.on('reconnect', () => this.emit('reconnect'))
     return new Promise(resolve => {
@@ -329,29 +300,44 @@ class VrpcAgent extends EventEmitter {
   }
 
   _mqttPublish (topic, message, options) {
-    this._client.publish(topic, message, { qos: this._qos, ...options }, (err) => {
-      if (err) {
-        this._log.warn(`Could not publish MQTT message because: ${err.message}`)
+    this._client.publish(
+      topic,
+      message,
+      { qos: this._qos, ...options },
+      err => {
+        if (err) {
+          this._log.warn(
+            `Could not publish MQTT message because: ${err.message}`
+          )
+        }
       }
-    })
+    )
   }
 
   _mqttSubscribe (topic, options) {
-    this._client.subscribe(topic, { qos: this._qos, ...options }, (err, granted) => {
-      if (err) {
-        this._log.warn(`Could not subscribe to topic '${topic}', because: ${err.message}`)
-      } else {
-        if (granted.length === 0) {
-          this._log.debug(`Already subscribed to topic '${topic}'`)
+    this._client.subscribe(
+      topic,
+      { qos: this._qos, ...options },
+      (err, granted) => {
+        if (err) {
+          this._log.warn(
+            `Could not subscribe to topic '${topic}', because: ${err.message}`
+          )
+        } else {
+          if (granted.length === 0) {
+            this._log.debug(`Already subscribed to topic '${topic}'`)
+          }
         }
       }
-    })
+    )
   }
 
   _mqttUnsubscribe (topic, options) {
-    this._client.unsubscribe(topic, options, (err) => {
+    this._client.unsubscribe(topic, options, err => {
       if (err) {
-        this._log.warn(`Could not unsubscribe from topic: ${topic} because: ${err.message}`)
+        this._log.warn(
+          `Could not unsubscribe from topic: ${topic} because: ${err.message}`
+        )
       }
     })
   }
@@ -377,7 +363,7 @@ class VrpcAgent extends EventEmitter {
   }
 
   async _ensureConnected () {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (this._client.connected) {
         resolve()
       } else {
@@ -389,7 +375,10 @@ class VrpcAgent extends EventEmitter {
   _handleVrpcCallback (jsonString, jsonObject) {
     const { sender } = jsonObject
     try {
-      this._log.debug(`Forwarding callback to: ${sender} with payload:`, jsonObject)
+      this._log.debug(
+        `Forwarding callback to: ${sender} with payload:`,
+        jsonObject
+      )
       this._mqttPublish(sender, jsonString)
     } catch (err) {
       this._log.warn(
@@ -403,6 +392,10 @@ class VrpcAgent extends EventEmitter {
     this._log.info('[OK]')
     if (this._isReconnect) {
       this._publishAgentInfoMessage()
+      const classes = this._getClasses()
+      classes.forEach(className => {
+        this._publishClassInfoMessage(className)
+      })
       this.emit('connect')
       this._isReconnect = false
       return
@@ -486,7 +479,7 @@ class VrpcAgent extends EventEmitter {
       const json = JSON.parse(data.toString())
       this._log.debug(`Message arrived with topic: ${topic} and payload:`, json)
       const tokens = topic.split('/')
-      const [,, className, instance, method] = tokens
+      const [, , className, instance, method] = tokens
 
       // Special case: clientInfo message
       if (tokens.length === 4 && tokens[3] === '__clientInfo__') {
@@ -529,12 +522,18 @@ class VrpcAgent extends EventEmitter {
           break
         }
         case '__getNamed__': {
-          const { data: { _1, e }, sender } = json
+          const {
+            data: { _1, e },
+            sender
+          } = json
           if (!e) this._registerNamedInstance(_1, sender)
           break
         }
         case '__delete__': {
-          const { data: { _1 }, sender } = json
+          const {
+            data: { _1 },
+            sender
+          } = json
           this._unsubscribeMethodsOfDeletedInstance(className, instance)
           const wasNamed = this._unregisterInstance(_1, sender)
           if (wasNamed) publishClassInfo = true
@@ -545,7 +544,9 @@ class VrpcAgent extends EventEmitter {
       try {
         jsonString = JSON.stringify(json)
       } catch (err) {
-        this._log.debug(`Failed serialization of return value for: ${json.context}::${json.method}, because: ${err.message}`)
+        this._log.debug(
+          `Failed serialization of return value for: ${json.context}::${json.method}, because: ${err.message}`
+        )
         json.data.r = '__vrpc::not-serializable__'
         jsonString = JSON.stringify(json)
       }
@@ -557,7 +558,10 @@ class VrpcAgent extends EventEmitter {
         this._publishClassInfoMessage(className)
       }
     } catch (err) {
-      this._log.error(err, `Problem while handling incoming message: ${err.message}`)
+      this._log.error(
+        err,
+        `Problem while handling incoming message: ${err.message}`
+      )
     }
   }
 
@@ -566,11 +570,14 @@ class VrpcAgent extends EventEmitter {
     const clientId = topic.slice(0, -9)
     if (json.status === 'offline') {
       const entry = this._unnamedInstances.get(clientId)
-      if (entry) { // anonymous
+      if (entry) {
+        // anonymous
         entry.forEach(instanceId => {
           const json = { data: { _1: instanceId }, method: '__delete__' }
           VrpcAdapter._call(json)
-          const { data: { r } } = json
+          const {
+            data: { r }
+          } = json
           if (r) this._log.debug(`Deleted unnamed instance: ${instanceId}`)
         })
       }
@@ -581,9 +588,11 @@ class VrpcAgent extends EventEmitter {
 
   _registerUnnamedInstance (instanceId, clientId) {
     const entry = this._unnamedInstances.get(clientId)
-    if (entry) { // already seen
+    if (entry) {
+      // already seen
       entry.add(instanceId)
-    } else { // new instance
+    } else {
+      // new instance
       this._unnamedInstances.set(clientId, new Set([instanceId]))
       if (!this._namedInstances.has(clientId)) {
         this._mqttSubscribe(`${clientId}/__clientInfo__`)
@@ -594,9 +603,11 @@ class VrpcAgent extends EventEmitter {
 
   _registerNamedInstance (instanceId, clientId) {
     const entry = this._namedInstances.get(clientId)
-    if (entry) { // already seen
+    if (entry) {
+      // already seen
       entry.add(instanceId)
-    } else { // new instance
+    } else {
+      // new instance
       this._namedInstances.set(clientId, new Set([instanceId]))
       if (!this._unnamedInstances.has(clientId)) {
         this._mqttSubscribe(`${clientId}/__clientInfo__`)
@@ -624,7 +635,7 @@ class VrpcAgent extends EventEmitter {
       return false
     }
     let found = false
-    this._namedInstances.forEach(async (v) => {
+    this._namedInstances.forEach(async v => {
       if (v.has(instanceId)) {
         found = true
         v.delete(instanceId)
@@ -636,7 +647,9 @@ class VrpcAgent extends EventEmitter {
       }
     })
     if (!found) {
-      this._log.warn(`Failed un-registering not registered instance: ${instanceId}`)
+      this._log.warn(
+        `Failed un-registering not registered instance: ${instanceId}`
+      )
       return false
     }
     return true
@@ -685,7 +698,7 @@ class VrpcAgent extends EventEmitter {
  * @event VrpcAgent#connect
  * @type {Object}
  * @property {Boolean} sessionPresent - A session from a previous connection is already present
-*/
+ */
 
 /**
  * Event 'reconnect'
@@ -693,7 +706,7 @@ class VrpcAgent extends EventEmitter {
  * Emitted when a reconnect starts.
  *
  * @event VrpcAgent#reconnect
-*/
+ */
 
 /**
  * Event 'close'
