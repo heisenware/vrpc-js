@@ -42,7 +42,7 @@ const path = require('path')
 const fs = require('fs')
 const Ajv = require('ajv')
 const caller = require('caller')
-const shortid = require('shortid')
+const { nanoid } = require('nanoid')
 const commentParser = require('./comment-parser')
 const EventEmitter = require('events')
 
@@ -426,7 +426,7 @@ class VrpcAdapter {
       case '__create__':
         try {
           const instance = VrpcAdapter._create(context, ...wrappedArgs)
-          const instanceId = shortid.generate()
+          const instanceId = nanoid(9)
           VrpcAdapter._instances.set(instanceId, { context, instance })
           data.r = instanceId
         } catch (err) {
