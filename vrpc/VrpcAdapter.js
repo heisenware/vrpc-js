@@ -125,7 +125,7 @@ class VrpcAdapter {
    * @param {Object} obj The instance to be registered
    * @param {Object} options
    * @param {String} options.className Class name of the instance
-   * @param {Boolean} options.instance Name of the instance
+   * @param {String} options.instance Name of the instance
    * @param {Boolean} [options.onlyPublic=true] If true, only registers
    * functions that do not begin with an underscore
    * @param {String} [options.jsdocPath] if provided, parses documentation and
@@ -137,7 +137,9 @@ class VrpcAdapter {
   ) {
     let memberFunctions = VrpcAdapter._extractMemberFunctions(obj)
     if (onlyPublic) {
-      memberFunctions = memberFunctions.filter(f => !f.startsWith('_'))
+      memberFunctions = memberFunctions.filter(f => {
+        return !f.startsWith('_')
+      })
     }
     let meta = null
     if (jsdocPath) {
@@ -298,14 +300,14 @@ class VrpcAdapter {
    * @typedef {Object.<String, Func>} MetaData Associates meta data to any function
    */
 
-   /**
-    * @typedef Func
-    * @param {String} description Function description
-    * @param {Array.<Param>} params Array of parameter details in order of signature
-    * @param {Ret} ret Object associating further information to return value
-    */
+  /**
+   * @typedef Func
+   * @param {String} description Function description
+   * @param {Array.<Param>} params Array of parameter details in order of signature
+   * @param {Ret} ret Object associating further information to return value
+   */
 
-   /**
+  /**
    * @typedef {Object} Param
    * @param {String} name Parameter name
    * @param {Boolean} optional Whether parameter is optional
@@ -314,12 +316,11 @@ class VrpcAdapter {
    * @param {Any} [default] The default to be injected when not provided
    */
 
-   /**
-    * @typedef {Object} Ret
-    * @param {String} description Return value description
-    * @param {String} [type] Return value type
-    */
-
+  /**
+   * @typedef {Object} Ret
+   * @param {String} description Return value description
+   * @param {String} [type] Return value type
+   */
 
   static on (eventName, listener) {
     VrpcAdapter._emitter.on(eventName, listener)
@@ -342,12 +343,7 @@ class VrpcAdapter {
   static _registerClass (
     Klass,
     absJsdocPath = null,
-    {
-      onlyPublic = true,
-      withNew = true,
-      schema = null,
-      jsdoc = true
-    } = {}
+    { onlyPublic = true, withNew = true, schema = null, jsdoc = true } = {}
   ) {
     // Get all static static functions
     let staticFunctions = VrpcAdapter._extractStaticFunctions(Klass)
@@ -362,17 +358,23 @@ class VrpcAdapter {
     staticFunctions.push('__callAll__')
     let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
     if (onlyPublic) {
-      memberFunctions = memberFunctions.filter(f => !f.startsWith('_'))
+      memberFunctions = memberFunctions.filter(f => {
+        return !f.startsWith('_')
+      })
     }
     let meta = null
     if (jsdoc && absJsdocPath) {
       const content = fs.readFileSync(absJsdocPath).toString('utf8')
       meta = this._parseComments(content)
     }
-    VrpcAdapter._functionRegistry.set(
-      Klass.name,
-      { Klass, withNew, staticFunctions, memberFunctions, schema, meta }
-    )
+    VrpcAdapter._functionRegistry.set(Klass.name, {
+      Klass,
+      withNew,
+      staticFunctions,
+      memberFunctions,
+      schema,
+      meta
+    })
   }
 
   static _parseComments (content) {
@@ -381,7 +383,9 @@ class VrpcAdapter {
     comments.forEach(({ tags, description, functionName }) => {
       if (functionName) {
         if (tags) {
-          let params = tags.filter(({ tag }) => tag === 'param' || tag === 'arg' || tag === 'argument')
+          let params = tags.filter(
+            ({ tag }) => tag === 'param' || tag === 'arg' || tag === 'argument'
+          )
           if (params.length > 0) {
             params = params.map(({ name, optional, description, type }) => {
               return { name, optional, description, type }
@@ -389,10 +393,15 @@ class VrpcAdapter {
           } else {
             params = []
           }
-          let ret = tags.filter(({ tag }) => tag === 'returns' || tag === 'return')
+          let ret = tags.filter(
+            ({ tag }) => tag === 'returns' || tag === 'return'
+          )
           if (ret.length === 1) {
             const { source, type } = ret[0]
-            const description = source.split(' ').splice(2).join(' ')
+            const description = source
+              .split(' ')
+              .splice(2)
+              .join(' ')
             ret = { description, type }
           } else {
             ret = null
@@ -487,8 +496,8 @@ class VrpcAdapter {
             if (VrpcAdapter._isPromise(v)) {
               calls.push(
                 v
-                  .then((val) => ({ id, val, err: null }))
-                  .catch((err) => ({ id, err, val: null }))
+                  .then(val => ({ id, val, err: null }))
+                  .catch(err => ({ id, err, val: null }))
               )
             } else {
               calls.push({ id, val: v, err: e })
@@ -619,8 +628,10 @@ class VrpcAdapter {
           const r = arg
           VrpcAdapter._listeners[sender].push({ i, e, f, r })
         }
-        if ((method === 'off' || method === 'removeListener') &&
-          typeof args[0] === 'string') {
+        if (
+          (method === 'off' || method === 'removeListener') &&
+          typeof args[0] === 'string'
+        ) {
           const r = arg
           const s = VrpcAdapter._listeners[sender]
           const entry = s && s.find(x => x.r === r)
@@ -629,7 +640,8 @@ class VrpcAdapter {
             VrpcAdapter.getInstance(i).removeListener(e, f)
           }
         }
-      } else { // Leave the others untouched
+      } else {
+        // Leave the others untouched
         wrappedArgs.push(arg)
       }
     })
@@ -664,7 +676,9 @@ class VrpcAdapter {
     try {
       jsonString = JSON.stringify(json)
     } catch (err) {
-      this._log.debug(`Failed serialization of return value for: ${json.context}::${json.method}, because: ${err.message}`)
+      this._log.debug(
+        `Failed serialization of return value for: ${json.context}::${json.method}, because: ${err.message}`
+      )
       json.data.r = '__vrpc::not-serializable__'
       jsonString = JSON.stringify(json)
     }
@@ -672,13 +686,17 @@ class VrpcAdapter {
   }
 
   static _extractDataToArray (data) {
-    return Object.keys(data).sort()
+    return Object.keys(data)
+      .sort()
       .filter(value => value[0] === '_')
       .map(key => data[key])
   }
 
   static _generateId (object) {
-    return crypto.createHash('md5').update(JSON.stringify(object)).digest('hex')
+    return crypto
+      .createHash('md5')
+      .update(JSON.stringify(object))
+      .digest('hex')
   }
 
   static _getClassEntry (className) {
@@ -698,11 +716,17 @@ class VrpcAdapter {
   }
 
   static _isClass (obj) {
-    return !!obj && (typeof obj === 'function' && /^\s*class\s+/.test(obj.toString()))
+    return (
+      !!obj && typeof obj === 'function' && /^\s*class\s+/.test(obj.toString())
+    )
   }
 
   static _isPromise (obj) {
-    return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function'
+    return (
+      !!obj &&
+      (typeof obj === 'object' || typeof obj === 'function') &&
+      typeof obj.then === 'function'
+    )
   }
 
   static _extractMemberFunctions (klass) {
@@ -710,12 +734,20 @@ class VrpcAdapter {
     let fs = []
     do {
       if (klass_.prototype) {
-        fs = [...fs, ...Object.getOwnPropertyNames(klass_.prototype)]
+        const funcs = Object.getOwnPropertyNames(klass_.prototype).filter(
+          x =>
+            !VrpcAdapter._blackList.has(x) &&
+            this._isFunction(klass_.prototype[x])
+        )
+        fs = [...fs, ...funcs]
       } else {
-        fs = [...fs, ...Object.getOwnPropertyNames(klass_)]
+        const funcs = Object.getOwnPropertyNames(klass_).filter(
+          x => !VrpcAdapter._blackList.has(x) && this._isFunction(klass_[x])
+        )
+        fs = [...fs, ...funcs]
       }
       klass_ = Object.getPrototypeOf(klass_)
-    } while (klass_ && klass_.name)
+    } while (klass_)
     // Filter out all duplicates
     return Array.from(new Set(fs))
   }
@@ -724,10 +756,13 @@ class VrpcAdapter {
     let klass_ = klass
     let fs = []
     do {
-      fs = [...fs, ...Object.getOwnPropertyNames(klass_).filter(prop => {
-        const desc = Object.getOwnPropertyDescriptor(klass_, prop)
-        return !!desc && typeof desc.value === 'function'
-      })]
+      fs = [
+        ...fs,
+        ...Object.getOwnPropertyNames(klass_).filter(prop => {
+          const desc = Object.getOwnPropertyDescriptor(klass_, prop)
+          return !!desc && typeof desc.value === 'function'
+        })
+      ]
       klass_ = Object.getPrototypeOf(klass_)
     } while (klass_ && klass_.name)
     // Filter out all duplicates
@@ -775,7 +810,7 @@ class VrpcAdapter {
  * @property {String} className The class name of the create instance
  * @property {String} instance The instance name
  * @property {Array.<Any>} args The constructor arguments
-*/
+ */
 
 /**
  * Event 'delete'
@@ -786,7 +821,7 @@ class VrpcAdapter {
  * @type {Object}
  * @property {String} className The class name of the deleted instance
  * @property {String} instance The instance name
-*/
+ */
 
 // Initialize static members
 VrpcAdapter._functionRegistry = new Map()
@@ -794,5 +829,23 @@ VrpcAdapter._instances = new Map()
 VrpcAdapter._emitter = new EventEmitter()
 VrpcAdapter._correlationId = 0
 VrpcAdapter._listeners = {}
+VrpcAdapter._blackList = new Set([
+  'caller',
+  'callee',
+  'arguments',
+  'apply',
+  'bind',
+  'call',
+  'toString',
+  'hasOwnProperty',
+  'isPrototypeOf',
+  'propertyIsEnumerable',
+  'valueOf',
+  'toLocaleString',
+  '__defineGetter__',
+  '__defineSetter__',
+  '__lookupGetter__',
+  '__lookupSetter__'
+])
 
 module.exports = VrpcAdapter

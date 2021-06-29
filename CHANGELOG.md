@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - replaced the deprecated shortid package with nanoid
 - prolonged the `proxyId` to 9 characters, reducing the collision probability to
   1% after having generated 19M ids
+- bug in `extractMemberFunctions` that would miss function in certain cases when
+  using `registerInstance`
 
 ## [2.5.0] - 25 May 2021
 
