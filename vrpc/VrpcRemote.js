@@ -86,11 +86,15 @@ class VrpcRemote extends EventEmitter {
     // domain sanity check
     if (!domain) throw new Error('The domain must be specified')
     if (domain.match(/[+/#*]/)) {
-      throw new Error('The domain must NOT contain any of those characters: "+", "/", "#", "*"')
+      throw new Error(
+        'The domain must NOT contain any of those characters: "+", "/", "#", "*"'
+      )
     }
     // agent sanity check
     if (agent.match(/[+/#]/)) {
-      throw new Error('The agent must NOT contain any of those characters: "+", "/", "#"')
+      throw new Error(
+        'The agent must NOT contain any of those characters: "+", "/", "#"'
+      )
     }
     this._token = token
     this._username = username
@@ -154,15 +158,15 @@ class VrpcRemote extends EventEmitter {
     if (password === undefined) delete options.password
     this._client = mqtt.connect(this._broker, options)
 
-    this._client.on('error', (err) => {
+    this._client.on('error', err => {
       this.emit('error', err)
     })
 
-    this._client.stream.on('error', (err) => {
+    this._client.stream.on('error', err => {
       this.emit('error', err)
     })
 
-    this.on('error', (err) => {
+    this.on('error', err => {
       this._log.debug(`Encountered MQTT error: ${err.message}`)
     })
 
@@ -194,7 +198,7 @@ class VrpcRemote extends EventEmitter {
         this._agents[agent].hostname = hostname
         this._agents[agent].version = version
         this.emit('agent', { domain, agent, status, hostname, version })
-      // ClassInfo message
+        // ClassInfo message
       } else if (instance === '__classInfo__') {
         // Json properties: { klass, instances, memberFunctions, staticFunctions }
         const json = JSON.parse(message.toString())
@@ -212,21 +216,20 @@ class VrpcRemote extends EventEmitter {
           staticFunctions,
           meta
         } = json
-        if (removed.length !== 0) this.emit('instanceGone', removed, { domain, agent, className })
-        if (added.length !== 0) this.emit('instanceNew', added, { domain, agent, className })
-        this.emit(
-          'class',
-          {
-            domain,
-            agent,
-            className,
-            instances,
-            memberFunctions,
-            staticFunctions,
-            meta
-          }
-        )
-      // RPC message
+        if (removed.length !== 0)
+          this.emit('instanceGone', removed, { domain, agent, className })
+        if (added.length !== 0)
+          this.emit('instanceNew', added, { domain, agent, className })
+        this.emit('class', {
+          domain,
+          agent,
+          className,
+          instances,
+          memberFunctions,
+          staticFunctions,
+          meta
+        })
+        // RPC message
       } else {
         const { id, data } = JSON.parse(message.toString())
         this._eventEmitter.emit(id, data)
@@ -244,7 +247,9 @@ class VrpcRemote extends EventEmitter {
   }
 
   async connected () {
-    this._indicateDeprecation('VrpcRemote.connected(): This API usage is deprecated, use `connect()` instead.')
+    this._indicateDeprecation(
+      'VrpcRemote.connected(): This API usage is deprecated, use `connect()` instead.'
+    )
     return this.connect()
   }
 
@@ -342,11 +347,12 @@ class VrpcRemote extends EventEmitter {
         instance: instanceString
       } = await this._getInstanceData(instance, options)
       return this._createProxy(agent, className, instanceString)
-    } else { // deprecate this
+    } else {
+      // deprecate this
       this._indicateDeprecation(
         'VrpcRemote.getInstance(): ' +
-        'Using an object as single argument is deprecated, ' +
-        'use "getInstance(instance, options)" instead.'
+          'Using an object as single argument is deprecated, ' +
+          'use "getInstance(instance, options)" instead.'
       )
       const fakedOptions = { ...instance }
       const fakedInstance = fakedOptions.instance
@@ -377,11 +383,12 @@ class VrpcRemote extends EventEmitter {
     if (typeof instance === 'string') {
       instanceData = await this._getInstanceData(instance)
       if (options) instanceData = { ...options, ...instanceData }
-    } else { // deprecate this
+    } else {
+      // deprecate this
       this._indicateDeprecation(
         'VrpcRemote.delete(): ' +
-        'Using an object as single argument is deprecated, ' +
-        'use "delete(instance, options)" instead.'
+          'Using an object as single argument is deprecated, ' +
+          'use "delete(instance, options)" instead.'
       )
       instanceData = { ...instanceData, ...instance }
     }
@@ -481,7 +488,7 @@ class VrpcRemote extends EventEmitter {
    * Retrieves all agents, instances, classes, member and static
    * functions potentially available for remote control.
    * @deprecated
-  * @returns {Object} SystemInformation
+   * @returns {Object} SystemInformation
    * ```ts
    * type SystemInformation = {
    *   [domain].agents[agent].status: string, // 'offline' or 'online'
@@ -497,8 +504,8 @@ class VrpcRemote extends EventEmitter {
   getAvailabilities () {
     this._indicateDeprecation(
       'VrpcRemote.getAvailabilities(): ' +
-      'This function is deprecated and will be removed soon, ' +
-      'use `getSystemInformation()` instead.'
+        'This function is deprecated and will be removed soon, ' +
+        'use `getSystemInformation()` instead.'
     )
     return { [this._domain]: { agents: this._agents } }
   }
@@ -506,7 +513,7 @@ class VrpcRemote extends EventEmitter {
   /**
    * Retrieves all information about the currently available components.
    *
-  * @returns {Object} SystemInformation
+   * @returns {Object} SystemInformation
    * ```ts
    * type SystemInformation = {
    *   [agent].status: string, // 'offline' or 'online'
@@ -532,8 +539,8 @@ class VrpcRemote extends EventEmitter {
   getAvailableDomains () {
     this._indicateDeprecation(
       'VrpcRemote.getAvailableDomains(): ' +
-      'this function will be removed in the next major release, as the client' +
-      'works with a single domain anyways'
+        'this function will be removed in the next major release, as the client' +
+        'works with a single domain anyways'
     )
     return [this._domain]
   }
@@ -551,7 +558,7 @@ class VrpcRemote extends EventEmitter {
     if (typeof options === 'string') {
       this._indicateDeprecation(
         'VrpcRemote.getAvailableAgents(): ' +
-        'Providing a domain here has no effect and will be an error in future.'
+          'Providing a domain here has no effect and will be an error in future.'
       )
       options = { mustBeOnline: true }
     }
@@ -578,7 +585,10 @@ class VrpcRemote extends EventEmitter {
    * @param {Boolean} [options.mustBeOnline=true] Only retrieve currently online classes
    * @returns {Array} Array of class names.
    */
-  getAvailableClasses (options = { agent: this._agent, mustBeOnline: true }, domain) {
+  getAvailableClasses (
+    options = { agent: this._agent, mustBeOnline: true },
+    domain
+  ) {
     /// DEPRECATION INFORMATION AND WORKAROUND - TO BE REMOVED IN 3.x
     let agent = this._agent
     let mustBeOnline = true
@@ -586,8 +596,8 @@ class VrpcRemote extends EventEmitter {
     if (typeof options === 'string') {
       this._indicateDeprecation(
         'VrpcRemote.getAvailableClasses(): ' +
-        'setting the agent as string argument is deprecated.`' +
-         'Use `{ agent: <myAgent> }` instead.'
+          'setting the agent as string argument is deprecated.`' +
+          'Use `{ agent: <myAgent> }` instead.'
       )
       agent = options
     } else {
@@ -598,7 +608,7 @@ class VrpcRemote extends EventEmitter {
     if (domain) {
       this._indicateDeprecation(
         'VrpcRemote.getAvailableClasses(): ' +
-        'Providing a domain here has no effect and will be an error in future.'
+          'Providing a domain here has no effect and will be an error in future.'
       )
     }
     ///
@@ -631,8 +641,8 @@ class VrpcRemote extends EventEmitter {
     if (typeof options === 'string') {
       this._indicateDeprecation(
         'VrpcRemote.getAvailableInstances(): ' +
-        'Setting the agent as string argument is deprecated.`' +
-         'Use `{ agent: <myAgent> }` instead.'
+          'Setting the agent as string argument is deprecated.`' +
+          'Use `{ agent: <myAgent> }` instead.'
       )
       agent = options
     } else {
@@ -643,7 +653,7 @@ class VrpcRemote extends EventEmitter {
     if (domain) {
       this._indicateDeprecation(
         'VrpcRemote.getAvailableInstances(): ' +
-        'Providing a domain here has no effect and will be an error in future.'
+          'Providing a domain here has no effect and will be an error in future.'
       )
     }
     ///
@@ -676,8 +686,8 @@ class VrpcRemote extends EventEmitter {
     if (typeof options === 'string') {
       this._indicateDeprecation(
         'VrpcRemote.getAvailableMemberFunctions(): ' +
-        'Setting the agent as string argument is deprecated.`' +
-         'Use `{ agent: <myAgent> }` instead.'
+          'Setting the agent as string argument is deprecated.`' +
+          'Use `{ agent: <myAgent> }` instead.'
       )
       agent = options
     } else {
@@ -688,7 +698,7 @@ class VrpcRemote extends EventEmitter {
     if (domain) {
       this._indicateDeprecation(
         'VrpcRemote.getAvailableMemberFunctions(): ' +
-        'Providing a domain here has no effect and will be an error in future.'
+          'Providing a domain here has no effect and will be an error in future.'
       )
     }
     ///
@@ -723,8 +733,8 @@ class VrpcRemote extends EventEmitter {
     if (typeof options === 'string') {
       this._indicateDeprecation(
         'VrpcRemote.getAvailableStaticFunctions(): ' +
-        'Setting the agent as string argument is deprecated.`' +
-         'Use `{ agent: <myAgent> }` instead.'
+          'Setting the agent as string argument is deprecated.`' +
+          'Use `{ agent: <myAgent> }` instead.'
       )
       agent = options
     } else {
@@ -735,7 +745,7 @@ class VrpcRemote extends EventEmitter {
     if (domain) {
       this._indicateDeprecation(
         'VrpcRemote.getAvailableStaticFunctions(): ' +
-        'Providing a domain here has no effect and will be an error in future.'
+          'Providing a domain here has no effect and will be an error in future.'
       )
     }
     ///
@@ -757,10 +767,7 @@ class VrpcRemote extends EventEmitter {
    * @param {String} options.agent Agent name. If not provided class default is used
    * @returns {Promise} Promise that resolves once re-connected
    */
-  async reconnectWithToken (
-    token,
-    { agent = this._agent } = {}
-  ) {
+  async reconnectWithToken (token, { agent = this._agent } = {}) {
     this._token = token
     this._agent = agent
     this._client.end(() => this.connect())
@@ -805,11 +812,22 @@ class VrpcRemote extends EventEmitter {
   }
 
   _createMqttClientId () {
-    const clientInfo = os.arch() + JSON.stringify(os.cpus()) + os.homedir() +
-    os.hostname() + JSON.stringify(os.networkInterfaces()) + os.platform() +
-    os.release() + os.totalmem() + os.type()
+    const clientInfo =
+      os.arch() +
+      JSON.stringify(os.cpus()) +
+      os.homedir() +
+      os.hostname() +
+      JSON.stringify(os.networkInterfaces()) +
+      os.platform() +
+      os.release() +
+      os.totalmem() +
+      os.type()
     // console.log('ClientInfo:', clientInfo)
-    const md5 = crypto.createHash('md5').update(clientInfo).digest('hex').substr(0, 13)
+    const md5 = crypto
+      .createHash('md5')
+      .update(clientInfo)
+      .digest('hex')
+      .substr(0, 13)
     // FIXME (3.x): use vrpcp -> vrpcc
     return `vrpcp${this._instance}X${md5}` // 5 + 4 + 1 + 13 = 23 (max clientId)
   }
@@ -819,29 +837,44 @@ class VrpcRemote extends EventEmitter {
   }
 
   _mqttPublish (topic, message, options) {
-    this._client.publish(topic, message, { qos: this._qos, ...options }, (err) => {
-      if (err) {
-        this._log.warn(`Could not publish MQTT message because: ${err.message}`)
+    this._client.publish(
+      topic,
+      message,
+      { qos: this._qos, ...options },
+      err => {
+        if (err) {
+          this._log.warn(
+            `Could not publish MQTT message because: ${err.message}`
+          )
+        }
       }
-    })
+    )
   }
 
   _mqttSubscribe (topic, options) {
-    this._client.subscribe(topic, { qos: this._qos, ...options }, (err, granted) => {
-      if (err) {
-        this._log.warn(`Could not subscribe to topic: ${topic} because: ${err.message}`)
-      } else {
-        if (granted.length === 0) {
-          this._log.debug(`Already subscribed to: ${topic}`)
+    this._client.subscribe(
+      topic,
+      { qos: this._qos, ...options },
+      (err, granted) => {
+        if (err) {
+          this._log.warn(
+            `Could not subscribe to topic: ${topic} because: ${err.message}`
+          )
+        } else {
+          if (granted.length === 0) {
+            this._log.debug(`Already subscribed to: ${topic}`)
+          }
         }
       }
-    })
+    )
   }
 
   _mqttUnsubscribe (topic, options) {
-    this._client.unsubscribe(topic, options, (err) => {
+    this._client.unsubscribe(topic, options, err => {
       if (err) {
-        this._log.warn(`Could not unsubscribe from topic: ${topic} because: ${err.message}`)
+        this._log.warn(
+          `Could not unsubscribe from topic: ${topic} because: ${err.message}`
+        )
       }
     })
   }
@@ -859,13 +892,10 @@ class VrpcRemote extends EventEmitter {
     this._mqttPublish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
       const msg = `Proxy creation for class "${className}" on agent "${agent}" and domain "${this._domain}" timed out (> ${this._timeout} ms)`
-      const timer = setTimeout(
-        () => {
-          this._eventEmitter.removeAllListeners(json.id)
-          reject(new Error(msg))
-        },
-        this._timeout
-      )
+      const timer = setTimeout(() => {
+        this._eventEmitter.removeAllListeners(json.id)
+        reject(new Error(msg))
+      }, this._timeout)
       this._eventEmitter.once(json.id, data => {
         clearTimeout(timer)
         if (data.e) {
@@ -891,7 +921,11 @@ class VrpcRemote extends EventEmitter {
       }
       timer = setTimeout(() => {
         this.removeListener('class', checkClass)
-        reject(new Error(`Proxy creation for class "${className}" on agent "${agent}" and domain "${this._domain}" timed out (> ${this._timeout} ms)`))
+        reject(
+          new Error(
+            `Proxy creation for class "${className}" on agent "${agent}" and domain "${this._domain}" timed out (> ${this._timeout} ms)`
+          )
+        )
       }, this._timeout)
       this.on('class', checkClass)
     })
@@ -928,7 +962,8 @@ class VrpcRemote extends EventEmitter {
           const json = {
             context: instance,
             method: name,
-            id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+            id: `${this._instance}-${this._invokeId++ %
+              Number.MAX_SAFE_INTEGER}`,
             sender: this._vrpcClientId,
             data: this._packData(proxyId, name, ...args)
           }
@@ -937,7 +972,9 @@ class VrpcRemote extends EventEmitter {
           this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
           return this._handleAgentAnswer(json)
         } catch (err) {
-          throw new Error(`Could not remotely call "${name}" because: ${err.message}`)
+          throw new Error(
+            `Could not remotely call "${name}" because: ${err.message}`
+          )
         }
       }
     })
@@ -947,13 +984,10 @@ class VrpcRemote extends EventEmitter {
   async _handleAgentAnswer ({ id, context, method }) {
     return new Promise((resolve, reject) => {
       const msg = `Function call "${context}::${method}()" timed out (> ${this._timeout} ms)`
-      const timer = setTimeout(
-        () => {
-          this._eventEmitter.removeAllListeners(id)
-          reject(new Error(msg))
-        },
-        this._timeout
-      )
+      const timer = setTimeout(() => {
+        this._eventEmitter.removeAllListeners(id)
+        reject(new Error(msg))
+      }, this._timeout)
       this._eventEmitter.once(id, data => {
         clearTimeout(timer)
         if (data.e) {
@@ -976,7 +1010,7 @@ class VrpcRemote extends EventEmitter {
 
   async _waitForInstance (instance, options = {}) {
     return new Promise((resolve, reject) => {
-      const handler = (timer) => (instances, { agent, className }) => {
+      const handler = timer => (instances, { agent, className }) => {
         if (instances.includes(instance)) {
           if (options.agent && agent !== options.agent) return
           if (options.className && className !== options.className) return
@@ -985,14 +1019,11 @@ class VrpcRemote extends EventEmitter {
           resolve({ agent, className, instance })
         }
       }
-      const timer = setTimeout(
-        () => {
-          this.removeListener('instanceNew', handler(timer))
-          const msg = `Could not find instance: ${instance} (> ${this._timeout} ms)`
-          reject(new Error(msg))
-        },
-        this._timeout
-      )
+      const timer = setTimeout(() => {
+        this.removeListener('instanceNew', handler(timer))
+        const msg = `Could not find instance: ${instance} (> ${this._timeout} ms)`
+        reject(new Error(msg))
+      }, this._timeout)
       this.on('instanceNew', handler(timer))
     })
   }
@@ -1008,7 +1039,8 @@ class VrpcRemote extends EventEmitter {
         // 1) functionName must be "on"
         // 2) callback is second argument
         // 3) first argument was string
-        if (functionName === 'on' &&
+        if (
+          functionName === 'on' &&
           index === 1 &&
           typeof args[0] === 'string'
         ) {
@@ -1023,12 +1055,14 @@ class VrpcRemote extends EventEmitter {
           const id = this._removeEventSubscription(proxyId, args[0], value)
           if (!id) isHandledLocally = true
           data[`_${index + 1}`] = id
-        // Regular function callback
+          // Regular function callback
         } else {
-          const id = `__f__${proxyId}-${functionName}-${index}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`
+          const id = `__f__${proxyId}-${functionName}-${index}-${this
+            ._invokeId++ % Number.MAX_SAFE_INTEGER}`
           data[`_${index + 1}`] = id
           this._eventEmitter.once(id, data => {
-            const args = Object.keys(data).sort()
+            const args = Object.keys(data)
+              .sort()
               .filter(x => x[0] === '_')
               .map(x => data[x])
             value.apply(null, args) // This is the actual function call
@@ -1039,7 +1073,8 @@ class VrpcRemote extends EventEmitter {
         const id = `__f__${proxyId}-${functionName}-${index}-${event}`
         data[`_${index + 1}`] = id
         this._eventEmitter.on(id, data => {
-          const args = Object.keys(data).sort()
+          const args = Object.keys(data)
+            .sort()
             .filter(x => x[0] === '_')
             .map(x => data[x])
           emitter.emit(event, ...args)
@@ -1061,8 +1096,9 @@ class VrpcRemote extends EventEmitter {
     const emitter = new EventEmitter()
     emitter.on(id, callback)
     this._cachedSubscriptions.set(id, emitter)
-    this._eventEmitter.on(id, (data) => {
-      const args = Object.keys(data).sort()
+    this._eventEmitter.on(id, data => {
+      const args = Object.keys(data)
+        .sort()
         .filter(x => x[0] === '_')
         .map(x => data[x])
       emitter.emit(id, ...args)
@@ -1092,8 +1128,10 @@ class VrpcRemote extends EventEmitter {
   _isFunction (variable) {
     const getType = {}
     const type = getType.toString.call(variable)
-    return variable &&
+    return (
+      variable &&
       (type === '[object Function]' || type === '[object AsyncFunction]')
+    )
   }
 
   _isEmitter (variable) {
@@ -1109,7 +1147,8 @@ class VrpcRemote extends EventEmitter {
   async _getInstanceData (instance, options = {}) {
     const instanceData = this._getInstanceFromCache(instance, options)
     if (!instanceData) {
-      if (options.noWait) throw new Error(`Could not find instance: ${instance}`)
+      if (options.noWait)
+        throw new Error(`Could not find instance: ${instance}`)
       return this._waitForInstance(instance, options)
     }
     return instanceData
@@ -1175,32 +1214,32 @@ class VrpcRemote extends EventEmitter {
  */
 
 /**
-  * Event 'instanceNew'
-  *
-  * Emitted whenever a new instance was created.
-  *
-  * @event VrpcRemote#instanceNew
-  *
-  * @param {Array.<String>} addedInstances - An array of newly added instances
-  * @param {Object} info
-  * @param {String} info.domain - Domain name
-  * @param {String} info.agent - Agent name
-  * @param {String} info.className - Class name
-  */
+ * Event 'instanceNew'
+ *
+ * Emitted whenever a new instance was created.
+ *
+ * @event VrpcRemote#instanceNew
+ *
+ * @param {Array.<String>} addedInstances - An array of newly added instances
+ * @param {Object} info
+ * @param {String} info.domain - Domain name
+ * @param {String} info.agent - Agent name
+ * @param {String} info.className - Class name
+ */
 
 /**
-  * Event 'instanceGone'
-  *
-  * Emitted whenever a new instance was removed.
-  *
-  * @event VrpcRemote#instanceGone
-  *
-  * @param {Array.<String>} removedInstances - An array of removed instances
-  * @param {Object} info
-  * @param {String} info.domain - Domain name
-  * @param {String} info.agent - Agent name
-  * @param {String} info.className - Class name
-  */
+ * Event 'instanceGone'
+ *
+ * Emitted whenever a new instance was removed.
+ *
+ * @event VrpcRemote#instanceGone
+ *
+ * @param {Array.<String>} removedInstances - An array of removed instances
+ * @param {Object} info
+ * @param {String} info.domain - Domain name
+ * @param {String} info.agent - Agent name
+ * @param {String} info.className - Class name
+ */
 
 /**
  * Event 'connect'
@@ -1210,7 +1249,7 @@ class VrpcRemote extends EventEmitter {
  * @event VrpcRemote#connect
  * @type {Object}
  * @property {Boolean} sessionPresent - A session from a previous connection is already present
-*/
+ */
 
 /**
  * Event 'reconnect'
@@ -1218,7 +1257,7 @@ class VrpcRemote extends EventEmitter {
  * Emitted when a reconnect starts.
  *
  * @event VrpcRemote#reconnect
-*/
+ */
 
 /**
  * Event 'close'

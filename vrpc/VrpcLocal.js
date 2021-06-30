@@ -91,9 +91,9 @@ class VrpcLocal {
 
   delete ({ className, instance }) {
     let context
-    if (typeof (instance) === 'string') {
+    if (typeof instance === 'string') {
       context = instance
-    } else if (typeof (instance) === 'object') {
+    } else if (typeof instance === 'object') {
       context = instance._targetId
     }
     const json = {
@@ -220,10 +220,12 @@ class VrpcLocal {
     args.forEach((value, index) => {
       // Check whether provided argument is a function
       if (this._isFunction(value)) {
-        const id = `__f__${proxyId}-${functionName}-${index}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`
+        const id = `__f__${proxyId}-${functionName}-${index}-${this
+          ._invokeId++ % Number.MAX_SAFE_INTEGER}`
         data[`_${index + 1}`] = id
         this._eventEmitter.once(id, data => {
-          const args = Object.keys(data).sort()
+          const args = Object.keys(data)
+            .sort()
             .filter(value => value[0] === '_')
             .map(key => data[key])
           value.apply(null, args) // This is the actual function call
@@ -233,7 +235,8 @@ class VrpcLocal {
         const id = `__f__${proxyId}-${functionName}-${index}-${event}`
         data[`_${index + 1}`] = id
         this._eventEmitter.on(id, data => {
-          const args = Object.keys(data).sort()
+          const args = Object.keys(data)
+            .sort()
             .filter(value => value[0] === '_')
             .map(key => data[key])
           emitter.emit(event, ...args)
