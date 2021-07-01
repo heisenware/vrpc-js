@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - prevented proxyId of `VrpcRemote` from potential collisions
+- improved proxyId generation of `VrpcLocal`
 
 ## [2.5.1] - 29 Jun 2021
 

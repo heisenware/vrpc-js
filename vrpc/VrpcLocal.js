@@ -52,7 +52,9 @@ class VrpcLocal {
   constructor (adapter) {
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
+    this._proxyId = 0
     this._adapter = adapter
+    this._instance = nanoid(4)
 
     // Register callback handler
     this._adapter.onCallback((jsonString, jsonObject) => {
@@ -176,7 +178,7 @@ class VrpcLocal {
     // Create instance
     const ret = JSON.parse(this._adapter.call(JSON.stringify(json)))
     const instanceId = ret.data.r
-    const proxyId = nanoid(9)
+    const proxyId = `${this._instance}-${this._proxyId++}`
     const proxy = {
       _targetId: instanceId,
       _proxyId: proxyId
