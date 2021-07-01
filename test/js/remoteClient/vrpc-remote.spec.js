@@ -492,19 +492,21 @@ describe('vrpc-remote', () => {
     })
     context('instance context', () => {
       let agent1Foo1
+      let agent1Foo2
+      let agent2Foo1
       before(async () => {
         agent1Foo1 = await client.create({
           agent: 'agent1',
           className: 'Foo',
           instance: 'agent1Foo1'
         })
-        await client.create({
+        agent1Foo2 = await client.create({
           agent: 'agent1',
           className: 'Foo',
           instance: 'agent1Foo2',
           args: [1]
         })
-        await client.create({
+        agent2Foo1 = await client.create({
           agent: 'agent2',
           className: 'Foo',
           instance: 'agent2Foo1',
@@ -610,6 +612,44 @@ describe('vrpc-remote', () => {
         assert(ids.includes('agent1Foo2'))
         assert(ids.includes('agent2Foo1'))
         assert(ids.includes('agent2Foo2'))
+      })
+      it('should allow batch event-registration on a single agent', async () => {
+        const callbackSpy = sinon.spy()
+        await client.callAll({
+          agent: 'agent1',
+          className: 'Foo',
+          functionName: 'on',
+          args: ['value', callbackSpy]
+        })
+        await agent1Foo1.increment()
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(callbackSpy.calledOnce)
+        assert.strictEqual(callbackSpy.args[0][0], 'agent1Foo1')
+        assert.strictEqual(callbackSpy.args[0][1], 4)
+        await agent1Foo2.increment()
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(callbackSpy.calledTwice)
+        assert.strictEqual(callbackSpy.args[1][0], 'agent1Foo2')
+        assert.strictEqual(callbackSpy.args[1][1], 4)
+      })
+      it('should allow batch event-registration across agents', async () => {
+        const callbackSpy = sinon.spy()
+        await client.callAll({
+          agent: '*',
+          className: 'Foo',
+          functionName: 'on',
+          args: ['value', callbackSpy]
+        })
+        await agent1Foo1.increment()
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(callbackSpy.calledOnce)
+        assert.strictEqual(callbackSpy.args[0][0], 'agent1Foo1')
+        assert.strictEqual(callbackSpy.args[0][1], 5)
+        await agent2Foo1.increment()
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(callbackSpy.calledTwice)
+        assert.strictEqual(callbackSpy.args[1][0], 'agent2Foo1')
+        assert.strictEqual(callbackSpy.args[1][1], 4)
       })
     })
   })

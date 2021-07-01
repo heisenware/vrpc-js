@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Added
+
+ - support for event and callback registrations when using `callAll`
+
+### Fixed
+
+- prevented proxyId of `VrpcRemote` from potential collisions
+
 ## [2.5.1] - 29 Jun 2021
 
 ### Fixed

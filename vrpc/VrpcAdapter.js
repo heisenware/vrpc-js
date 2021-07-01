@@ -427,129 +427,157 @@ class VrpcAdapter {
   }
 
   static _call (json) {
-    const { context, method, data } = json
-    const wrappedArgs = VrpcAdapter._wrapCallbacks(json)
-    // VrpcAdapter._log.debug(`Calling function: ${method} with payload: ${data}`)
+    const { method } = json
     switch (method) {
-      // Special case: ctor
       case '__create__':
-        try {
-          const instance = VrpcAdapter._create(context, ...wrappedArgs)
-          const instanceId = nanoid(9)
-          VrpcAdapter._instances.set(instanceId, { context, instance })
-          data.r = instanceId
-        } catch (err) {
-          data.e = err.message
-        }
+        VrpcAdapter._handleCreate(json)
         break
-      // Special case: dtor
       case '__delete__':
-        try {
-          const instanceId = wrappedArgs[0]
-          data.r = VrpcAdapter._delete(instanceId)
-          VrpcAdapter._emitter.emit('delete', {
-            className: context,
-            instance: wrappedArgs[0]
-          })
-        } catch (err) {
-          data.e = err.message
-        }
+        VrpcAdapter._handleDelete(json)
         break
-      // Special case: named construction
       case '__createNamed__':
-        try {
-          VrpcAdapter._createNamed(context, ...wrappedArgs)
-          data.r = wrappedArgs[0] // First argument is instanceId
-          VrpcAdapter._emitter.emit('create', {
-            className: context,
-            instance: wrappedArgs[0],
-            args: wrappedArgs.slice(1)
-          })
-        } catch (err) {
-          data.e = err.message
-        }
+        VrpcAdapter._handleCreateNamed(json)
         break
-      case '__getNamed__': // Special case: retrieval of known instance
-        try {
-          const instanceId = wrappedArgs[0]
-          const entry = VrpcAdapter._instances.get(instanceId)
-          if (entry) data.r = instanceId
-          else data.e = `Instance with id: ${instanceId} does not exist`
-        } catch (err) {
-          data.e = err.message
-        }
+      case '__getNamed__':
+        VrpcAdapter._handleGetNamed(json)
         break
-      case '__callAll__': // Special case: call on all known instances
+      case '__callAll__':
+        VrpcAdapter._handleCallAll(json)
+        break
+      default:
+        VrpcAdapter._handleCall(json)
+    }
+  }
+
+  static _handleCreate (json) {
+    const { context, data } = json
+    try {
+      const wrappedArgs = VrpcAdapter._wrapArguments(json)
+      const instance = VrpcAdapter._create(context, ...wrappedArgs)
+      const instanceId = nanoid(9)
+      VrpcAdapter._instances.set(instanceId, { context, instance })
+      data.r = instanceId
+    } catch (err) {
+      data.e = err.message
+    }
+  }
+
+  static _handleDelete (json) {
+    const { context, data } = json
+    try {
+      const wrappedArgs = VrpcAdapter._wrapArguments(json)
+      const instanceId = wrappedArgs[0]
+      data.r = VrpcAdapter._delete(instanceId)
+      VrpcAdapter._emitter.emit('delete', {
+        className: context,
+        instance: wrappedArgs[0]
+      })
+    } catch (err) {
+      data.e = err.message
+    }
+  }
+
+  static _handleCreateNamed (json) {
+    const { context, data } = json
+    try {
+      const wrappedArgs = VrpcAdapter._wrapArguments(json)
+      VrpcAdapter._createNamed(context, ...wrappedArgs)
+      data.r = wrappedArgs[0] // First argument is instanceId
+      VrpcAdapter._emitter.emit('create', {
+        className: context,
+        instance: wrappedArgs[0],
+        args: wrappedArgs.slice(1)
+      })
+    } catch (err) {
+      data.e = err.message
+    }
+  }
+
+  static _handleGetNamed (json) {
+    const { data } = json
+    try {
+      const wrappedArgs = VrpcAdapter._wrapArguments(json)
+      const instanceId = wrappedArgs[0]
+      const entry = VrpcAdapter._instances.get(instanceId)
+      if (entry) data.r = instanceId
+      else data.e = `Instance with id: ${instanceId} does not exist`
+    } catch (err) {
+      data.e = err.message
+    }
+  }
+
+  static _handleCallAll (json) {
+    const { context, method, data } = json
+    try {
+      const calls = []
+      for (const [id, { className, instance }] of VrpcAdapter._instances) {
+        if (className !== context) continue
+        let v
+        let e = null
         try {
+          const wrappedArgs = VrpcAdapter._wrapArguments(json, id)
           const funcName = wrappedArgs[0]
-          const calls = []
-          for (const [id, { className, instance }] of VrpcAdapter._instances) {
-            if (className !== context) continue
-            let v
-            let e = null
-            try {
-              v = instance[funcName].apply(instance, wrappedArgs.slice(1))
-            } catch (err) {
-              e = err
-            }
-            // check wether function returned a promise
-            if (VrpcAdapter._isPromise(v)) {
-              calls.push(
-                v
-                  .then(val => ({ id, val, err: null }))
-                  .catch(err => ({ id, err, val: null }))
-              )
-            } else {
-              calls.push({ id, val: v, err: e })
-            }
-          }
-          this._handlePromise(json, method, Promise.all(calls))
+          v = instance[funcName].apply(instance, wrappedArgs.slice(1))
         } catch (err) {
-          data.e = err.message
+          e = err
         }
-        break
-      // Regular function call
-      default: {
-        // Check whether context is a registered class
-        const entry = VrpcAdapter._functionRegistry.get(context)
-        if (entry !== undefined) {
-          // entry is class -> function is static
-          const { Klass } = entry
-          // TODO Think about whether to do live checking (like here) or
-          // rather sticking to those functions registered before...
-          // TODO This is even more important now as the agent does a wildcard
-          // subscription against all functions
-          if (VrpcAdapter._isFunction(Klass[method])) {
-            try {
-              const ret = Klass[method].apply(null, wrappedArgs)
-              // check if function returns promise
-              if (ret && this._isFunction(ret.then)) {
-                this._handlePromise(json, method, ret)
-              } else data.r = ret
-            } catch (err) {
-              data.e = err.message
-            }
-          } else throw new Error(`Could not find function: ${method}`)
+        if (VrpcAdapter._isPromise(v)) {
+          calls.push(
+            v
+              .then(val => ({ id, val, err: null }))
+              .catch(err => ({ id, err, val: null }))
+          )
         } else {
-          // is not static
-          const entry = VrpcAdapter._instances.get(context)
-          if (entry === undefined) {
-            throw new Error(`Could not find context: ${context}`)
-          }
-          const { instance } = entry
-          if (VrpcAdapter._isFunction(instance[method])) {
-            try {
-              const ret = instance[method].apply(instance, wrappedArgs)
-              // check if function returns promise
-              if (VrpcAdapter._isPromise(ret)) {
-                this._handlePromise(json, method, ret)
-              } else data.r = ret
-            } catch (err) {
-              data.e = err.message
-            }
-          } else throw new Error(`Could not find function: ${method}`)
+          calls.push({ id, val: v, err: e })
         }
       }
+      this._handlePromise(json, method, Promise.all(calls))
+    } catch (err) {
+      data.e = err.message
+    }
+  }
+
+  static _handleCall (json) {
+    const { context, method, data } = json
+    const wrappedArgs = VrpcAdapter._wrapArguments(json)
+    // Check whether context is a registered class
+    const entry = VrpcAdapter._functionRegistry.get(context)
+    if (entry !== undefined) {
+      // entry is class -> function is static
+      const { Klass } = entry
+      // TODO Think about whether to do live checking (like here) or
+      // rather sticking to those functions registered before...
+      // TODO This is even more important now as the agent does a wildcard
+      // subscription against all functions
+      if (VrpcAdapter._isFunction(Klass[method])) {
+        try {
+          const ret = Klass[method].apply(null, wrappedArgs)
+          // check if function returns promise
+          if (VrpcAdapter._isPromise(ret)) {
+            this._handlePromise(json, method, ret)
+          } else data.r = ret
+        } catch (err) {
+          data.e = err.message
+        }
+      } else throw new Error(`Could not find function: ${method}`)
+    } else {
+      // is not static
+      const entry = VrpcAdapter._instances.get(context)
+      if (entry === undefined) {
+        throw new Error(`Could not find context: ${context}`)
+      }
+      const { instance } = entry
+      if (VrpcAdapter._isFunction(instance[method])) {
+        try {
+          const ret = instance[method].apply(instance, wrappedArgs)
+          // check if function returns promise
+          if (VrpcAdapter._isPromise(ret)) {
+            this._handlePromise(json, method, ret)
+          } else data.r = ret
+        } catch (err) {
+          data.e = err.message
+        }
+      } else throw new Error(`Could not find function: ${method}`)
     }
   }
 
@@ -599,24 +627,14 @@ class VrpcAdapter {
     if (!valid) throw new Error(VrpcAdapter._ajv.errorsText())
   }
 
-  static _wrapCallbacks (json) {
+  static _wrapArguments (json, instanceId) {
     const { method, sender, data, context } = json
     const args = VrpcAdapter._extractDataToArray(data)
     const wrappedArgs = []
     args.forEach(arg => {
       // Find those args that actually need to be function callbacks
       if (typeof arg === 'string' && arg.substr(0, 5) === '__f__') {
-        const f = (...innerArgs) => {
-          // do not even trigger a callback for already offline clients
-          if (sender && !VrpcAdapter._listeners[sender]) return
-          const data = {}
-          innerArgs.forEach((value, index) => {
-            data[`_${index + 1}`] = value
-          })
-          const callbackJson = Object.assign({}, json, { data, id: arg })
-          const callbackJsonString = VrpcAdapter._stringifySafely(callbackJson)
-          VrpcAdapter._callback(callbackJsonString, callbackJson)
-        }
+        const f = this._generateWrapper(arg, json, instanceId)
         wrappedArgs.push(f)
         if (!sender) return
         // Register this client to later know when he is dead and skip callbacks
@@ -646,6 +664,38 @@ class VrpcAdapter {
       }
     })
     return wrappedArgs
+  }
+
+  static _generateWrapper (id, json, instanceId) {
+    const { sender } = json
+    if (instanceId) {
+      const wrapper = (...innerArgs) => {
+        // do not even trigger a callback for already offline clients
+        if (sender && !VrpcAdapter._listeners[sender]) return
+        const data = { _1: instanceId }
+        innerArgs.forEach((x, i) => {
+          data[`_${i + 2}`] = x
+        })
+        // TODO Heal that crazy API !!
+        const callbackJson = { ...json, data, id }
+        const callbackJsonString = VrpcAdapter._stringifySafely(callbackJson)
+        VrpcAdapter._callback(callbackJsonString, callbackJson)
+      }
+      return wrapper
+    }
+    const wrapper = (...innerArgs) => {
+      // do not even trigger a callback for already offline clients
+      if (sender && !VrpcAdapter._listeners[sender]) return
+      const data = {}
+      innerArgs.forEach((x, i) => {
+        data[`_${i + 1}`] = x
+      })
+      // TODO Heal that crazy API !!
+      const callbackJson = { ...json, data, id }
+      const callbackJsonString = VrpcAdapter._stringifySafely(callbackJson)
+      VrpcAdapter._callback(callbackJsonString, callbackJson)
+    }
+    return wrapper
   }
 
   static _handlePromise (json, method, promise) {

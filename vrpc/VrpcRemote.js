@@ -111,6 +111,7 @@ class VrpcRemote extends EventEmitter {
     this._agents = {}
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
+    this._proxyId = 0
     this._client = null
     this._cachedSubscriptions = new Map()
     this._proxies = {}
@@ -422,12 +423,14 @@ class VrpcRemote extends EventEmitter {
     args = [],
     agent = this._agent
   } = {}) {
+    const wrapped = this._wrapArguments(className, functionName, ...args)
+    if (!wrapped) return // Skipping remote call -> handled locally
     const json = {
       context: className,
       method: functionName,
       id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       sender: this._vrpcClientId,
-      data: this._packData(className, functionName, ...args)
+      data: VrpcRemote._argsArrayToObject(wrapped)
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/${functionName}`
     await this._waitUntilClassIsOnline(agent, className)
@@ -437,19 +440,23 @@ class VrpcRemote extends EventEmitter {
 
   /**
    * Calls the same function on all instances of a given class and returns an
-   * aggregated result.
+   * aggregated result. It as well allows for batch event and callback
+   * registrations. In this case the instanceId of the emitter is injected as
+   * first argument of any event callback.
    *
    * NOTE: When no agent was specified as class default and no agent is
    * specified when calling this function, callAll will act on the requested
-   * class across all available agents. The same is true when explicitly using
-   * a wildcard (*) as agent value.
+   * class across all available agents. The same is true when explicitly using a
+   * wildcard (*) as agent value.
    *
    * @param {Object} options
    * @param {String} options.className Name of the static function's class
-   * @param {Array} [options.args] Positional arguments of the static function call
-   * @param {String} [options.agent] Agent name. If not provided class default is used
-   * @returns {Promise<Object[]>} An array of objects `{ id, val, err }` carrying
-   * the instance id, the return value and potential errors
+   * @param {Array} [options.args] Positional arguments of the static function
+   * call
+   * @param {String} [options.agent] Agent name. If not provided class default
+   * is used
+   * @returns {Promise<Object[]>} An array of objects `{ id, val, err }`
+   * carrying the instance id, the return value and potential errors
    */
   async callAll ({
     className,
@@ -457,20 +464,24 @@ class VrpcRemote extends EventEmitter {
     args = [],
     agent = this._agent
   } = {}) {
-    const data = { _1: functionName }
-    args.forEach((value, index) => (data[`_${index + 2}`] = value))
     const json = {
       context: className,
       method: functionName,
       id: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      sender: this._vrpcClientId,
-      data
+      sender: this._vrpcClientId
     }
     if (agent === '*') {
       const result = []
       const agents = this.getAvailableAgents()
       for (const x of agents) {
         const topic = `${this._domain}/${x}/${className}/__static__/__callAll__`
+        const wrapped = this._wrapArguments(
+          `${x}-${className}`,
+          functionName,
+          ...args
+        )
+        if (!wrapped) continue // using cache
+        json.data = VrpcRemote._argsArrayToObject([functionName, ...wrapped])
         await this._waitUntilClassIsOnline(x, className)
         this._mqttPublish(topic, JSON.stringify(json))
         const tmp = await this._handleAgentAnswer(json)
@@ -479,6 +490,13 @@ class VrpcRemote extends EventEmitter {
       return result
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__callAll__`
+    const wrapped = this._wrapArguments(
+      `${agent}-${className}`,
+      functionName,
+      ...args
+    )
+    if (!wrapped) return // using cache
+    json.data = VrpcRemote._argsArrayToObject([functionName, ...wrapped])
     await this._waitUntilClassIsOnline(agent, className)
     this._mqttPublish(topic, JSON.stringify(json))
     return this._handleAgentAnswer(json)
@@ -941,7 +959,7 @@ class VrpcRemote extends EventEmitter {
 
   _createProxy (agent, className, instance) {
     const targetTopic = `${this._domain}/${agent}/${className}/${instance}`
-    const proxyId = crypto.randomBytes(2).toString('hex')
+    const proxyId = `${this._instance}-${this._proxyId++}`
     const proxy = {
       _targetId: instance,
       _proxyId: proxyId
@@ -958,6 +976,8 @@ class VrpcRemote extends EventEmitter {
     // Build proxy
     uniqueFuncs.forEach(name => {
       proxy[name] = async (...args) => {
+        const wrapped = this._wrapArguments(proxyId, name, ...args)
+        if (!wrapped) return // Skipping remote call -> handled locally
         try {
           const json = {
             context: instance,
@@ -965,10 +985,8 @@ class VrpcRemote extends EventEmitter {
             id: `${this._instance}-${this._invokeId++ %
               Number.MAX_SAFE_INTEGER}`,
             sender: this._vrpcClientId,
-            data: this._packData(proxyId, name, ...args)
+            data: VrpcRemote._argsArrayToObject(wrapped)
           }
-          // Skipping remote call -> handled locally
-          if (json.data === null) return
           this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
           return this._handleAgentAnswer(json)
         } catch (err) {
@@ -1028,50 +1046,46 @@ class VrpcRemote extends EventEmitter {
     })
   }
 
-  _packData (proxyId, functionName, ...args) {
-    const data = {}
+  _wrapArguments (remoteId, functionName, ...args) {
+    const wrapped = []
     let isHandledLocally = false
-    args.forEach((value, index) => {
+    args.forEach((x, i) => {
       // Check whether provided argument is a function
-      if (this._isFunction(value)) {
+      if (this._isFunction(x)) {
         // Check special case of an event emitter registration
         // We test three conditions:
         // 1) functionName must be "on"
         // 2) callback is second argument
         // 3) first argument was string
-        if (
-          functionName === 'on' &&
-          index === 1 &&
-          typeof args[0] === 'string'
-        ) {
-          const id = this._addEventSubscription(proxyId, args[0], value)
+        if (functionName === 'on' && i === 1 && typeof args[0] === 'string') {
+          const id = this._addEventSubscription(remoteId, args[0], x)
           if (!id) isHandledLocally = true
-          data[`_${index + 1}`] = id
+          wrapped.push(id)
         } else if (
           (functionName === 'off' || functionName === 'removeListener') &&
-          index === 1 &&
+          i === 1 &&
           typeof args[0] === 'string'
         ) {
-          const id = this._removeEventSubscription(proxyId, args[0], value)
+          const id = this._removeEventSubscription(remoteId, args[0], x)
           if (!id) isHandledLocally = true
-          data[`_${index + 1}`] = id
+          wrapped.push(id)
           // Regular function callback
         } else {
-          const id = `__f__${proxyId}-${functionName}-${index}-${this
-            ._invokeId++ % Number.MAX_SAFE_INTEGER}`
-          data[`_${index + 1}`] = id
+          const id = `__f__${remoteId}-${functionName}-${i}-${this._invokeId++ %
+            Number.MAX_SAFE_INTEGER}`
+          wrapped.push(id)
           this._eventEmitter.once(id, data => {
             const args = Object.keys(data)
               .sort()
               .filter(x => x[0] === '_')
               .map(x => data[x])
-            value.apply(null, args) // This is the actual function call
+            x.apply(null, args) // This is the actual function call
           })
         }
-      } else if (this._isEmitter(value)) {
-        const { emitter, event } = value
-        const id = `__f__${proxyId}-${functionName}-${index}-${event}`
-        data[`_${index + 1}`] = id
+      } else if (this._isEmitter(x)) {
+        const { emitter, event } = x
+        const id = `__f__${remoteId}-${functionName}-${i}-${event}`
+        wrapped.push(id)
         this._eventEmitter.on(id, data => {
           const args = Object.keys(data)
             .sort()
@@ -1080,15 +1094,15 @@ class VrpcRemote extends EventEmitter {
           emitter.emit(event, ...args)
         })
       } else {
-        data[`_${index + 1}`] = value
+        wrapped.push(x)
       }
     })
     if (isHandledLocally) return null
-    return data
+    return wrapped
   }
 
-  _addEventSubscription (proxyId, event, callback) {
-    const id = `__f__${proxyId}-${event}`
+  _addEventSubscription (remoteId, event, callback) {
+    const id = `__f__${remoteId}-${event}`
     if (this._cachedSubscriptions.has(id)) {
       this._cachedSubscriptions.get(id).on(id, callback)
       return
@@ -1106,8 +1120,8 @@ class VrpcRemote extends EventEmitter {
     return id
   }
 
-  _removeEventSubscription (proxyId, event, callback) {
-    const id = `__f__${proxyId}-${event}`
+  _removeEventSubscription (remoteId, event, callback) {
+    const id = `__f__${remoteId}-${event}`
     if (this._cachedSubscriptions.has(id)) {
       const emitter = this._cachedSubscriptions.get(id)
       emitter.removeListener(id, callback)
@@ -1147,8 +1161,9 @@ class VrpcRemote extends EventEmitter {
   async _getInstanceData (instance, options = {}) {
     const instanceData = this._getInstanceFromCache(instance, options)
     if (!instanceData) {
-      if (options.noWait)
+      if (options.noWait) {
         throw new Error(`Could not find instance: ${instance}`)
+      }
       return this._waitForInstance(instance, options)
     }
     return instanceData
@@ -1178,6 +1193,14 @@ class VrpcRemote extends EventEmitter {
     } else {
       this._log.warn('DEPRECATED ', msg)
     }
+  }
+
+  static _argsArrayToObject (args) {
+    const obj = {}
+    args.forEach((x, i) => {
+      obj[`_${i + 1}`] = x
+    })
+    return obj
   }
 }
 
