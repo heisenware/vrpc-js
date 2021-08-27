@@ -42,26 +42,26 @@ dynamic linkage), executable or source package.
 
 ### Embedding C++ into Node.js
 
-- [Simple C++ to Node.js Binding Example](docs/examples/CppNodeExample1.md)
-- [Advanced C++ to Node.js Binding Example](docs/examples/CppNodeExample2.md)
+- [Simple C++ to Node.js Binding Example](examples/cpp-node-example1/README.md)
+- [Advanced C++ to Node.js Binding Example](examples/cpp-node-example2/README.md)
 
 ### Embedding C++ into Python3
 
-- [Simple C++ to Python Binding Example](docs/examples/CppPythonExample1.md)
-- [Advanced C++ to Python Binding Example](docs/examples/CppPythonExample2.md)
+- [Simple C++ to Python Binding Example](examples/cpp-python-example1/README.md)
+- [Advanced C++ to Python Binding Example](examples/cpp-python-example2/README.md)
 
 ### Making existing C++ code remotely callable (agent)
 
-- [Simple C++ Agent Example](docs/examples/CppAgentLinuxExample1.md)
-- [Advanced C++ Agent Example](docs/examples/CppAgentLinuxExample2.md)
+- [Simple C++ Agent Example](examples/cpp-agent-example1/README.md)
+- [Advanced C++ Agent Example](examples/cpp-agent-example2/README.md)
 
 ### Making existing Node.js code remotely callable (agent)
 
-- [Node.js Agent Example](docs/examples/NodeAgentExample.md)
+- [Node.js Agent Example](examples/node-agent-example/README.md)
 
 ### Calling code remotely from Node.js (client)
 
-- [Node.js Remote Client Example](docs/examples/NodeClientExample.md)
+- [Node.js Remote Client Example](examples/node-client-example/README.md)
 
 ### Frontend-Backend communication
 
