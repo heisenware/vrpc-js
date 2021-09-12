@@ -71,6 +71,11 @@ describe('vrpc-remote', () => {
         await client.connect()
         assert(connectSpy.calledOnce)
       })
+      it('should provide a proper client id', () => {
+        const clientId = client.getClientId()
+        assert.strictEqual(typeof clientId, 'string')
+        assert(clientId.split('/').length, 3)
+      })
       it('should end', async () => {
         await client.end()
       })
@@ -418,6 +423,13 @@ describe('vrpc-remote', () => {
         assert.strictEqual(classSpy.callCount, 4)
         assert.strictEqual(classSpy.args[3][0].instances.length, 0)
         assert.strictEqual(instanceGoneSpy.callCount, 2)
+      })
+      it('should contain proper instance-, and client ids', () => {
+        assert.strictEqual(proxy1.vrpcClientId, client.getClientId())
+        assert.strictEqual(proxy1.vrpcInstanceId, 'instance1')
+        assert.strictEqual(proxy2.vrpcClientId, client.getClientId())
+        assert.strictEqual(proxy2.vrpcInstanceId, 'instance2')
+        assert(proxy1.vrpcProxyId !== proxy2.vrpcProxyId)
       })
     })
   })

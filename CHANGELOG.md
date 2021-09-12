@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [unreleased]
+
+### Added
+
+- injection of proxy-, instance-, and client id into proxy instance [Node.js] (#49)
+- public accessor for client id [Node.js] (#49)
+
 ## [2.6.0] - 12 Jul 2021
 
 ### Added
