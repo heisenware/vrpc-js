@@ -124,6 +124,15 @@ class VrpcRemote extends EventEmitter {
   }
 
   /**
+   * Provides a unique id for this client instance
+   *
+   * @returns {String} clientId
+   */
+  getClientId () {
+    return this._vrpcClientId
+  }
+
+  /**
    * Actually connects to the MQTT broker.
    *
    * @emits connected
@@ -961,6 +970,10 @@ class VrpcRemote extends EventEmitter {
     const targetTopic = `${this._domain}/${agent}/${className}/${instance}`
     const proxyId = `${this._instance}-${this._proxyId++}`
     const proxy = {
+      vrpcClientId: this._vrpcClientId,
+      vrpcInstanceId: instance,
+      vrpcProxyId: proxyId,
+      // deprecate the properties below
       _targetId: instance,
       _proxyId: proxyId
     }
