@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - injection of proxy-, instance-, and client id into proxy instance [Node.js] (#49)
 - public accessor for client id [Node.js] (#49)
+- signal `clientGone` on agent, indicating that a state-producing client went
+  [Node.js]
+
+### Fixed
+
+- Bug during clientId extraction for an exited client (causing leaks for
+  anonymous instances)
 
 ## [2.6.0] - 12 Jul 2021
 

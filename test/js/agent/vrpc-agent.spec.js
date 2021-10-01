@@ -1,9 +1,13 @@
 'use strict'
 
 /* global describe, context, before, after, it */
-const { VrpcAgent } = require('../../../index')
+const { VrpcAgent, VrpcRemote, VrpcAdapter } = require('../../../index')
 const assert = require('assert')
 const sinon = require('sinon')
+
+class Foo {}
+
+VrpcAdapter.register(Foo)
 
 describe('vrpc-agent', () => {
   /*******************************
@@ -92,6 +96,57 @@ describe('vrpc-agent', () => {
       it('should end', async () => {
         await agent.end()
       })
+    })
+  })
+  /**************************
+   * signalling client gone *
+   **************************/
+  describe('knowing when a client exited', () => {
+    const clientGoneSpy = sinon.spy()
+    let agent
+    let client1
+    let client2
+    before(async () => {
+      agent = new VrpcAgent({
+        broker: 'mqtt://broker:1883',
+        domain: 'test.vrpc',
+        agent: 'agent2',
+        username: 'Erwin',
+        password: '12345'
+      })
+      await agent.serve()
+      agent.on('clientGone', clientGoneSpy)
+      client1 = new VrpcRemote({
+        broker: 'mqtt://broker:1883',
+        domain: 'test.vrpc',
+        username: 'Erwin',
+        password: '12345'
+      })
+      await client1.connect()
+      client2 = new VrpcRemote({
+        broker: 'mqtt://broker:1883',
+        domain: 'test.vrpc',
+        username: 'Erwin',
+        password: '12345'
+      })
+      await client2.connect()
+      await client2.create({
+        agent: 'agent2',
+        className: 'Foo',
+        instance: 'foo'
+      })
+    })
+    after(async () => {
+      agent.end()
+    })
+    it('should not signal when any client is gone', async () => {
+      await client1.end()
+      assert(clientGoneSpy.notCalled)
+    })
+    it('should signal when an involved client is gone', async () => {
+      await client2.end()
+      assert(clientGoneSpy.called)
+      assert(clientGoneSpy.calledWith(client2.getClientId()))
     })
   })
 })

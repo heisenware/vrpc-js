@@ -567,7 +567,7 @@ class VrpcAgent extends EventEmitter {
 
   _handleClientInfoMessage (topic, json) {
     // Client went offline
-    const clientId = topic.slice(0, -9)
+    const clientId = topic.slice(0, -15) // /__clientInfo__ = 15
     if (json.status === 'offline') {
       const entry = this._unnamedInstances.get(clientId)
       if (entry) {
@@ -583,6 +583,7 @@ class VrpcAgent extends EventEmitter {
       }
       VrpcAdapter._unregisterEventListeners(clientId)
       this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
+      this.emit('clientGone', clientId)
     }
   }
 
@@ -747,6 +748,16 @@ class VrpcAgent extends EventEmitter {
  * mqtt.Client#end(), this event is emitted once the callback returns.
  *
  * @event VrpcAgent#end
+ */
+
+/**
+ * Event 'clientGone'
+ *
+ * Emitted when a VRPC client exited that before produced state (e.g. created
+ * an anonymous or named instance).
+ *
+ * @event VrpcAgent#clientGone
+ * @type {String} clientId
  */
 
 module.exports = VrpcAgent
