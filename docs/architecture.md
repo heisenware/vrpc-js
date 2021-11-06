@@ -34,8 +34,11 @@ and must still be adaptable).
 
 Currently, adapters exist for:
 
-- C++ - `vrpc.hpp`
-- Javascript - `VrpcAdapter.js`
+// TODO MAKE LINKS
+
+- C++ (**vrpc-hpp**): `vrpc_adapter.hpp`
+- Javascript (**vrpc-js**) `VrpcAdapter.js`
+- R (**vrpc-r**) Adapter.R
 
 ### Minimal interface
 
@@ -98,20 +101,22 @@ function call(jsonString: string): string;
 This function must be provided a string-serialized JSON (VRPC format) and
 it must return a stringified JSON (VRPC format) as well.
 
-Besides the registered functionality `call` must additionally provide the
+Besides the registered functionality `call` must additionally support the
 following static functions:
 
 ```ts
-function __create__ (className: string, ...args: any[]): string;
+function __createIsolated__ (className: string, ...args: any[]): string;
 
-function __createNamed__ (className: string, instanceName: string, ...args: any[]): string;
+function __createShared__ (className: string, instanceName: string, ...args: any[]): string;
 
-function __getNamed__ (instanceName: string): instanceId;
+function __getIsolated__ (instanceName: string, clientId: string): instanceId;
+
+function __getShared__ (instanceName: string): instanceId;
 
 function __delete__ (instanceName: string): boolean;
 ```
 
-reflecting those methods abstracting the instances' life-cycle management.
+reflecting the factory methods for the instances' life-cycle management.
 
 While not needed for VRPC, those life-cycle functions are typically made
 available as proper public (and static) interface on the Adapter itself.
@@ -123,7 +128,7 @@ Hence, implementing a powerful plug-able local factory.
 function onCallback(callback: (jsonString: string) => void): void;
 ```
 
-This function must be provided a callback function expecting a string-serialized
+This function expects a callback function which receives a string-serialized
 JSON (in VRPC format).
 
 ## Agent

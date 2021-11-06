@@ -24,14 +24,11 @@ two arguments):
 
 ```json
 {
-  "context": "<context>",
-  "method": "<method>",
-  "data": {
-    "_1": "<first arg>",
-    "_2": "<second arg>"
-  },
-  "id": "<correlationId>",
-  "sender": "<sender>"
+  "c": "<context>",
+  "f": "<function>",
+  "a": ["<arguments>"],
+  "i": "<correlationId>",
+  "s": "<sender>"
 }
 ```
 
@@ -39,36 +36,33 @@ General RPC **response** payload pattern:
 
 ```json
 {
-  "context": "<context>",
-  "method": "<method>",
-  "data": {
-    "_1": "<first arg>",
-    "_2": "<second arg>",
-    "r": "<return value>",
-    "e": "<error message>"
-  },
-  "id": "<correlationId>",
-  "sender": "<sender>"
+  "c": "<context>",
+  "f": "<function>",
+  "a": ["<arguments>"],
+  "r": "<return value>",
+  "e": "<error message>",
+  "i": "<correlationId>",
+  "s": "<sender>"
 }
 ```
 
 > **NOTE 1**
 >
->- if `<method>` refers to a member function the `<context>` must reflect the
+>- if `<function>` refers to a member function the `<context>` must reflect the
 >  corresponding **instance name**
->- if `<method>` refers to a static method the `<context>` must reflect the
+>- if `<function>` refers to a static function the `<context>` must reflect the
 >  corresponding **class name**
->- if `<method>` refers to a global method the `<context>` must have the value
+>- if `<function>` refers to a global function the `<context>` must have the value
 >  `__global__`
 >
 > **NOTE 2**
 >
 > If VRPC is used for language binding use cases (i.e. not remotely), the last
-> two properties (`<id>` and `<sender>`) are omitted from the call.
+> two properties `i` (correlationId) and `s` (sender) are omitted from the call.
 >
 > **NOTE 3**
 >
-> For all languages supporting function overloading, `<method>` will carry
+> For all languages supporting function overloading, `<method>` must carry
 > the full signature in form of:
 >
 > ```xml
@@ -86,7 +80,7 @@ General RPC **response** payload pattern:
 >
 > **NOTE 4**
 >
-> In case of an successful RPC call the property `data.e` MUST NOT exist in the
+> In case of an successful RPC call the property `d.e` MUST NOT exist in the
 > response message.
 
 ## Agent Details
@@ -110,9 +104,9 @@ General RPC **response** payload pattern:
     <domain>/<agent>/__agentInfo__
 
     JSON PAYLOAD {
-      status: 'online'
-      hostname: <hostname>
-      version: <userAgentVersion>
+      "status": "online"
+      "hostname": <hostname>
+      "version": <userAgentVersion>
     }
     ```
 
@@ -272,10 +266,10 @@ in two distinct ways.
 
 Those are the function to manage the lifetime of the remotely created objects:
 
-* `__create__`
+* `__createShared__`
+* `__createIsolated__`
 * `__delete__`
-* `__createNamed__`
-* `__getNamed__`
+* `__get__`
 
 all of them use double underscores both as prefix and as postfix.
 

@@ -9,15 +9,15 @@
     "test": "test"
   },
   "scripts": {
-    "build": "ln -sf binding.gyp.no-auto binding.gyp && third_party/install.sh && node-gyp rebuild && rm binding.gyp",
+    "build": "ln -sf binding.gyp.no-auto binding.gyp && node-gyp rebuild && rm binding.gyp",
     "test": "npm run test:cpp && npm run test:jsLocal && npm run test:jsRemote && npm run test:jsRemoteClient && npm run test:jsAgent",
-    "test:cpp": "build/Release/vrpc-test",
+    "test:native": "./node_modules/.bin/mocha test/native/vrpc-native*.js --exit",
     "test:jsLocal": "./node_modules/.bin/mocha test/js/local/*.js --exit",
     "test:jsRemote": "./node_modules/.bin/mocha test/js/remote/lifeCycleTest.js --timeout 30000 --exit && test/js/remote/test.sh",
     "test:jsRemoteClient": "test/js/remoteClient/test.sh",
     "test:jsAgent": "test/js/agent/test.sh",
     "test:jsPerformance": "test/js/performance/test.sh",
-    "build:pydoc": "pydoc-markdown -I vrpc -m VrpcLocal --render-toc > docs/reference/python.md",
+    "build:pydoc": "pydoc-markdown -I vrpc -m VrpcCaller --render-toc > docs/reference/python.md",
     "build:jsdoc": "./node_modules/.bin/jsdoc2md -f vrpc/*.js --param-list-format=list --separators > docs/reference/nodeJs.md",
     "build:doc": "npm run build:pydoc; npm run build:jsdoc",
     "build:browser": "./node_modules/.bin/webpack"

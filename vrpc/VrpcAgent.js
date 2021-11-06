@@ -6,6 +6,8 @@ const { ArgumentParser } = require('argparse')
 const VrpcAdapter = require('./VrpcAdapter')
 const EventEmitter = require('events')
 
+const VRPC_WIRE_VERSION = 3
+
 /**
  * Agent capable of making existing code available to remote control by clients.
  *
@@ -274,7 +276,8 @@ class VrpcAgent extends EventEmitter {
     return JSON.stringify({
       status,
       hostname: os.hostname(),
-      version: this._version
+      version: this._version,
+      vrpc: VRPC_WIRE_VERSION
     })
   }
 
@@ -372,20 +375,32 @@ class VrpcAgent extends EventEmitter {
     })
   }
 
-  _handleVrpcCallback (jsonString, jsonObject) {
-    const { sender } = jsonObject
+  _handleVrpcCallback (json) {
+    const { s } = json
     try {
-      this._log.debug(
-        `Forwarding callback to: ${sender} with payload:`,
-        jsonObject
-      )
-      this._mqttPublish(sender, jsonString)
+      this._log.debug(`Forwarding callback to: ${s} with payload:`, json)
+      this._mqttPublish(s, VrpcAgent._stringifySafely(json))
     } catch (err) {
       this._log.warn(
         err,
         `Problem publishing vrpc callback to ${sender} because of: ${err.message}`
       )
     }
+  }
+
+  static _stringifySafely (json) {
+    let str
+    const { c, f } = json
+    try {
+      str = JSON.stringify(json)
+    } catch (err) {
+      this._log.debug(
+        `Failed serialization of return value for: ${c}::${f}, because: ${err.message}`
+      )
+      json.r = '__vrpc::not-serializable__'
+      str = JSON.stringify(json)
+    }
+    return str
   }
 
   _handleConnect () {
@@ -494,8 +509,10 @@ class VrpcAgent extends EventEmitter {
       }
 
       // Prepare RPC json
-      json.context = instance === '__static__' ? className : instance
-      json.method = method
+      // SECURITY: take as much as possible params from topic structure as this
+      // can be authorized by the broker. Content can't be checked...
+      json.c = instance === '__static__' ? className : instance
+      json.f = method
 
       // Mutates json and adds return value
       VrpcAdapter._call(json)
@@ -505,55 +522,37 @@ class VrpcAgent extends EventEmitter {
       switch (method) {
         case '__create__': {
           // TODO handle instantiation errors
-          const instanceId = json.data.r
+          const instanceId = json.r
           // TODO await this
           this._subscribeToMethodsOfNewInstance(className, instanceId)
-          this._registerUnnamedInstance(instanceId, json.sender)
+          this._registerUnnamedInstance(instanceId, json.s)
           break
         }
         case '__createNamed__': {
           // TODO handle instantiation errors
-          const instanceId = json.data.r
+          const instanceId = json.r
           if (!this._hasNamedInstance(instanceId)) {
             publishClassInfo = true
             this._subscribeToMethodsOfNewInstance(className, instanceId)
           }
-          this._registerNamedInstance(instanceId, json.sender)
+          this._registerNamedInstance(instanceId, json.s)
           break
         }
         case '__getNamed__': {
-          const {
-            data: { _1, e },
-            sender
-          } = json
-          if (!e) this._registerNamedInstance(_1, sender)
+          if (!json.e) this._registerNamedInstance(json.a[0], json.s)
           break
         }
         case '__delete__': {
-          const {
-            data: { _1 },
-            sender
-          } = json
           this._unsubscribeMethodsOfDeletedInstance(className, instance)
-          const wasNamed = this._unregisterInstance(_1, sender)
+          const wasNamed = this._unregisterInstance(json.a[0], json.s)
           if (wasNamed) publishClassInfo = true
           break
         }
       }
-      let jsonString
-      try {
-        jsonString = JSON.stringify(json)
-      } catch (err) {
-        this._log.debug(
-          `Failed serialization of return value for: ${json.context}::${json.method}, because: ${err.message}`
-        )
-        json.data.r = '__vrpc::not-serializable__'
-        jsonString = JSON.stringify(json)
-      }
       if (publishClassInfo && method === '__delete__') {
         this._publishClassInfoMessage(className)
       }
-      this._mqttPublish(json.sender, jsonString)
+      this._mqttPublish(json.s, VrpcAgent._stringifySafely(json))
       if (publishClassInfo && method === '__createNamed__') {
         this._publishClassInfoMessage(className)
       }
@@ -573,12 +572,10 @@ class VrpcAgent extends EventEmitter {
       if (entry) {
         // anonymous
         entry.forEach(instanceId => {
-          const json = { data: { _1: instanceId }, method: '__delete__' }
+          const json = { f: '__delete__', a: [instanceId], r: null }
+          // TODO Do not mutate!
           VrpcAdapter._call(json)
-          const {
-            data: { r }
-          } = json
-          if (r) this._log.debug(`Deleted unnamed instance: ${instanceId}`)
+          if (json.r) this._log.debug(`Deleted unnamed instance: ${instanceId}`)
         })
       }
       VrpcAdapter._unregisterEventListeners(clientId)
