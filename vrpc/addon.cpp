@@ -42,11 +42,11 @@ SOFTWARE.
 #include <mutex>
 #include <thread>
 
-#include "json.hpp"
-#include "vrpc.hpp"
+#include <vrpc/json.hpp>
+#include <vrpc/adapter.hpp>
 
 #ifndef VRPC_WITH_DL
-#include <binding.cpp>
+#include <adapter.cpp>
 #endif
 
 #define _VRPC_MAX_HANDLERS 32
@@ -301,7 +301,7 @@ void onCallback(const FunctionCallbackInfo<Value>& args) {
   if (nHandlers >= _VRPC_MAX_HANDLERS) {
     isolate->ThrowException(Exception::TypeError(
         String::NewFromUtf8(isolate,
-                            "Exceeded maximum number of handler regisrations",
+                            "Exceeded maximum number of handler registrations",
                             NewStringType::kNormal)
             .ToLocalChecked()));
   }
