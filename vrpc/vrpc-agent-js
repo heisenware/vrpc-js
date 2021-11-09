@@ -44,9 +44,9 @@ parser.add_argument(
 parser.add_argument(
   ['-f', '--file'],
   {
-    help: 'Name of the binding file (Default is \'PATH/binding.js\')',
+    help: 'Name of the adapter file (Default is \'PATH/adapter.js\')',
     type: 'string',
-    default: './binding.js'
+    default: './adapter.js'
   }
 )
 parser.add_argument(
@@ -77,11 +77,11 @@ parser.add_argument(
 
 const args = parser.parse_args()
 
-// Load the bindings
+// Load the adapter
 try {
   require(path.join(process.cwd(), args.file))
 } catch (err) {
-  console.error('Could not find \'binding.js\' file')
+  console.error('Could not find \'adapter.js\' file')
   process.exit(1)
 }
 

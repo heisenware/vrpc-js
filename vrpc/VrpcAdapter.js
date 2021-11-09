@@ -10,9 +10,9 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
        ________\///________\///________\///__\///___________________\/////////__
 
 
-Non-intrusively binds code and provides access in form of asynchronous remote
+Non-intrusively adapts code and provides access in form of asynchronous remote
 procedure calls (RPC).
-Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
+Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
@@ -621,29 +621,29 @@ class VrpcAdapter {
   }
 
   static _wrapArguments (json, instanceId) {
-    const { f, s, a, c } = json
+    const { f: func, s: sender, a: args, c: context } = json
     const wrapped = []
-    a.forEach(x => {
+    args.forEach(arg => {
       // Find those args that actually need to be function callbacks
-      if (typeof x === 'string' && x.substr(0, 5) === '__f__') {
-        wrapped.push(this._generateWrapper(x, json, instanceId))
-        if (!s) return
+      if (typeof arg === 'string' && arg.substr(0, 5) === '__f__') {
+        const f = this._generateWrapper(arg, json, instanceId)
+        wrapped.push(f)
+        if (!sender) return
         // Register this client to later know when he is dead and skip callbacks
-        if (!VrpcAdapter._listeners[s]) VrpcAdapter._listeners[s] = []
+        if (!VrpcAdapter._listeners[sender]) VrpcAdapter._listeners[sender] = []
         // Check whether injected callback is an EventEmitter registration
-        if (f === 'on' && typeof a[0] === 'string') {
-          const e = a[0]
-          const i = c
-          const r = x
-          VrpcAdapter._listeners[s].push({ i, e, f, r })
+        if (func === 'on' && typeof args[0] === 'string') {
+          const e = args[0]
+          const i = context
+          const r = arg
+          VrpcAdapter._listeners[sender].push({ i, e, f, r })
         }
         if (
-          (f === 'off' || f === 'removeListener') &&
-          typeof a[0] === 'string'
+          (func === 'off' || func === 'removeListener') &&
+          typeof args[0] === 'string'
         ) {
-          const r = x
-          const s = VrpcAdapter._listeners[s]
-          const entry = s && s.find(x => x.r === r)
+          const listener = VrpcAdapter._listeners[sender]
+          const entry = listener && listener.find(x => x.r === arg)
           if (entry) {
             const { i, e, f } = entry
             VrpcAdapter.getInstance(i).removeListener(e, f)
@@ -651,7 +651,7 @@ class VrpcAdapter {
         }
       } else {
         // Leave the others untouched
-        wrapped.push(x)
+        wrapped.push(arg)
       }
     })
     return wrapped

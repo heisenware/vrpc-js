@@ -11,7 +11,7 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
 
 
 Enables Node.js to run VRPC as native addon.
-Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
+Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.

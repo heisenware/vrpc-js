@@ -8,13 +8,13 @@ communication.</p>
 <dt><a href="#VrpcAgent">VrpcAgent</a> ⇐ <code>EventEmitter</code></dt>
 <dd><p>Agent capable of making existing code available to remote control by clients.</p>
 </dd>
-<dt><a href="#VrpcLocal">VrpcLocal</a></dt>
-<dd><p>Client capable of creating proxy objects and locally calling
-functions as provided through native addons.</p>
-</dd>
-<dt><a href="#VrpcRemote">VrpcRemote</a> ⇐ <code>EventEmitter</code></dt>
+<dt><a href="#VrpcClient">VrpcClient</a> ⇐ <code>EventEmitter</code></dt>
 <dd><p>Client capable of creating proxy objects and remotely calling
 functions as provided through one or more (distributed) agents.</p>
+</dd>
+<dt><a href="#VrpcNative">VrpcNative</a></dt>
+<dd><p>Client capable of creating proxy objects and locally calling
+functions as provided through native addons.</p>
 </dd>
 </dl>
 
@@ -149,7 +149,7 @@ Registers an existing instance and make it (remotely) callable
 - obj <code>Object</code> - The instance to be registered
 - options <code>Object</code>
     - .className <code>String</code> - Class name of the instance
-    - .instance <code>Boolean</code> - Name of the instance
+    - .instance <code>String</code> - Name of the instance
     - [.onlyPublic] <code>Boolean</code> <code> = true</code> - If true, only registers
 functions that do not begin with an underscore
     - [.jsdocPath] <code>String</code> - if provided, parses documentation and
@@ -303,6 +303,7 @@ Agent capable of making existing code available to remote control by clients.
         * ["offline"](#VrpcAgent+event_offline)
         * ["error"](#VrpcAgent+event_error)
         * ["end"](#VrpcAgent+event_end)
+        * ["clientGone"](#VrpcAgent+event_clientGone)
     * _static_
         * [.fromCommandline(defaults)](#VrpcAgent.fromCommandline) ⇒ <code>Agent</code>
 
@@ -460,6 +461,18 @@ mqtt.Client#end(), this event is emitted once the callback returns.
 
 * * *
 
+<a name="VrpcAgent+event_clientGone"></a>
+
+### "clientGone"
+Event 'clientGone'
+
+Emitted when a VRPC client exited that before produced state (e.g. created
+an anonymous or named instance).
+
+**Kind**: event emitted by [<code>VrpcAgent</code>](#VrpcAgent)  
+
+* * *
+
 <a name="VrpcAgent.fromCommandline"></a>
 
 ### VrpcAgent.fromCommandline(defaults) ⇒ <code>Agent</code>
@@ -485,147 +498,50 @@ const agent = VrpcAgent.fromCommandline()
 
 * * *
 
-<a name="VrpcLocal"></a>
+<a name="VrpcClient"></a>
 
-## VrpcLocal
-Client capable of creating proxy objects and locally calling
-functions as provided through native addons.
-
-**Kind**: global class  
-
-* [VrpcLocal](#VrpcLocal)
-    * [new VrpcLocal(adapter)](#new_VrpcLocal_new)
-    * [.create(className, ...args)](#VrpcLocal+create) ⇒ <code>Object</code>
-    * [.getAvailableClasses()](#VrpcLocal+getAvailableClasses) ⇒ <code>Array.&lt;String&gt;</code>
-    * [.getAvailableInstances(className)](#VrpcLocal+getAvailableInstances) ⇒ <code>Array.&lt;String&gt;</code>
-    * [.getAvailableMemberFunctions(className)](#VrpcLocal+getAvailableMemberFunctions) ⇒ <code>Array.&lt;String&gt;</code>
-    * [.getAvailableStaticFunctions(className)](#VrpcLocal+getAvailableStaticFunctions) ⇒ <code>Array.&lt;String&gt;</code>
-
-
-* * *
-
-<a name="new_VrpcLocal_new"></a>
-
-### new VrpcLocal(adapter)
-**Params**
-
-- adapter <code>Object</code> - An adapter object, typically loaded as native addon
-
-
-* * *
-
-<a name="VrpcLocal+create"></a>
-
-### vrpcLocal.create(className, ...args) ⇒ <code>Object</code>
-Creates an instance of the specified class.
-
-**Kind**: instance method of [<code>VrpcLocal</code>](#VrpcLocal)  
-**Returns**: <code>Object</code> - Proxy to the created instance  
-**Params**
-
-- className <code>String</code> - Name of the class to create an instance of
-- ...args <code>Any</code> - Arguments to provide to the constructor
-
-
-* * *
-
-<a name="VrpcLocal+getAvailableClasses"></a>
-
-### vrpcLocal.getAvailableClasses() ⇒ <code>Array.&lt;String&gt;</code>
-Retrieves an array of all available classes (names only)
-
-**Kind**: instance method of [<code>VrpcLocal</code>](#VrpcLocal)  
-**Returns**: <code>Array.&lt;String&gt;</code> - Array of class names  
-
-* * *
-
-<a name="VrpcLocal+getAvailableInstances"></a>
-
-### vrpcLocal.getAvailableInstances(className) ⇒ <code>Array.&lt;String&gt;</code>
-Provides the names of all currently running instances.
-
-**Kind**: instance method of [<code>VrpcLocal</code>](#VrpcLocal)  
-**Returns**: <code>Array.&lt;String&gt;</code> - Array of instance names  
-**Params**
-
-- className <code>String</code> - Name of class to retrieve the instances for
-
-
-* * *
-
-<a name="VrpcLocal+getAvailableMemberFunctions"></a>
-
-### vrpcLocal.getAvailableMemberFunctions(className) ⇒ <code>Array.&lt;String&gt;</code>
-Provides all available member functions of the specified class.
-
-**Kind**: instance method of [<code>VrpcLocal</code>](#VrpcLocal)  
-**Returns**: <code>Array.&lt;String&gt;</code> - Array of member function names  
-**Params**
-
-- className <code>String</code> - Name of class to provide member functions for
-
-
-* * *
-
-<a name="VrpcLocal+getAvailableStaticFunctions"></a>
-
-### vrpcLocal.getAvailableStaticFunctions(className) ⇒ <code>Array.&lt;String&gt;</code>
-Provides all available static functions of a registered class.
-
-**Kind**: instance method of [<code>VrpcLocal</code>](#VrpcLocal)  
-**Returns**: <code>Array.&lt;String&gt;</code> - Array of static function names  
-**Params**
-
-- className <code>String</code> - Name of class to provide static functions for
-
-
-* * *
-
-<a name="VrpcRemote"></a>
-
-## VrpcRemote ⇐ <code>EventEmitter</code>
+## VrpcClient ⇐ <code>EventEmitter</code>
 Client capable of creating proxy objects and remotely calling
 functions as provided through one or more (distributed) agents.
 
 **Kind**: global class  
 **Extends**: <code>EventEmitter</code>  
 
-* [VrpcRemote](#VrpcRemote) ⇐ <code>EventEmitter</code>
-    * [new VrpcRemote(options)](#new_VrpcRemote_new)
-    * [.connect()](#VrpcRemote+connect) ⇒ <code>Promise</code>
-    * [.create(options)](#VrpcRemote+create) ⇒ <code>Promise.&lt;Proxy&gt;</code>
-    * [.getInstance(instance, [options])](#VrpcRemote+getInstance) ⇒ <code>Promise.&lt;Proxy&gt;</code>
-    * [.delete(instance, [options])](#VrpcRemote+delete) ⇒ <code>Promise.&lt;Boolean&gt;</code>
-    * [.callStatic(options)](#VrpcRemote+callStatic) ⇒ <code>Promise.&lt;Any&gt;</code>
-    * [.callAll(options)](#VrpcRemote+callAll) ⇒ <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code>
-    * ~~[.getAvailabilities()](#VrpcRemote+getAvailabilities) ⇒ <code>Object</code>~~
-    * [.getSystemInformation()](#VrpcRemote+getSystemInformation) ⇒ <code>Object</code>
-    * ~~[.getAvailableDomains()](#VrpcRemote+getAvailableDomains) ⇒ <code>Array</code>~~
-    * [.getAvailableAgents([options])](#VrpcRemote+getAvailableAgents) ⇒ <code>Array</code>
-    * [.getAvailableClasses([options])](#VrpcRemote+getAvailableClasses) ⇒ <code>Array</code>
-    * [.getAvailableInstances(className, [options])](#VrpcRemote+getAvailableInstances) ⇒ <code>Array</code>
-    * [.getAvailableMemberFunctions(className, [options])](#VrpcRemote+getAvailableMemberFunctions) ⇒ <code>Array</code>
-    * [.getAvailableStaticFunctions(className, [options])](#VrpcRemote+getAvailableStaticFunctions) ⇒ <code>Array</code>
-    * [.reconnectWithToken(token, [options])](#VrpcRemote+reconnectWithToken) ⇒ <code>Promise</code>
-    * [.unregisterAgent(agent)](#VrpcRemote+unregisterAgent) ⇒ <code>Promise.&lt;Boolean&gt;</code>
-    * [.end()](#VrpcRemote+end) ⇒ <code>Promise</code>
-    * ["agent" (info)](#VrpcRemote+event_agent)
-    * ["class" (info)](#VrpcRemote+event_class)
-    * ["instanceNew" (addedInstances, info)](#VrpcRemote+event_instanceNew)
-    * ["instanceGone" (removedInstances, info)](#VrpcRemote+event_instanceGone)
-    * ["connect"](#VrpcRemote+event_connect)
-    * ["reconnect"](#VrpcRemote+event_reconnect)
-    * ["close"](#VrpcRemote+event_close)
-    * ["offline"](#VrpcRemote+event_offline)
-    * ["error"](#VrpcRemote+event_error)
-    * ["end"](#VrpcRemote+event_end)
+* [VrpcClient](#VrpcClient) ⇐ <code>EventEmitter</code>
+    * [new VrpcClient(options)](#new_VrpcClient_new)
+    * [.getClientId()](#VrpcClient+getClientId) ⇒ <code>String</code>
+    * [.connect()](#VrpcClient+connect) ⇒ <code>Promise</code>
+    * [.create(options)](#VrpcClient+create) ⇒ <code>Promise.&lt;Proxy&gt;</code>
+    * [.getInstance(instance, [options])](#VrpcClient+getInstance) ⇒ <code>Promise.&lt;Proxy&gt;</code>
+    * [.delete(instance, [options])](#VrpcClient+delete) ⇒ <code>Promise.&lt;Boolean&gt;</code>
+    * [.callStatic(options)](#VrpcClient+callStatic) ⇒ <code>Promise.&lt;Any&gt;</code>
+    * [.callAll(options)](#VrpcClient+callAll) ⇒ <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code>
+    * [.getSystemInformation()](#VrpcClient+getSystemInformation) ⇒ <code>Object</code>
+    * [.getAvailableAgents([options])](#VrpcClient+getAvailableAgents) ⇒ <code>Array</code>
+    * [.getAvailableClasses([options])](#VrpcClient+getAvailableClasses) ⇒ <code>Array</code>
+    * [.getAvailableInstances(className, [options])](#VrpcClient+getAvailableInstances) ⇒ <code>Array</code>
+    * [.getAvailableMemberFunctions(className, [options])](#VrpcClient+getAvailableMemberFunctions) ⇒ <code>Array</code>
+    * [.getAvailableStaticFunctions(className, [options])](#VrpcClient+getAvailableStaticFunctions) ⇒ <code>Array</code>
+    * [.reconnectWithToken(token, [options])](#VrpcClient+reconnectWithToken) ⇒ <code>Promise</code>
+    * [.unregisterAgent(agent)](#VrpcClient+unregisterAgent) ⇒ <code>Promise.&lt;Boolean&gt;</code>
+    * [.end()](#VrpcClient+end) ⇒ <code>Promise</code>
+    * ["agent" (info)](#VrpcClient+event_agent)
+    * ["class" (info)](#VrpcClient+event_class)
+    * ["instanceNew" (addedInstances, info)](#VrpcClient+event_instanceNew)
+    * ["instanceGone" (removedInstances, info)](#VrpcClient+event_instanceGone)
+    * ["connect"](#VrpcClient+event_connect)
+    * ["reconnect"](#VrpcClient+event_reconnect)
+    * ["close"](#VrpcClient+event_close)
+    * ["offline"](#VrpcClient+event_offline)
+    * ["error"](#VrpcClient+event_error)
+    * ["end"](#VrpcClient+event_end)
 
 
 * * *
 
-<a name="new_VrpcRemote_new"></a>
+<a name="new_VrpcClient_new"></a>
 
-### new VrpcRemote(options)
+### new VrpcClient(options)
 Constructs a remote client, able to communicate with any distributed agents
 
 NOTE: Each instance creates its own physical connection to the broker.
@@ -645,7 +561,7 @@ NOTE: Each instance creates its own physical connection to the broker.
 
 **Example**  
 ```js
-const client = new VrpcRemote({
+const client = new VrpcClient({
   domain: 'public.vrpc',
   broker: 'mqtt://vrpc.io'
 })
@@ -653,12 +569,22 @@ const client = new VrpcRemote({
 
 * * *
 
-<a name="VrpcRemote+connect"></a>
+<a name="VrpcClient+getClientId"></a>
 
-### vrpcRemote.connect() ⇒ <code>Promise</code>
+### vrpcClient.getClientId() ⇒ <code>String</code>
+Provides a unique id for this client instance
+
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
+**Returns**: <code>String</code> - clientId  
+
+* * *
+
+<a name="VrpcClient+connect"></a>
+
+### vrpcClient.connect() ⇒ <code>Promise</code>
 Actually connects to the MQTT broker.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise</code> - Resolves once connected within [timeout], rejects otherwise  
 **Emits**: <code>event:connected</code>  
 **Example**  
@@ -672,9 +598,9 @@ try {
 
 * * *
 
-<a name="VrpcRemote+create"></a>
+<a name="VrpcClient+create"></a>
 
-### vrpcRemote.create(options) ⇒ <code>Promise.&lt;Proxy&gt;</code>
+### vrpcClient.create(options) ⇒ <code>Promise.&lt;Proxy&gt;</code>
 Creates a new remote instance and provides a proxy to it.
 
 Remote instances can be "named" or "anonymous". Named instances are
@@ -691,7 +617,7 @@ invisible to other clients.
 simply attach to (and not re-create) it - just like `getInstance()` was
 called.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise.&lt;Proxy&gt;</code> - Object reflecting a proxy to the original one
 handled by the agent  
 **Params**
@@ -728,16 +654,16 @@ const proxy3 = await client.create({
 
 * * *
 
-<a name="VrpcRemote+getInstance"></a>
+<a name="VrpcClient+getInstance"></a>
 
-### vrpcRemote.getInstance(instance, [options]) ⇒ <code>Promise.&lt;Proxy&gt;</code>
+### vrpcClient.getInstance(instance, [options]) ⇒ <code>Promise.&lt;Proxy&gt;</code>
 Get a remotely existing instance.
 
 Either provide a string only, then VRPC tries to find the instance using
 client information, or additionally provide an object with explicit meta
 data.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise.&lt;Proxy&gt;</code> - Proxy object reflecting the remotely existing instance  
 **Params**
 
@@ -750,15 +676,15 @@ data.
 
 * * *
 
-<a name="VrpcRemote+delete"></a>
+<a name="VrpcClient+delete"></a>
 
-### vrpcRemote.delete(instance, [options]) ⇒ <code>Promise.&lt;Boolean&gt;</code>
+### vrpcClient.delete(instance, [options]) ⇒ <code>Promise.&lt;Boolean&gt;</code>
 Delete a remotely existing instance
 
 Either provide a string only, then VRPC tries to find the instance using
 client information, or provide an object with explicit meta data.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise.&lt;Boolean&gt;</code> - true if successful, false otherwise  
 **Params**
 
@@ -770,12 +696,12 @@ client information, or provide an object with explicit meta data.
 
 * * *
 
-<a name="VrpcRemote+callStatic"></a>
+<a name="VrpcClient+callStatic"></a>
 
-### vrpcRemote.callStatic(options) ⇒ <code>Promise.&lt;Any&gt;</code>
+### vrpcClient.callStatic(options) ⇒ <code>Promise.&lt;Any&gt;</code>
 Calls a static function on a remote class
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise.&lt;Any&gt;</code> - Return value of the remotely called function  
 **Params**
 
@@ -788,60 +714,40 @@ Calls a static function on a remote class
 
 * * *
 
-<a name="VrpcRemote+callAll"></a>
+<a name="VrpcClient+callAll"></a>
 
-### vrpcRemote.callAll(options) ⇒ <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code>
+### vrpcClient.callAll(options) ⇒ <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code>
 Calls the same function on all instances of a given class and returns an
-aggregated result.
+aggregated result. It as well allows for batch event and callback
+registrations. In this case the instanceId of the emitter is injected as
+first argument of any event callback.
 
 NOTE: When no agent was specified as class default and no agent is
 specified when calling this function, callAll will act on the requested
-class across all available agents. The same is true when explicitly using
-a wildcard (*) as agent value.
+class across all available agents. The same is true when explicitly using a
+wildcard (*) as agent value.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
-**Returns**: <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code> - An array of objects `{ id, val, err }` carrying
-the instance id, the return value and potential errors  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
+**Returns**: <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code> - An array of objects `{ id, val, err }`
+carrying the instance id, the return value and potential errors  
 **Params**
 
 - options <code>Object</code>
     - .className <code>String</code> - Name of the static function's class
-    - [.args] <code>Array</code> - Positional arguments of the static function call
-    - [.agent] <code>String</code> - Agent name. If not provided class default is used
+    - [.args] <code>Array</code> - Positional arguments of the static function
+call
+    - [.agent] <code>String</code> - Agent name. If not provided class default
+is used
 
 
 * * *
 
-<a name="VrpcRemote+getAvailabilities"></a>
+<a name="VrpcClient+getSystemInformation"></a>
 
-### ~~vrpcRemote.getAvailabilities() ⇒ <code>Object</code>~~
-***Deprecated***
-
-Retrieves all agents, instances, classes, member and static
-functions potentially available for remote control.
-
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
-**Returns**: <code>Object</code> - SystemInformation
-```ts
-type SystemInformation = {
-  [domain].agents[agent].status: string, // 'offline' or 'online'
-  [domain].agents[agent].hostname: string,
-  [domain].agents[agent].version: string,
-  [domain].agents[agent].classes[className].instances: string[],
-  [domain].agents[agent].classes[className].memberFunctions: string[],
-  [domain].agents[agent].classes[className].staticFunctions: string[],
-  [domain].agents[agent].classes[className].meta?: MetaData
-}
-```  
-
-* * *
-
-<a name="VrpcRemote+getSystemInformation"></a>
-
-### vrpcRemote.getSystemInformation() ⇒ <code>Object</code>
+### vrpcClient.getSystemInformation() ⇒ <code>Object</code>
 Retrieves all information about the currently available components.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Object</code> - SystemInformation
 ```ts
 type SystemInformation = {
@@ -857,24 +763,12 @@ type SystemInformation = {
 
 * * *
 
-<a name="VrpcRemote+getAvailableDomains"></a>
+<a name="VrpcClient+getAvailableAgents"></a>
 
-### ~~vrpcRemote.getAvailableDomains() ⇒ <code>Array</code>~~
-***Deprecated***
-
-Retrieves all domains on which agents can be remote controlled
-
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
-**Returns**: <code>Array</code> - Array of domain names  
-
-* * *
-
-<a name="VrpcRemote+getAvailableAgents"></a>
-
-### vrpcRemote.getAvailableAgents([options]) ⇒ <code>Array</code>
+### vrpcClient.getAvailableAgents([options]) ⇒ <code>Array</code>
 Retrieves all available agents.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Array</code> - Array of agent names.  
 **Params**
 
@@ -884,12 +778,12 @@ Retrieves all available agents.
 
 * * *
 
-<a name="VrpcRemote+getAvailableClasses"></a>
+<a name="VrpcClient+getAvailableClasses"></a>
 
-### vrpcRemote.getAvailableClasses([options]) ⇒ <code>Array</code>
+### vrpcClient.getAvailableClasses([options]) ⇒ <code>Array</code>
 Retrieves all available classes on specific agent.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Array</code> - Array of class names.  
 **Params**
 
@@ -900,12 +794,12 @@ Retrieves all available classes on specific agent.
 
 * * *
 
-<a name="VrpcRemote+getAvailableInstances"></a>
+<a name="VrpcClient+getAvailableInstances"></a>
 
-### vrpcRemote.getAvailableInstances(className, [options]) ⇒ <code>Array</code>
+### vrpcClient.getAvailableInstances(className, [options]) ⇒ <code>Array</code>
 Retrieves all (named) instances on specific class and agent.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Array</code> - Array of instance names  
 **Params**
 
@@ -917,12 +811,12 @@ Retrieves all (named) instances on specific class and agent.
 
 * * *
 
-<a name="VrpcRemote+getAvailableMemberFunctions"></a>
+<a name="VrpcClient+getAvailableMemberFunctions"></a>
 
-### vrpcRemote.getAvailableMemberFunctions(className, [options]) ⇒ <code>Array</code>
+### vrpcClient.getAvailableMemberFunctions(className, [options]) ⇒ <code>Array</code>
 Retrieves all member functions of specific class and agent.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Array</code> - Array of member function names  
 **Params**
 
@@ -934,12 +828,12 @@ Retrieves all member functions of specific class and agent.
 
 * * *
 
-<a name="VrpcRemote+getAvailableStaticFunctions"></a>
+<a name="VrpcClient+getAvailableStaticFunctions"></a>
 
-### vrpcRemote.getAvailableStaticFunctions(className, [options]) ⇒ <code>Array</code>
+### vrpcClient.getAvailableStaticFunctions(className, [options]) ⇒ <code>Array</code>
 Retrieves all static functions of specific class and agent.
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Array</code> - Array of static function names  
 **Params**
 
@@ -951,12 +845,12 @@ Retrieves all static functions of specific class and agent.
 
 * * *
 
-<a name="VrpcRemote+reconnectWithToken"></a>
+<a name="VrpcClient+reconnectWithToken"></a>
 
-### vrpcRemote.reconnectWithToken(token, [options]) ⇒ <code>Promise</code>
+### vrpcClient.reconnectWithToken(token, [options]) ⇒ <code>Promise</code>
 Reconnects to the broker by using a different token
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise</code> - Promise that resolves once re-connected  
 **Params**
 
@@ -967,12 +861,12 @@ Reconnects to the broker by using a different token
 
 * * *
 
-<a name="VrpcRemote+unregisterAgent"></a>
+<a name="VrpcClient+unregisterAgent"></a>
 
-### vrpcRemote.unregisterAgent(agent) ⇒ <code>Promise.&lt;Boolean&gt;</code>
+### vrpcClient.unregisterAgent(agent) ⇒ <code>Promise.&lt;Boolean&gt;</code>
 Unregisters (= removal of persisted information) an offline agent
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise.&lt;Boolean&gt;</code> - Resolves to true in case of success, false otherwise  
 **Params**
 
@@ -981,17 +875,17 @@ Unregisters (= removal of persisted information) an offline agent
 
 * * *
 
-<a name="VrpcRemote+end"></a>
+<a name="VrpcClient+end"></a>
 
-### vrpcRemote.end() ⇒ <code>Promise</code>
+### vrpcClient.end() ⇒ <code>Promise</code>
 Ends the connection to the broker
 
-**Kind**: instance method of [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise</code> - Resolves when ended  
 
 * * *
 
-<a name="VrpcRemote+event_agent"></a>
+<a name="VrpcClient+event_agent"></a>
 
 ### "agent" (info)
 Event 'agent'
@@ -999,7 +893,7 @@ Event 'agent'
 This event is fired whenever an agent is added or removed, or whenever
 an agent changes its status (switches between online or offline).
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
 **Params**
 
 - info <code>Object</code>
@@ -1012,7 +906,7 @@ an agent changes its status (switches between online or offline).
 
 * * *
 
-<a name="VrpcRemote+event_class"></a>
+<a name="VrpcClient+event_class"></a>
 
 ### "class" (info)
 Event 'class'
@@ -1020,7 +914,7 @@ Event 'class'
 Emitted whenever a class is added or removed, or when instances
 or functions of this class have changed.
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
 **Params**
 
 - info <code>Object</code>
@@ -1035,14 +929,14 @@ or functions of this class have changed.
 
 * * *
 
-<a name="VrpcRemote+event_instanceNew"></a>
+<a name="VrpcClient+event_instanceNew"></a>
 
 ### "instanceNew" (addedInstances, info)
 Event 'instanceNew'
 
 Emitted whenever a new instance was created.
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
 **Params**
 
 - addedInstances <code>Array.&lt;String&gt;</code> - An array of newly added instances
@@ -1054,14 +948,14 @@ Emitted whenever a new instance was created.
 
 * * *
 
-<a name="VrpcRemote+event_instanceGone"></a>
+<a name="VrpcClient+event_instanceGone"></a>
 
 ### "instanceGone" (removedInstances, info)
 Event 'instanceGone'
 
 Emitted whenever a new instance was removed.
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
 **Params**
 
 - removedInstances <code>Array.&lt;String&gt;</code> - An array of removed instances
@@ -1073,14 +967,14 @@ Emitted whenever a new instance was removed.
 
 * * *
 
-<a name="VrpcRemote+event_connect"></a>
+<a name="VrpcClient+event_connect"></a>
 
 ### "connect"
 Event 'connect'
 
 Emitted on successful (re)connection (i.e. connack rc=0).
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
 **Properties**
 
 | Name | Type | Description |
@@ -1090,40 +984,40 @@ Emitted on successful (re)connection (i.e. connack rc=0).
 
 * * *
 
-<a name="VrpcRemote+event_reconnect"></a>
+<a name="VrpcClient+event_reconnect"></a>
 
 ### "reconnect"
 Event 'reconnect'
 
 Emitted when a reconnect starts.
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
 
 * * *
 
-<a name="VrpcRemote+event_close"></a>
+<a name="VrpcClient+event_close"></a>
 
 ### "close"
 Event 'close'
 
 Emitted after a disconnection.
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
 
 * * *
 
-<a name="VrpcRemote+event_offline"></a>
+<a name="VrpcClient+event_offline"></a>
 
 ### "offline"
 Event 'offline'
 
 Emitted when the client goes offline.
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
 
 * * *
 
-<a name="VrpcRemote+event_error"></a>
+<a name="VrpcClient+event_error"></a>
 
 ### "error"
 Event 'error'
@@ -1137,11 +1031,11 @@ event:
 - EADDRINUSE
 - ENOTFOUND
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
 
 * * *
 
-<a name="VrpcRemote+event_end"></a>
+<a name="VrpcClient+event_end"></a>
 
 ### "end"
 Event 'end'
@@ -1149,7 +1043,44 @@ Event 'end'
 Emitted when mqtt.Client#end() is called. If a callback was passed to
 mqtt.Client#end(), this event is emitted once the callback returns.
 
-**Kind**: event emitted by [<code>VrpcRemote</code>](#VrpcRemote)  
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
+
+* * *
+
+<a name="VrpcNative"></a>
+
+## VrpcNative
+Client capable of creating proxy objects and locally calling
+functions as provided through native addons.
+
+**Kind**: global class  
+
+* [VrpcNative](#VrpcNative)
+    * [new VrpcNative(adapter)](#new_VrpcNative_new)
+    * [.getAvailableClasses()](#VrpcNative+getAvailableClasses) ⇒ <code>Array.&lt;String&gt;</code>
+
+
+* * *
+
+<a name="new_VrpcNative_new"></a>
+
+### new VrpcNative(adapter)
+Constructs a local caller object, able to communicate to natively added C++
+
+**Params**
+
+- adapter <code>Object</code> - An adapter object, typically loaded as native addon
+
+
+* * *
+
+<a name="VrpcNative+getAvailableClasses"></a>
+
+### vrpcNative.getAvailableClasses() ⇒ <code>Array.&lt;String&gt;</code>
+Retrieves an array of all available classes (names only)
+
+**Kind**: instance method of [<code>VrpcNative</code>](#VrpcNative)  
+**Returns**: <code>Array.&lt;String&gt;</code> - Array of class names  
 
 * * *
 

@@ -10,9 +10,9 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
        ________\///________\///________\///__\///___________________\/////////__
 
 
-Non-intrusively binds code and provides access in form of asynchronous remote
+Non-intrusively adapts code and provides access in form of asynchronous remote
 procedure calls (RPC).
-Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
+Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
