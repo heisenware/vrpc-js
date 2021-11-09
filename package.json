@@ -11,7 +11,7 @@
   "scripts": {
     "build:addon": "ln -sf binding.gyp.no-auto binding.gyp && node-gyp rebuild && rm binding.gyp",
     "build:browser": "./node_modules/.bin/webpack",
-    "build:doc": "./node_modules/.bin/jsdoc2md -f vrpc/*.js --param-list-format=list --separators > docs/reference/nodeJs.md",
+    "build:doc": "./node_modules/.bin/jsdoc2md -f vrpc/*.js --param-list-format=list --separators > docs/api.md",
     "test": "npm run test:agent && npm run test:client && npm run test:native",
     "test:agent": "tests/agent/test.sh",
     "test:client": "tests/client/test.sh",
