@@ -1,10 +1,15 @@
----
+# VRPC - Variadic Remote Procedure Calls
 
-## See: [vrpc.io](https://vrpc.io)
+[![Build Status](https://travis-ci.com/heisenware/vrpc.svg?branch=master)](https://travis-ci.com/heisenware/vrpc)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/heisenware/vrpc/master/LICENSE)
+[![Semver](https://img.shields.io/badge/semver-2.0.0-blue)](https://semver.org/spec/v2.0.0.html)
+[![GitHub Releases](https://img.shields.io/github/tag/heisenware/vrpc.svg)](https://github.com/heisenware/vrpc/tag)
+[![GitHub Issues](https://img.shields.io/github/issues/heisenware/vrpc.svg)](http://github.com/heisenware/vrpc/issues)
+![ci](https://github.com/heisenware/vrpc/actions/workflows/ci.yml/badge.svg)
 
----
+## Visit our website: [vrpc.io](https://vrpc.io)
 
-# What is VRPC?
+## What is VRPC?
 
 VRPC - Variadic Remote Procedure Calls - is an enhancement of the old RPC
 (remote procedure calls) idea. Like RPC, it allows to directly call functions
@@ -33,7 +38,7 @@ Cloud-Computing.
 > This open-source project is professionally managed and supported by
 > [Heisenware GmbH](https://heisenware.com).
 
-## VRPC for Javascript (Node.js and Browser)
+## This is VRPC for Javascript (Node.js and Browser)
 
 Understand how to use it by looking at the examples:
 
