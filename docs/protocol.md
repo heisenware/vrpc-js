@@ -1,4 +1,4 @@
-# VRPC Remote protocol
+# VRPC Remote Protocol
 
 All VRPC agents and clients are MQTT clients to a single logical broker.
 They use the MQTT 3.11 standard to realize all RPC functionality.
@@ -9,18 +9,17 @@ fixing the topic as well as the payload structure.
 General topic pattern:
 
 ```xml
-<domain>/<agent>/<class>/<instance>/<method>
+<domain>/<agent>/<class>/<instance>/<function>
 ```
 
 > **NOTE**
 >
-> - if `<method>` refers to a **static** method `<instance>` must have value
+> - if `<function>` refers to a **static** method `<instance>` must have value
 >   `__static__`
-> - if `<method>` refers to a **global** method `<class>` must have value
->   `__global__` and `<instance>` must have value `__static__`
+> - if `<function>` refers to a **global** method `<class>` must have value
+>   `__global__` **and** `<instance>` must have value `__static__`
 
-General RPC **request** payload pattern (here shown for a function called with
-two arguments):
+General RPC **request** payload pattern:
 
 ```json
 {
@@ -80,7 +79,7 @@ General RPC **response** payload pattern:
 >
 > **NOTE 4**
 >
-> In case of an successful RPC call the property `d.e` MUST NOT exist in the
+> In case of an successful RPC call the property `e` MUST NOT exist in the
 > response message.
 
 ## Agent Details
@@ -191,7 +190,7 @@ VRPC **publishes** the (retained) agent info message:
 2. VRPC generates an MQTT client ID like so:
 
     ```xml
-    vrpcp<random>X<processInfo>
+    vrpcc<random>X<processInfo>
     ```
 
     where `<random>` are 4 random characters and `<processInfo>` is a 13
