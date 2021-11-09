@@ -12,7 +12,7 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
 
 Non-intrusively binds any C++ code and provides access in form of asynchronous
 remote procedural callbacks (RPC).
-Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
+Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.

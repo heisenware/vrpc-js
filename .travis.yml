@@ -24,7 +24,7 @@ matrix:
       install:
         - BUILD_TEST=1 pip install .
       script:
-        - python test/python/VrpcCallerTest.py
+        - python tests/python/VrpcCallerTest.py
 
 notifications:
   email:

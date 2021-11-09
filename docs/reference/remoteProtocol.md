@@ -57,7 +57,7 @@ General RPC **response** payload pattern:
 >
 > **NOTE 2**
 >
-> If VRPC is used for language binding use cases (i.e. not remotely), the last
+> If VRPC is used for language embedding use cases (i.e. not remotely), the last
 > two properties `i` (correlationId) and `s` (sender) are omitted from the call.
 >
 > **NOTE 3**

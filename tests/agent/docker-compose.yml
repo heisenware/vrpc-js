@@ -1,0 +1,31 @@
+version: "3.1"
+services:
+
+  agent:
+    image: node:12.16.1-alpine
+    hostname: agent
+    container_name: ${TEST_CONT}
+    volumes:
+      - ../../:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "tests/agent/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node_modules/.bin/mocha",
+      "tests/agent/*.js",
+      "--colors",
+      "--exit",
+      "--timeout",
+      "20000"
+    ]
+
+  broker:
+    build: fixtures/mosquitto
+    hostname: broker
+    environment:
+      - MOSQUITTO_USERNAME=Erwin
+      - MOSQUITTO_PASSWORD=12345

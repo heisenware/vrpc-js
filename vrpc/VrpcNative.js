@@ -10,9 +10,9 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
        ________\///________\///________\///__\///___________________\/////////__
 
 
-Non-intrusively binds code and provides access in form of asynchronous remote
+Non-intrusively adapts code and provides access in form of asynchronous remote
 procedure calls (RPC).
-Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
+Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
@@ -59,9 +59,7 @@ class VrpcNative {
     this._adapter.onCallback(data => {
       // when a javascript VrpcAdapter was used we will receive an object, in
       // all other cases data will be a string (crossing language boundaries)
-      const json =
-        typeof data === 'string' ? JSON.parse(data) : data
-        console.log('EMITTING', json)
+      const json = typeof data === 'string' ? JSON.parse(data) : data
       this._eventEmitter.emit(json.i, json.a)
     })
   }
@@ -77,40 +75,36 @@ class VrpcNative {
     let proxyId = 0
     const classId = nanoid(4)
 
-    const functions = new Set(
+    const memberFuncs = new Set(
       JSON.parse(adapter.getMemberFunctions(className)).map(x => {
         const pos = x.indexOf('-')
         return pos > 0 ? x.substring(0, pos) : x
       })
     )
 
-    function isFunction (v) {
-      const getType = {}
-      return v && getType.toString.call(v) === '[object Function]'
-    }
-
-    function isEmitter (v) {
-      return (
-        typeof v === 'object' &&
-        v.hasOwnProperty('emitter') &&
-        v.hasOwnProperty('event') &&
-        typeof v.emitter === 'object' &&
-        typeof v.emitter.emit === 'function'
-      )
-    }
+    const staticFuncs = new Set(
+      JSON.parse(adapter.getStaticFunctions(className)).map(x => {
+        const pos = x.indexOf('-')
+        return pos > 0 ? x.substring(0, pos) : x
+      })
+    )
 
     function wrapArguments (context, functionName, ...args) {
       const wrapped = []
       args.forEach((x, i) => {
         // Check whether provided argument is a function
-        if (isFunction(x)) {
-          const id = functionName.startsWith('__on')
-            ? `__f__${context}-${functionName}-${i}`
-            : `__f__${context}-${functionName}-${i}-${invokeId++ %
-                Number.MAX_SAFE_INTEGER}`
-          wrapped.push(id)
-          eventEmitter.once(id, a => x.apply(null, a))
-        } else if (isEmitter(x)) {
+        if (VrpcNative._isFunction(x)) {
+          if (functionName.startsWith('vrpcOn')) {
+            const id = `__f__${context}-${functionName}`
+            wrapped.push(id)
+            eventEmitter.on(id, a => x.apply(null, a))
+          } else {
+            const id = `__f__${context}-${functionName}-${i}-${invokeId++ %
+              Number.MAX_SAFE_INTEGER}`
+            wrapped.push(id)
+            eventEmitter.once(id, a => x.apply(null, a))
+          }
+        } else if (VrpcNative._isEmitter(x)) {
           const { emitter, event } = x
           const id = `__f__${context}-${functionName}-${i}-${event}`
           wrapped.push(id)
@@ -139,7 +133,7 @@ class VrpcNative {
         )
         this.vrpcInstanceId = r
         this.vrpcProxyId = `${classId}-${proxyId++}`
-        functions.forEach(f => {
+        memberFuncs.forEach(f => {
           this[f] = (...args) => {
             const { r, e } = JSON.parse(
               adapter.call(
@@ -163,16 +157,19 @@ class VrpcNative {
             return r
           }
         })
-        if (!functions.has('on')) {
-          console.log('injecting magic')
-          this.on = (event, listener) => {
-            if (!functions.has(event)) throw new Error('Bad magic')
+        if (!memberFuncs.has('vrpcOn') && !memberFuncs.has('vrpcOff')) {
+          this.vrpcOn = (functionName, ...args) => {
+            if (!memberFuncs.has(functionName)) throw new Error('Bad magic')
             const { r, e } = JSON.parse(
               adapter.call(
                 JSON.stringify({
-                  f: event,
+                  f: functionName,
                   c: this.vrpcInstanceId,
-                  a: wrapArguments(this.vrpcProxyId, `__on${event}`, listener)
+                  a: wrapArguments(
+                    this.vrpcProxyId,
+                    `vrpcOn:${functionName}`,
+                    ...args
+                  )
                 })
               )
             )
@@ -188,6 +185,10 @@ class VrpcNative {
             }
             return r
           }
+          this.vrpcOff = functionName => {
+            const id = `__f__${this.vrpcProxyId}-vrpcOn:${functionName}`
+            eventEmitter.removeAllListeners(id)
+          }
         }
       }
     } // Klass
@@ -196,50 +197,85 @@ class VrpcNative {
     Object.defineProperty(Klass, 'name', { value: className })
 
     // inject static functions
-    JSON.parse(adapter.getStaticFunctions(className)).forEach(f => {
+    staticFuncs.forEach(f => {
       Klass[f] = (...args) => {
-        const json = {
-          f,
-          c: className,
-          a: wrapArguments(className, f, ...args)
-        }
-        return JSON.parse(adapter.call(JSON.stringify(json))).r
+        return JSON.parse(
+          adapter.call(
+            JSON.stringify({
+              f,
+              c: className,
+              a: wrapArguments(className, f, ...args)
+            })
+          )
+        ).r
       }
     })
+    if (!staticFuncs.has('vrpcOn')) {
+      Klass.vrpcOn = (functionName, ...args) => {
+        if (!staticFuncs.has(functionName)) throw new Error('Bad magic')
+        return JSON.parse(
+          adapter.call(
+            JSON.stringify({
+              f: functionName,
+              c: className,
+              a: wrapArguments(className, `vrpcOn:${functionName}`, ...args)
+            })
+          )
+        ).r
+      }
+    }
     return Klass
   }
 
-  getInstance ({ className, instance }) {
-    const json = {
-      context: className,
-      method: '__getNamed__',
-      data: { _1: instance }
-    }
-    return this._createProxy(className, json)
-  }
-
-  delete ({ className, instance }) {
-    let context
-    if (typeof instance === 'string') {
-      context = instance
-    } else if (typeof instance === 'object') {
-      context = instance._targetId
+  delete (proxy) {
+    if (!typeof proxy === 'object' || !proxy.vrpcProxyId) {
+      throw new Error('Provided argument seems not to be a VRPC proxy')
     }
     const json = {
-      context: className,
-      method: '__delete__',
-      data: { _1: context }
+      c: proxy.constructor.name,
+      f: '__delete__',
+      a: [proxy.vrpcInstanceId]
     }
-    return JSON.parse(this._adapter.call(JSON.stringify(json))).data.r
+    return JSON.parse(this._adapter.call(JSON.stringify(json))).r
   }
 
   callStatic (className, functionName, ...args) {
-    const json = {
-      context: className,
-      method: functionName,
-      data: this._wrapArguments(className, functionName, ...args)
+    if (functionName === 'vrpcOff') {
+      const id = `__f__${className}-vrpcOn:${args[0]}`
+      this._eventEmitter.removeAllListeners(id)
     }
-    return JSON.parse(this._adapter.call(JSON.stringify(json))).data.r
+    const wrapped = []
+    args.forEach((x, i) => {
+      // Check whether provided argument is a function
+      if (VrpcNative._isFunction(x)) {
+        if (functionName.startsWith('vrpcOn')) {
+          const id = `__f__${className}-${functionName}:${args[0]}`
+          wrapped.push(id)
+          this._eventEmitter.on(id, a => x.apply(null, a))
+        } else {
+          const id = `__f__${className}-${functionName}-${i}-${invokeId++ %
+            Number.MAX_SAFE_INTEGER}`
+          wrapped.push(id)
+          this._eventEmitter.once(id, a => x.apply(null, a))
+        }
+      } else if (VrpcNative._isEmitter(x)) {
+        const { emitter, event } = x
+        const id = `__f__${className}-${functionName}-${i}-${event}`
+        wrapped.push(id)
+        this._eventEmitter.on(id, a => emitter.emit(event, ...a))
+      } else {
+        wrapped.push(x)
+      }
+    })
+    return JSON.parse(
+      this._adapter.call(
+        JSON.stringify({
+          c: className,
+          f: functionName === 'vrpcOn' ? args[0] : functionName,
+          a: wrapped
+        })
+      )
+    ).r
   }
 
   /**
@@ -249,6 +285,23 @@ class VrpcNative {
    */
   getAvailableClasses () {
     return JSON.parse(this._adapter.getClasses())
+  }
+
+  // private:
+
+  static _isFunction (v) {
+    const getType = {}
+    return v && getType.toString.call(v) === '[object Function]'
+  }
+
+  static _isEmitter (v) {
+    return (
+      typeof v === 'object' &&
+      v.hasOwnProperty('emitter') &&
+      v.hasOwnProperty('event') &&
+      typeof v.emitter === 'object' &&
+      typeof v.emitter.emit === 'function'
+    )
   }
 }
 

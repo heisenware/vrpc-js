@@ -1,0 +1,78 @@
+version: "3.1"
+services:
+
+  client:
+    image: node:12.16.1-alpine
+    hostname: client
+    container_name: ${TEST_CONT}
+    volumes:
+      - ../../:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "tests/client/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node_modules/.bin/mocha",
+      "tests/client/*.js",
+      "--colors",
+      "--exit",
+      "--timeout",
+      "10000"
+    ]
+
+  broker:
+    image: eclipse-mosquitto:1.6.12
+    hostname: broker
+    ports:
+      - 1883:1883/tcp
+
+  agent1:
+    image: node:12.16.1-alpine
+    hostname: agent1
+    volumes:
+      - ../../:/app
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "tests/client/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node",
+      "tests/client/fixtures/agent.js"
+    ]
+
+  agent2:
+    image: node:12.16.1-alpine
+    hostname: agent2
+    volumes:
+      - ../../:/app
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "tests/client/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node",
+      "tests/client/fixtures/agent.js"
+    ]
+
+  agent3:
+    image: node:12.16.1-alpine
+    hostname: agent3
+    volumes:
+      - ../../:/app
+    working_dir: /app
+    depends_on:
+      - broker
+    command: [
+      "tests/client/wait-for.sh",
+      "broker:1883",
+      "--",
+      "node",
+      "tests/client/fixtures/agentOnlineOffline.js"
+    ]
