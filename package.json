@@ -59,7 +59,6 @@
   },
   "files": [
     "vrpc/",
-    "third_party/",
     "browser/",
     "binding.gyp.no-auto"
   ],
