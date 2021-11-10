@@ -145,7 +145,7 @@ General RPC **response** payload pattern:
 - After **receiving** an RPC message on topic:
 
     ```xml
-    <domain>/<agent>/<class>/__static__/__create__
+    <domain>/<agent>/<class>/__static__/__createIsolated__
     ```
 
     VRPC creates and names a new instance, iterates all of its member functions
@@ -267,8 +267,8 @@ Those are the function to manage the lifetime of the remotely created objects:
 
 * `__createShared__`
 * `__createIsolated__`
+* `__callAll__`
 * `__delete__`
-* `__get__`
 
 all of them use double underscores both as prefix and as postfix.
 

@@ -176,10 +176,10 @@ describe('vrpc-client', () => {
             'EventEmitter',
             'init',
             'listenerCount',
-            '__create__',
-            '__delete__',
-            '__createNamed__',
-            '__callAll__'
+            '__createIsolated__',
+            '__createShared__',
+            '__callAll__',
+            '__delete__'
           ],
           meta: {}
         })
@@ -278,19 +278,21 @@ describe('vrpc-client', () => {
         client.off('class', classSpy)
         client.off('instanceNew', classSpy)
       })
-      it('should create an anonymous proxy using constructor defaults', async () => {
+      it('should create an isolated proxy using constructor defaults', async () => {
         proxy1 = await client.create({
           agent: 'agent1',
-          className: 'Foo'
+          className: 'Foo',
+          isIsolated: true
         })
         const value = await proxy1.increment()
         assert.strictEqual(value, 1)
       })
-      it('should create another anonymous proxy using custom arguments', async () => {
+      it('should create another isolated proxy using custom arguments', async () => {
         proxy2 = await client.create({
           agent: 'agent1',
           className: 'Foo',
-          args: [41]
+          args: [41],
+          isIsolated: true
         })
         const value = await proxy2.increment()
         assert.strictEqual(value, 42)
@@ -305,8 +307,8 @@ describe('vrpc-client', () => {
         })
         assert.strictEqual(instances.length, 0)
       })
-      // FIXME Explicit deletion of anonymous proxies is not yet implemented
-      it.skip('should delete the anonymous instances', async () => {
+      // FIXME Explicit deletion of isolated proxies is not yet implemented
+      it.skip('should delete the isolated instances', async () => {
         const result1 = await client.delete(proxy1)
         const result2 = await client.delete(proxy2)
         assert.strictEqual(result1, true)
@@ -329,7 +331,7 @@ describe('vrpc-client', () => {
         client.off('instanceNew', instanceNewSpy)
         client.off('instanceGone', instanceGoneSpy)
       })
-      it('should create a named proxy using constructor defaults', async () => {
+      it('should create a shared proxy using constructor defaults', async () => {
         proxy1 = await client.create({
           agent: 'agent1',
           className: 'Foo',
@@ -338,7 +340,7 @@ describe('vrpc-client', () => {
         const value = await proxy1.increment()
         assert.strictEqual(value, 1)
       })
-      it('should create another anonymous proxy using custom arguments', async () => {
+      it('should create another shared proxy using custom arguments', async () => {
         proxy2 = await client.create({
           agent: 'agent1',
           className: 'Foo',
@@ -389,10 +391,10 @@ describe('vrpc-client', () => {
             'EventEmitter',
             'init',
             'listenerCount',
-            '__create__',
-            '__delete__',
-            '__createNamed__',
-            '__callAll__'
+            '__createIsolated__',
+            '__createShared__',
+            '__callAll__',
+            '__delete__'
           ],
           meta: {}
         })
@@ -410,7 +412,7 @@ describe('vrpc-client', () => {
         })
         assert.deepStrictEqual(instances, ['instance1', 'instance2'])
       })
-      it('should delete the named instances', async () => {
+      it('should delete the shared instances', async () => {
         const result1 = await client.delete('instance1')
         assert.strictEqual(result1, true)
         assert.strictEqual(classSpy.callCount, 3)

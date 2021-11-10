@@ -65,7 +65,7 @@ describe('The nodejs VrpcAdapter', () => {
   it('should be able to instantiate a TestClass using plain json', () => {
     const json = {
       context: 'TestClass',
-      method: '__create__',
+      method: '__createIsolated__',
       data: {} // No data => default ctor
     }
     const createSpy = sinon.spy()
@@ -82,7 +82,7 @@ describe('The nodejs VrpcAdapter', () => {
   it('should be able to create a named instance of a TestClass', () => {
     const json = {
       context: 'TestClass',
-      method: '__createNamed__',
+      method: '__createShared__',
       data: { _1: 'testClass', _2: 'nice', _3: 1 } // First argument -> instance id
     }
     const createSpy = sinon.spy()
@@ -201,7 +201,7 @@ describe('The nodejs VrpcAdapter', () => {
   })
   it('should have parsed meta information', () => {
     const meta = VrpcAdapter._getMetaData('TestClass')
-    assert.deepEqual(Object.keys(meta), ['__createNamed__', 'notifyOnNew', 'waitForMe'])
+    assert.deepEqual(Object.keys(meta), ['__createShared__', 'notifyOnNew', 'waitForMe'])
     assert.deepEqual(
       meta.waitForMe,
       {

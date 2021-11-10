@@ -12,7 +12,7 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
 
 Non-intrusively binds any C++ code and provides access in form of asynchronous
 remote procedural callbacks (RPC).
-Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc)
+Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
@@ -67,10 +67,12 @@ SOFTWARE.
 
 #ifdef VRPC_DEBUG
 #define _VRPC_DEBUG \
-  if (1) std::cout << "vrpc::" << __func__ << "\t"
+  if (1)            \
+  std::cout << "vrpc::" << __func__ << "\t"
 #else
 #define _VRPC_DEBUG \
-  if (0) std::cout << "vrpc::" << __func__ << "\t"
+  if (0)            \
+  std::cout << "vrpc::" << __func__ << "\t"
 #endif
 
 // Add std::function to json's serializable types
@@ -784,7 +786,7 @@ class LocalFactory {
   typedef std::unordered_map<std::string, std::shared_ptr<Function>>
       StringFunctionMap;
   typedef std::unordered_map<std::string, StringFunctionMap> FunctionRegistry;
-  typedef std::unordered_map<std::string, std::string> NamedInstances;
+  typedef std::unordered_map<std::string, std::string> SharedInstances;
   typedef std::unordered_map<std::string, json> MetaData;
 
   // Maps: class_name => function_name => functionCallback
@@ -794,16 +796,15 @@ class LocalFactory {
   // Maps: instanceId => instanceObj
   StringAnyMap _instances;
   // Maps: instanceId => class_name
-  NamedInstances _named_instances;
+  SharedInstances _shared_instances;
   // Optional schema information
   MetaData _meta_data;
 
  public:
   template <typename Klass, typename... Args>
   static void register_constructor(const std::string& class_name) {
-    LocalFactory::inject_create_function<Klass, Args...>(class_name);
-    LocalFactory::inject_create_named_function<Klass, Args...>(class_name);
-    LocalFactory::inject_get_named_function<Klass>(class_name);
+    LocalFactory::inject_create_isolated_function<Klass, Args...>(class_name);
+    LocalFactory::inject_create_shared_function<Klass, Args...>(class_name);
     LocalFactory::inject_delete_function<Klass>(class_name);
   }
 
@@ -853,8 +854,9 @@ class LocalFactory {
 
   static std::vector<std::string> get_instances(const std::string& class_name) {
     std::vector<std::string> instances;
-    for (const auto& kv : detail::init<LocalFactory>()._named_instances) {
-      if (kv.second == class_name) instances.push_back(kv.first);
+    for (const auto& kv : detail::init<LocalFactory>()._shared_instances) {
+      if (kv.second == class_name)
+        instances.push_back(kv.first);
     }
     return instances;
   }
@@ -953,38 +955,12 @@ class LocalFactory {
   }
 
   template <typename Klass, typename... Args>
-  static void inject_create_function(const std::string& class_name) {
-    auto func = [=](Args... args) {
-      LocalFactory& rf = detail::init<LocalFactory>();
-      // Create instance
-      auto ptr = std::shared_ptr<Klass>(new Klass(args...));
-      // Generate instance_id
-      const std::string instance_id = create_instance_id(ptr);
-      // Bind member functions
-      for (auto& i : rf._class_function_registry[class_name]) {
-        auto functionCallback = i.second->clone();
-        functionCallback->bind_instance(ptr);
-        rf._function_registry[instance_id][i.first] = functionCallback;
-      }
-      // Keep instance alive by saving the shared_ptr
-      rf._instances[instance_id] = Value(ptr);
-      return instance_id;
-    };
-    auto funcT =
-        std::make_shared<ConstructorFunction<decltype(func), Args...>>(func);
-    const std::string func_name("__create__" + vrpc::get_signature<Args...>());
-    detail::init<LocalFactory>()._function_registry[class_name][func_name] =
-        std::static_pointer_cast<Function>(funcT);
-    _VRPC_DEBUG << "Registered: " << class_name << "::" << func_name
-                << std::endl;
-  }
-
-  template <typename Klass, typename... Args>
-  static void inject_create_named_function(const std::string& class_name) {
+  static void inject_create_isolated_function(const std::string& class_name) {
     auto func = [=](const std::string& instance_id, Args... args) {
       LocalFactory& rf = detail::init<LocalFactory>();
       const auto& it = rf._instances.find(instance_id);
-      if (it != rf._instances.end()) return instance_id;
+      if (it != rf._instances.end())
+        return instance_id;
       // Create instance
       auto ptr = std::shared_ptr<Klass>(new Klass(args...));
       // Bind member functions
@@ -995,13 +971,11 @@ class LocalFactory {
       }
       // Keep instance alive by saving the shared_ptr
       rf._instances[instance_id] = Value(ptr);
-      // Store named instance
-      rf._named_instances.insert({instance_id, class_name});
       return instance_id;
     };
     auto funcT = std::make_shared<
         ConstructorFunction<decltype(func), const std::string&, Args...>>(func);
-    const std::string func_name("__createNamed__" +
+    const std::string func_name("__createIsolated__" +
                                 vrpc::get_signature<std::string, Args...>());
     detail::init<LocalFactory>()._function_registry[class_name][func_name] =
         std::static_pointer_cast<Function>(funcT);
@@ -1009,19 +983,31 @@ class LocalFactory {
                 << std::endl;
   }
 
-  template <typename Klass>
-  static void inject_get_named_function(const std::string& class_name) {
-    auto func = [=](const std::string& instance_id) {
+  template <typename Klass, typename... Args>
+  static void inject_create_shared_function(const std::string& class_name) {
+    auto func = [=](const std::string& instance_id, Args... args) {
       LocalFactory& rf = detail::init<LocalFactory>();
       const auto& it = rf._instances.find(instance_id);
-      if (it != rf._instances.end()) return instance_id;
-      throw std::runtime_error("Instance with id: " + instance_id +
-                               " does not exist");
+      if (it != rf._instances.end())
+        return instance_id;
+      // Create instance
+      auto ptr = std::shared_ptr<Klass>(new Klass(args...));
+      // Bind member functions
+      for (auto& i : rf._class_function_registry[class_name]) {
+        auto functionCallback = i.second->clone();
+        functionCallback->bind_instance(ptr);
+        rf._function_registry[instance_id][i.first] = functionCallback;
+      }
+      // Keep instance alive by saving the shared_ptr
+      rf._instances[instance_id] = Value(ptr);
+      // Store shared instance
+      rf._shared_instances.insert({instance_id, class_name});
+      return instance_id;
     };
     auto funcT = std::make_shared<
-        ConstructorFunction<decltype(func), const std::string&>>(func);
-    const std::string func_name("__getNamed__" +
-                                vrpc::get_signature<std::string>());
+        ConstructorFunction<decltype(func), const std::string&, Args...>>(func);
+    const std::string func_name("__createShared__" +
+                                vrpc::get_signature<std::string, Args...>());
     detail::init<LocalFactory>()._function_registry[class_name][func_name] =
         std::static_pointer_cast<Function>(funcT);
     _VRPC_DEBUG << "Registered: " << class_name << "::" << func_name
@@ -1033,10 +1019,11 @@ class LocalFactory {
     auto func = [=](const std::string& instance_id) {
       LocalFactory& rf = detail::init<LocalFactory>();
       const auto& it = rf._instances.find(instance_id);
-      if (it == rf._instances.end()) return false;
+      if (it == rf._instances.end())
+        return false;
       rf._function_registry.erase(instance_id);
       rf._instances.erase(instance_id);
-      rf._named_instances.erase(instance_id);
+      rf._shared_instances.erase(instance_id);
       return true;
     };
     auto funcT = std::make_shared<
@@ -1071,7 +1058,7 @@ struct CtorXRegistrar {
                  const ret<std::string>& ret,
                  const std::vector<param> params = {}) {
     LocalFactory::register_constructor<Klass, Args...>(class_name);
-    const std::string ctor_name("__createNamed__" +
+    const std::string ctor_name("__createShared__" +
                                 vrpc::get_signature<std::string, Args...>());
     json jp;
     for (const auto& param : params) {

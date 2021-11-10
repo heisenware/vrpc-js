@@ -140,8 +140,8 @@ class VrpcAgent extends EventEmitter {
     this._baseTopic = `${this._domain}/${this._agent}`
     VrpcAdapter.onCallback(this._handleVrpcCallback.bind(this))
     // maps clientId to instanceId
-    this._unnamedInstances = new Map()
-    this._namedInstances = new Map()
+    this._isolatedInstances = new Map()
+    this._sharedInstances = new Map()
 
     // Handle the internal error event in case the user forgot to implement it
     this.on('error', err => {
@@ -518,40 +518,33 @@ class VrpcAgent extends EventEmitter {
       VrpcAdapter._call(json)
 
       // Intersecting life-cycle functions
-      let publishClassInfo = false
       switch (method) {
-        case '__create__': {
+        case '__createIsolated__': {
           // TODO handle instantiation errors
           const instanceId = json.r
           // TODO await this
           this._subscribeToMethodsOfNewInstance(className, instanceId)
-          this._registerUnnamedInstance(instanceId, json.s)
+          this._registerIsolatedInstance(instanceId, json.s)
           break
         }
-        case '__createNamed__': {
+        case '__createShared__': {
           // TODO handle instantiation errors
           const instanceId = json.r
-          if (!this._hasNamedInstance(instanceId)) {
-            publishClassInfo = true
+          if (!this._hasSharedInstance(instanceId)) {
             this._subscribeToMethodsOfNewInstance(className, instanceId)
+            this._publishClassInfoMessage(className)
           }
-          this._registerNamedInstance(instanceId, json.s)
+          this._registerSharedInstance(instanceId, json.s)
           break
         }
         case '__delete__': {
           this._unsubscribeMethodsOfDeletedInstance(className, instance)
-          const wasNamed = this._unregisterInstance(json.a[0], json.s)
-          if (wasNamed) publishClassInfo = true
+          const wasShared = this._unregisterInstance(json.a[0], json.s)
+          if (wasShared) this._publishClassInfoMessage(className)
           break
         }
       }
-      if (publishClassInfo && method === '__delete__') {
-        this._publishClassInfoMessage(className)
-      }
       this._mqttPublish(json.s, VrpcAgent._stringifySafely(json))
-      if (publishClassInfo && method === '__createNamed__') {
-        this._publishClassInfoMessage(className)
-      }
     } catch (err) {
       this._log.error(
         err,
@@ -564,14 +557,16 @@ class VrpcAgent extends EventEmitter {
     // Client went offline
     const clientId = topic.slice(0, -15) // /__clientInfo__ = 15
     if (json.status === 'offline') {
-      const entry = this._unnamedInstances.get(clientId)
+      const entry = this._isolatedInstances.get(clientId)
       if (entry) {
         // anonymous
         entry.forEach(instanceId => {
           const json = { f: '__delete__', a: [instanceId], r: null }
           // TODO Do not mutate!
           VrpcAdapter._call(json)
-          if (json.r) this._log.debug(`Deleted unnamed instance: ${instanceId}`)
+          if (json.r) {
+            this._log.debug(`Auto-deleted isolated instance: ${instanceId}`)
+          }
         })
       }
       VrpcAdapter._unregisterEventListeners(clientId)
@@ -580,61 +575,61 @@ class VrpcAgent extends EventEmitter {
     }
   }
 
-  _registerUnnamedInstance (instanceId, clientId) {
-    const entry = this._unnamedInstances.get(clientId)
+  _registerIsolatedInstance (instanceId, clientId) {
+    const entry = this._isolatedInstances.get(clientId)
     if (entry) {
       // already seen
       entry.add(instanceId)
     } else {
       // new instance
-      this._unnamedInstances.set(clientId, new Set([instanceId]))
-      if (!this._namedInstances.has(clientId)) {
+      this._isolatedInstances.set(clientId, new Set([instanceId]))
+      if (!this._sharedInstances.has(clientId)) {
         this._mqttSubscribe(`${clientId}/__clientInfo__`)
       }
       this._log.info(`Tracking lifetime of client: ${clientId}`)
     }
   }
 
-  _registerNamedInstance (instanceId, clientId) {
-    const entry = this._namedInstances.get(clientId)
+  _registerSharedInstance (instanceId, clientId) {
+    const entry = this._sharedInstances.get(clientId)
     if (entry) {
       // already seen
       entry.add(instanceId)
     } else {
       // new instance
-      this._namedInstances.set(clientId, new Set([instanceId]))
-      if (!this._unnamedInstances.has(clientId)) {
+      this._sharedInstances.set(clientId, new Set([instanceId]))
+      if (!this._isolatedInstances.has(clientId)) {
         this._mqttSubscribe(`${clientId}/__clientInfo__`)
       }
       this._log.debug(`Tracking lifetime of client: ${clientId}`)
     }
   }
 
-  _hasNamedInstance (instanceId) {
-    for (const [, instances] of this._namedInstances) {
+  _hasSharedInstance (instanceId) {
+    for (const [, instances] of this._sharedInstances) {
       if (instances.has(instanceId)) return true
     }
     return false
   }
 
   _unregisterInstance (instanceId, clientId) {
-    const entryUnnamed = this._unnamedInstances.get(clientId)
-    if (entryUnnamed && entryUnnamed.has(instanceId)) {
-      entryUnnamed.delete(instanceId)
-      if (entryUnnamed.length === 0) {
-        this._unnamedInstances.delete(clientId)
+    const entryIsolated = this._isolatedInstances.get(clientId)
+    if (entryIsolated && entryIsolated.has(instanceId)) {
+      entryIsolated.delete(instanceId)
+      if (entryIsolated.length === 0) {
+        this._isolatedInstances.delete(clientId)
         this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
         this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
       }
       return false
     }
     let found = false
-    this._namedInstances.forEach(async v => {
+    this._sharedInstances.forEach(async v => {
       if (v.has(instanceId)) {
         found = true
         v.delete(instanceId)
         if (v.length === 0) {
-          this._namedInstances.delete(clientId)
+          this._sharedInstances.delete(clientId)
           this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
           this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
         }
