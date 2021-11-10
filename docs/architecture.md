@@ -12,15 +12,6 @@ While the broker is programming language agnostic, the *adapter*, *agent* and
 *client* components have to be implemented for each programming language which
 is supported by VRPC.
 
-VRPC may or may not be used in a distributed fashion. If it is used in the
-non-distributed fashion the *client* executes local (same process) to the
-*agent* and the *broker* component is not involved at all.
-
-No matter whether distributed or not, function calls are always wrapped into
-JSON which is serialized into a string. Return values and potential exceptions
-are as well wrapped into string-serialized JSON and shipped back to the caller
-(see remoteProtocol.md for details).
-
 ## Adapter
 
 The adapter can be understood like a local factory (in an OOP sense). It must
@@ -34,11 +25,9 @@ and must still be adaptable).
 
 Currently, adapters exist for:
 
-// TODO MAKE LINKS
-
-- C++ (**vrpc-hpp**): `vrpc_adapter.hpp`
-- Javascript (**vrpc-js**) `VrpcAdapter.js`
-- R (**vrpc-r**) Adapter.R
+- [C++](https://github.com/heisenware/vrpc-hpp)
+- [Javascript](https://github.com/heisenware/vrpc)
+- [R](https://github.com/heisenware/vrpc-r)
 
 ### Minimal interface
 
@@ -46,14 +35,14 @@ Currently, adapters exist for:
 static function register(code: Any): void;
 ```
 
-Depending on the technology one or more interfaces to non-intrusively register
-classes and functions may be provided.
+Depending on the the programming language, one or more interfaces to
+non-intrusively register classes and functions may be provided.
 
 In C++ those functions are expressed as macros such as:
 
 ```ts
 VRPC_CTOR(klass: class, ...args: any[])
-VRPC_MEMBER_FUNCTION(ret: any, klass: class, ...args: any[])
+VRPC_MEMBER_FUNCTION(klass: class, ret: any, ...args: any[])
 ```
 
 - - -
@@ -109,10 +98,6 @@ function __createIsolated__ (className: string, ...args: any[]): string;
 
 function __createShared__ (className: string, instanceName: string, ...args: any[]): string;
 
-function __getIsolated__ (instanceName: string, clientId: string): instanceId;
-
-function __getShared__ (instanceName: string): instanceId;
-
 function __delete__ (instanceName: string): boolean;
 ```
 
@@ -137,27 +122,14 @@ The agent's task is to grab the JSON formatted strings from the clients and
 pass them on to the adapter's interface. The agent is the callee whereas the
 client is the caller.
 
-When running in a distributed fashion the agent must implement a MQTT client as
-the VRPC clients will send their JSON strings via the broker.
+The agent must implement a MQTT client as the VRPC clients will send their JSON
+strings via the broker.
 
-When running in local fashion the agent must allow to cross the boundary of
-programming languages - typically via native addons or other means of in-process
-communication.
+Currently, agents exist for
 
-Currently, local agents exist for
-
-- Embedding C++ in Javascript (`addon.cpp`)
-- Embedding C++ in Python3 (`module.cpp`)
-
-Currently, remote agents exist for
-
-- C++ (non-free component)
-- Javascript (`VrpcAgent.js`)
-- Arduino (https://github.com/heisenware/vrpc-arduino-agent)
-
-### Interface
-
-To be done...
+- [C++](https://github.com/heisenware/vrpc-hpp)
+- [Javascript](https://github.com/heisenware/vrpc)
+- [Arduino](https://github.com/heisenware/vrpc-arduino-agent)
 
 ## Client
 
