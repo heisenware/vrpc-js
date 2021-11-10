@@ -152,7 +152,7 @@ class VrpcAdapter {
       meta,
       Klass: {},
       withNew: false,
-      staticFunctions: ['__getNamed__'],
+      staticFunctions: [],
       schema: null
     })
     VrpcAdapter._instances.set(instance, { className, instance: obj })
@@ -354,7 +354,6 @@ class VrpcAdapter {
     staticFunctions.push('__create__')
     staticFunctions.push('__delete__')
     staticFunctions.push('__createNamed__')
-    staticFunctions.push('__getNamed__')
     staticFunctions.push('__callAll__')
     let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
     if (onlyPublic) {
@@ -437,9 +436,6 @@ class VrpcAdapter {
       case '__createNamed__':
         VrpcAdapter._handleCreateNamed(json)
         break
-      case '__getNamed__':
-        VrpcAdapter._handleGetNamed(json)
-        break
       case '__callAll__':
         VrpcAdapter._handleCallAll(json)
         break
@@ -484,18 +480,6 @@ class VrpcAdapter {
         instance: wrappedArgs[0],
         args: wrappedArgs.slice(1)
       })
-    } catch (err) {
-      json.e = err.message
-    }
-  }
-
-  static _handleGetNamed (json) {
-    try {
-      const wrappedArgs = VrpcAdapter._wrapArguments(json)
-      const instanceId = wrappedArgs[0]
-      const entry = VrpcAdapter._instances.get(instanceId)
-      if (entry) json.r = instanceId
-      else json.e = `Instance with id: ${instanceId} does not exist`
     } catch (err) {
       json.e = err.message
     }

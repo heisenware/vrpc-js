@@ -28,8 +28,8 @@ same) programming language. Unlike RPC, VRPC furthermore supports:
 - exception forwarding
 
 VRPC is available for an entire spectrum of programming technologies including
-embedded (arduino, header-only C++, etc.), data-science (python, R,
-etc.), and web (javascript, react, etc.) technologies.
+embedded (Arduino, header-only C++, etc.), data-science (Python, R,
+etc.), and web (Javascript, React, etc.) technologies.
 
 As a robust and highly performing communication system it can build the
 foundation of complex digitization projects in the area of (I)IoT or
