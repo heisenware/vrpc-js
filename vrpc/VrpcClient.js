@@ -39,6 +39,7 @@ SOFTWARE.
 
 const os = require('os')
 const crypto = require('crypto')
+const { nanoid } = require('nanoid')
 const mqtt = require('mqtt')
 const EventEmitter = require('events')
 
@@ -105,7 +106,7 @@ class VrpcClient extends EventEmitter {
     this._timeout = timeout
     this._qos = this._qos = bestEffort ? 0 : 1
 
-    this._instance = crypto.randomBytes(2).toString('hex')
+    this._instance = nanoid(8)
     this._mqttClientId = this._createMqttClientId()
     this._vrpcClientId = this._createVrpcClientId()
     this._agents = {}
@@ -304,18 +305,19 @@ class VrpcClient extends EventEmitter {
    */
   async create ({
     className,
-    instance,
+    instance = nanoid(8),
     args = [],
     agent = this._agent,
-    cacheProxy = false
+    cacheProxy = false,
+    isIsolated = false
   } = {}) {
     if (agent === '*') throw new Error('Agent must be specified')
     const json = {
       c: className,
-      f: instance ? '__createNamed__' : '__create__',
+      f: isIsolated ? '__createIsolated__' : '__createShared__',
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: `${this._domain}/${os.hostname()}/${this._instance}`,
-      a: instance ? [instance, ...args] : [...args]
+      a: [instance, ...args]
     }
     const proxy = await this._getProxy(agent, className, json)
     if (instance && cacheProxy) this._proxies[instance] = proxy
@@ -804,7 +806,7 @@ class VrpcClient extends EventEmitter {
       .digest('hex')
       .substr(0, 13)
     // FIXME (3.x): use vrpcp -> vrpcc
-    return `vrpcp${this._instance}X${md5}` // 5 + 4 + 1 + 13 = 23 (max clientId)
+    return `vc${this._instance}${md5}` // 2 + 8 + 13 = 23 (max clientId)
   }
 
   _createVrpcClientId () {

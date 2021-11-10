@@ -42,7 +42,6 @@ const path = require('path')
 const fs = require('fs')
 const Ajv = require('ajv')
 const caller = require('caller')
-const { nanoid } = require('nanoid')
 const commentParser = require('./comment-parser')
 const EventEmitter = require('events')
 
@@ -155,7 +154,11 @@ class VrpcAdapter {
       staticFunctions: [],
       schema: null
     })
-    VrpcAdapter._instances.set(instance, { className, instance: obj })
+    VrpcAdapter._instances.set(instance, {
+      className,
+      instance: obj,
+      isIsolated: false
+    })
   }
 
   static getClasses () {
@@ -351,10 +354,10 @@ class VrpcAdapter {
       staticFunctions = staticFunctions.filter(f => !f.startsWith('_'))
     }
     // Inject constructor and destructor
-    staticFunctions.push('__create__')
-    staticFunctions.push('__delete__')
-    staticFunctions.push('__createNamed__')
+    staticFunctions.push('__createIsolated__')
+    staticFunctions.push('__createShared__')
     staticFunctions.push('__callAll__')
+    staticFunctions.push('__delete__')
     let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
     if (onlyPublic) {
       memberFunctions = memberFunctions.filter(f => {
@@ -415,7 +418,7 @@ class VrpcAdapter {
               },
               ...params
             ]
-            meta.__createNamed__ = { description, params: modified, ret }
+            meta.__createShared__ = { description, params: modified, ret }
           } else {
             meta[functionName] = { description, params, ret }
           }
@@ -427,59 +430,50 @@ class VrpcAdapter {
 
   static _call (json) {
     switch (json.f) {
-      case '__create__':
-        VrpcAdapter._handleCreate(json)
+      case '__createIsolated__':
+        VrpcAdapter._handleCreateIsolated(json)
         break
-      case '__delete__':
-        VrpcAdapter._handleDelete(json)
-        break
-      case '__createNamed__':
-        VrpcAdapter._handleCreateNamed(json)
+      case '__createShared__':
+        VrpcAdapter._handleCreateShared(json)
         break
       case '__callAll__':
         VrpcAdapter._handleCallAll(json)
+        break
+      case '__delete__':
+        VrpcAdapter._handleDelete(json)
         break
       default:
         VrpcAdapter._handleCall(json)
     }
   }
 
-  static _handleCreate (json) {
+  static _handleCreateIsolated (json) {
     try {
-      const wrappedArgs = VrpcAdapter._wrapArguments(json)
-      const instance = VrpcAdapter._create(json.c, ...wrappedArgs)
-      const instanceId = nanoid(9)
-      VrpcAdapter._instances.set(instanceId, { instance, context: json.c })
+      const className = json.c
+      const [instanceId, ...args] = json.a
+      const instance = VrpcAdapter._create(className, instanceId, ...args)
+      VrpcAdapter._instances.set(instanceId, {
+        instance,
+        className,
+        isIsolated: true
+      })
       json.r = instanceId
     } catch (err) {
       json.e = err.message
     }
   }
 
-  static _handleDelete (json) {
+  static _handleCreateShared (json) {
     try {
-      const wrappedArgs = VrpcAdapter._wrapArguments(json)
-      const instanceId = wrappedArgs[0]
-      json.r = VrpcAdapter._delete(instanceId)
-      VrpcAdapter._emitter.emit('delete', {
-        className: json.c,
-        instance: wrappedArgs[0]
+      const className = json.c
+      const [instanceId, ...args] = json.a
+      const instance = VrpcAdapter._create(className, instanceId, ...args)
+      VrpcAdapter._instances.set(instanceId, {
+        instance,
+        className,
+        isIsolated: false
       })
-    } catch (err) {
-      json.e = err.message
-    }
-  }
-
-  static _handleCreateNamed (json) {
-    try {
-      const wrappedArgs = VrpcAdapter._wrapArguments(json)
-      VrpcAdapter._createNamed(json.c, ...wrappedArgs)
-      json.r = wrappedArgs[0] // First argument is instanceId
-      VrpcAdapter._emitter.emit('create', {
-        className: json.c,
-        instance: wrappedArgs[0],
-        args: wrappedArgs.slice(1)
-      })
+      json.r = instanceId
     } catch (err) {
       json.e = err.message
     }
@@ -510,6 +504,20 @@ class VrpcAdapter {
         }
       }
       this._handlePromise(json, Promise.all(calls))
+    } catch (err) {
+      json.e = err.message
+    }
+  }
+
+  static _handleDelete (json) {
+    try {
+      const wrappedArgs = VrpcAdapter._wrapArguments(json)
+      const instanceId = wrappedArgs[0]
+      json.r = VrpcAdapter._delete(instanceId)
+      VrpcAdapter._emitter.emit('delete', {
+        className: json.c,
+        instance: wrappedArgs[0]
+      })
     } catch (err) {
       json.e = err.message
     }
@@ -558,23 +566,15 @@ class VrpcAdapter {
     }
   }
 
-  static _create (className, ...args) {
+  static _create (className, instanceId, ...args) {
+    const entry = VrpcAdapter._instances.get(instanceId)
+    if (entry) return entry.instance
     const { Klass, withNew, schema } = VrpcAdapter._getClassEntry(className)
     if (schema !== null) {
       VrpcAdapter._validate(schema, ...args)
     }
     if (withNew) return new Klass(...args)
     return Klass(...args)
-  }
-
-  static _createNamed (className, instanceId, ...args) {
-    const entry = VrpcAdapter._instances.get(instanceId)
-    if (!entry) {
-      const instance = VrpcAdapter._create(className, ...args)
-      VrpcAdapter._instances.set(instanceId, { className, instance })
-      return instance
-    }
-    return entry.instance
   }
 
   static _delete (instanceId) {
@@ -747,8 +747,8 @@ class VrpcAdapter {
 
   static _getInstancesArray (className) {
     const instances = []
-    VrpcAdapter._instances.forEach((value, key) => {
-      if (value.className === className) instances.push(key)
+    VrpcAdapter._instances.forEach((v, k) => {
+      if (v.className === className && !v.isIsolated) instances.push(k)
     })
     return instances
   }

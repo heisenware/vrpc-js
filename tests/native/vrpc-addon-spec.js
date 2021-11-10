@@ -60,7 +60,7 @@ describe('The native addon', () => {
     it('should be able to instantiate a TestClass using plain json', () => {
       const json = {
         c: 'TestClass',
-        f: '__create__',
+        f: '__createIsolated__',
         a: []
       }
       const ret = JSON.parse(addon.call(JSON.stringify(json)))
@@ -121,7 +121,7 @@ describe('The native addon', () => {
     it('should be able to instantiate a TestClass using plain json', () => {
       const json = {
         c: 'TestClass',
-        f: '__createNamed__',
+        f: '__createShared__',
         a: ['test1'] // No data => default ctor
       }
       const ret = JSON.parse(addon.call(JSON.stringify(json)))

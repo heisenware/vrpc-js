@@ -119,15 +119,14 @@ class VrpcNative {
     const Klass = class {
       constructor (...args) {
         // Create remote instance
-        // TODO this is a deep-copy, needed for the mutative nature of ".call"
-        // Check if this is needed, or not even buggy (return via param in C++ ??)
-        // Error handling while constructing
+        // TODO Error handling while constructing
+        const instanceId = nanoid(8)
         const { r } = JSON.parse(
           adapter.call(
             JSON.stringify({
               c: className,
-              f: '__create__',
-              a: args
+              f: '__createIsolated__',
+              a: [instanceId, ...args]
             })
           )
         )
