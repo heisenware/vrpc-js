@@ -35,7 +35,7 @@ As a robust and highly performing communication system it can build the
 foundation of complex digitization projects in the area of (I)IoT or
 Cloud-Computing.
 
-> This open-source project is professionally managed and supported by
+> VRPC is professionally managed and supported by
 > [Heisenware GmbH](https://heisenware.com).
 
 ## This is VRPC for Javascript (Node.js and Browser)
