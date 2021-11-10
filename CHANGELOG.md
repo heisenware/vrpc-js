@@ -5,13 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [3.0.0-alpha.1]
+
+### Changes
+
+- layout and content of this repository, only javascript related code is left
+- naming of public API classes is made consistent
+  - VrpcAdapter
+  - VrpcAgent
+  - VrpcClient (formerly VrpcRemote)
+  - VrpcNative (formerly VrpcLocal)
+- RPC wire protocol got changed and simplified, a protocol version is attached
+  to every message (`v: 3`)
+- concept of isolated and shared proxy instances
+  ([#51](https://github.com/heisenware/vrpc/issues/51)) got implemented
+- all namings including 'binding' got renamed for the more appropriate 'adapter'
+- calling embedded C++ code got a completely new API (VrpcNative)
 
 ### Added
 
 - injection of proxy-, instance-, and client id into proxy instance [Node.js] (#49)
 - public accessor for client id [Node.js] (#49)
-- signal `clientGone` on agent, indicating that a state-producing client went
+- signal `clientGone` on agent, indicating that a state-changing client went
   [Node.js]
 
 ### Fixed

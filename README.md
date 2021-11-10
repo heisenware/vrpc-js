@@ -35,9 +35,6 @@ As a robust and highly performing communication system it can build the
 foundation of complex digitization projects in the area of (I)IoT or
 Cloud-Computing.
 
-> VRPC is professionally managed and supported by
-> [Heisenware GmbH](https://heisenware.com).
-
 ## This is VRPC for Javascript (Node.js and Browser)
 
 Understand how to use it by looking at the examples:
@@ -51,3 +48,6 @@ Get all the details by reading the documentation:
 
 - [API Reference](docs/api.md)
 - [RPC Protocol Details](docs/protocol.md)
+
+> This open-source project is professionally managed and supported by
+> [Heisenware GmbH](https://heisenware.com).
