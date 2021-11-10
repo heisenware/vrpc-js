@@ -6,7 +6,7 @@ const { ArgumentParser } = require('argparse')
 const VrpcAdapter = require('./VrpcAdapter')
 const EventEmitter = require('events')
 
-const VRPC_WIRE_VERSION = 3
+const VRPC_PROTOCOL_VERSION = 3
 
 /**
  * Agent capable of making existing code available to remote control by clients.
@@ -277,7 +277,7 @@ class VrpcAgent extends EventEmitter {
       status,
       hostname: os.hostname(),
       version: this._version,
-      vrpc: VRPC_WIRE_VERSION
+      v: VRPC_PROTOCOL_VERSION
     })
   }
 
@@ -456,7 +456,8 @@ class VrpcAgent extends EventEmitter {
       instances: this._getInstances(className),
       memberFunctions: this._getMemberFunctions(className),
       staticFunctions: this._getStaticFunctions(className),
-      meta: this._getMetaData(className)
+      meta: this._getMetaData(className),
+      v: VRPC_PROTOCOL_VERSION
     }
     try {
       this._mqttPublish(
