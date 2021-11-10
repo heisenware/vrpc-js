@@ -27,7 +27,8 @@ General RPC **request** payload pattern:
   "f": "<function>",
   "a": ["<arguments>"],
   "i": "<correlationId>",
-  "s": "<sender>"
+  "s": "<sender>",
+  "v": "<protocolVersion>"
 }
 ```
 
@@ -41,7 +42,8 @@ General RPC **response** payload pattern:
   "r": "<return value>",
   "e": "<error message>",
   "i": "<correlationId>",
-  "s": "<sender>"
+  "s": "<sender>",
+  "v": "<protocolVersion>"
 }
 ```
 

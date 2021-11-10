@@ -43,6 +43,8 @@ const { nanoid } = require('nanoid')
 const mqtt = require('mqtt')
 const EventEmitter = require('events')
 
+const VRPC_PROTOCOL_VERSION = 3
+
 /**
  * Client capable of creating proxy objects and remotely calling
  * functions as provided through one or more (distributed) agents.
@@ -317,7 +319,8 @@ class VrpcClient extends EventEmitter {
       f: isIsolated ? '__createIsolated__' : '__createShared__',
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: `${this._domain}/${os.hostname()}/${this._instance}`,
-      a: [instance, ...args]
+      a: [instance, ...args],
+      v: VRPC_PROTOCOL_VERSION
     }
     const proxy = await this._getProxy(agent, className, json)
     if (instance && cacheProxy) this._proxies[instance] = proxy
@@ -398,7 +401,8 @@ class VrpcClient extends EventEmitter {
       f: '__delete__',
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: `${this._domain}/${os.hostname()}/${this._instance}`,
-      a: [instanceString]
+      a: [instanceString],
+      v: VRPC_PROTOCOL_VERSION
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
     this._mqttPublish(topic, JSON.stringify(json))
@@ -429,7 +433,8 @@ class VrpcClient extends EventEmitter {
       f: functionName,
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: this._vrpcClientId,
-      a: wrapped
+      a: wrapped,
+      v: VRPC_PROTOCOL_VERSION
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/${functionName}`
     await this._waitUntilClassIsOnline(agent, className)
@@ -468,7 +473,8 @@ class VrpcClient extends EventEmitter {
       f: functionName,
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: this._vrpcClientId,
-      a: []
+      a: [],
+      v: VRPC_PROTOCOL_VERSION
     }
     if (agent === '*') {
       const result = []
@@ -783,7 +789,7 @@ class VrpcClient extends EventEmitter {
   async end () {
     this._mqttPublish(
       `${this._vrpcClientId}/__clientInfo__`,
-      JSON.stringify({ status: 'offline' })
+      JSON.stringify({ status: 'offline', v: VRPC_PROTOCOL_VERSION })
     )
     return new Promise(resolve => this._client.end(false, {}, resolve))
   }
@@ -922,10 +928,7 @@ class VrpcClient extends EventEmitter {
     const proxy = {
       vrpcClientId: this._vrpcClientId,
       vrpcInstanceId: instance,
-      vrpcProxyId: proxyId,
-      // deprecate the properties below
-      _targetId: instance,
-      _proxyId: proxyId
+      vrpcProxyId: proxyId
     }
     let functions = this._agents[agent].classes[className].memberFunctions
     // Strip off argument signature
@@ -947,7 +950,8 @@ class VrpcClient extends EventEmitter {
             f: name,
             i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
             s: this._vrpcClientId,
-            a: wrapped
+            a: wrapped,
+            v: VRPC_PROTOCOL_VERSION
           }
           this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
           return this._handleAgentAnswer(json)
