@@ -538,10 +538,6 @@ class VrpcAgent extends EventEmitter {
           this._registerNamedInstance(instanceId, json.s)
           break
         }
-        case '__getNamed__': {
-          if (!json.e) this._registerNamedInstance(json.a[0], json.s)
-          break
-        }
         case '__delete__': {
           this._unsubscribeMethodsOfDeletedInstance(className, instance)
           const wasNamed = this._unregisterInstance(json.a[0], json.s)

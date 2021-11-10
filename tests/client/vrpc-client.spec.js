@@ -179,7 +179,6 @@ describe('vrpc-client', () => {
             '__create__',
             '__delete__',
             '__createNamed__',
-            '__getNamed__',
             '__callAll__'
           ],
           meta: {}
@@ -393,7 +392,6 @@ describe('vrpc-client', () => {
             '__create__',
             '__delete__',
             '__createNamed__',
-            '__getNamed__',
             '__callAll__'
           ],
           meta: {}
