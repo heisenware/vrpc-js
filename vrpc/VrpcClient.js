@@ -810,9 +810,8 @@ class VrpcClient extends EventEmitter {
       .createHash('md5')
       .update(clientInfo)
       .digest('hex')
-      .substr(0, 13)
-    // FIXME (3.x): use vrpcp -> vrpcc
-    return `vc${this._instance}${md5}` // 2 + 8 + 13 = 23 (max clientId)
+      .substr(0, 12)
+    return `vc3${this._instance}${md5}` // 3 + 8 + 12 = 23 (max clientId)
   }
 
   _createVrpcClientId () {
