@@ -429,6 +429,7 @@ class VrpcAdapter {
   }
 
   static _call (json) {
+    const before = Object.keys(VrpcAdapter._listeners).length
     switch (json.f) {
       case '__createIsolated__':
         VrpcAdapter._handleCreateIsolated(json)
@@ -445,6 +446,10 @@ class VrpcAdapter {
       default:
         VrpcAdapter._handleCall(json)
     }
+    const after = Object.keys(VrpcAdapter._listeners).length
+    // if we took a listener on board we must tell our caller such that
+    // things can be cleaned up later.
+    return after > before
   }
 
   static _handleCreateIsolated (json) {
@@ -596,6 +601,18 @@ class VrpcAdapter {
     delete VrpcAdapter._listeners[clientId]
   }
 
+  static _unregisterEventListenersOfInstance (instance) {
+    for (const [key, value] of Object.entries(VrpcAdapter._listeners)) {
+      VrpcAdapter._listeners[key] = value.filter(({ i, e, f }) => {
+        if (instance === i) {
+          VrpcAdapter.getInstance(i).removeListener(e, f)
+          return false
+        }
+        return true
+      })
+    }
+  }
+
   static _validate (schema, params) {
     if (!VrpcAdapter._ajv) {
       VrpcAdapter._ajv = new Ajv({ useDefaults: true })
@@ -646,7 +663,7 @@ class VrpcAdapter {
       // do not even trigger a callback for already offline clients
       if (json.s && !VrpcAdapter._listeners[json.s]) return
       const a = instanceId ? [instanceId, ...innerArgs] : [...innerArgs]
-      VrpcAdapter._callback({ ...json, a, i: id })
+      VrpcAdapter._callback({ a, s: json.s, f: json.f, i: id })
     }
     return wrapper
   }
