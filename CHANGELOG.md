@@ -5,9 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [3.0.0-alpha.1]
+## [3.0.0-alpha.2] - 19 Nov 2021
 
-### Changes
+### Fixed
+
+- leaking event registrations on remote-controlled instance when event consumer
+  was not creator of the instance
+
+## Changed
+
+- reduced payload of callback message by omitting the original return value
+- changed prefix of mqtt client id to `vc3` and `va3`, respectively
+
+## [3.0.0-alpha.1] - 10 Nov 2021
+
+### Changed
 
 - layout and content of this repository, only javascript related code is left
 - naming of public API classes is made consistent
