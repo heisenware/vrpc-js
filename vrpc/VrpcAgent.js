@@ -169,7 +169,7 @@ class VrpcAgent extends EventEmitter {
       .createHash('md5')
       .update(this._domain + this._agent)
       .digest('hex')
-      .substr(0, 18)
+      .substr(0, 20)
     let username = this._username
     let password = this._password
     if (this._token) {
@@ -181,7 +181,7 @@ class VrpcAgent extends EventEmitter {
       password,
       keepalive: 30,
       connectTimeout: 10 * 1000,
-      clientId: `vrpca${md5}`,
+      clientId: `va3${md5}`,
       rejectUnauthorized: false,
       will: {
         topic: `${this._baseTopic}/__agentInfo__`,
@@ -516,7 +516,11 @@ class VrpcAgent extends EventEmitter {
       json.f = method
 
       // Mutates json and adds return value
-      VrpcAdapter._call(json)
+      const mustTrack = VrpcAdapter._call(json)
+
+      if (mustTrack) {
+        this._mqttSubscribe(`${json.s}/__clientInfo__`)
+      }
 
       // Intersecting life-cycle functions
       switch (method) {
@@ -616,6 +620,7 @@ class VrpcAgent extends EventEmitter {
   _unregisterInstance (instanceId, clientId) {
     const entryIsolated = this._isolatedInstances.get(clientId)
     if (entryIsolated && entryIsolated.has(instanceId)) {
+      VrpcAdapter._unregisterEventListenersOfInstance(instanceId)
       entryIsolated.delete(instanceId)
       if (entryIsolated.length === 0) {
         this._isolatedInstances.delete(clientId)
@@ -628,6 +633,7 @@ class VrpcAgent extends EventEmitter {
     this._sharedInstances.forEach(async v => {
       if (v.has(instanceId)) {
         found = true
+        VrpcAdapter._unregisterEventListenersOfInstance(instanceId)
         v.delete(instanceId)
         if (v.length === 0) {
           this._sharedInstances.delete(clientId)
