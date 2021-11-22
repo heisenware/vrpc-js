@@ -72,12 +72,14 @@ describe('Agent Life-Cycle', () => {
       })
       await remote.connect()
     })
-    it('VrpcClient should see the agent online', (done) => {
+    it('VrpcClient should see the agent online', done => {
       const testFunc = ({ domain, agent, status, version }) => {
-        if (domain === 'test.vrpc' &&
-        agent === 'nodeJsTestAgent' &&
-        status === 'online' &&
-        version === '1.0.0-test') {
+        if (
+          domain === 'test.vrpc' &&
+          agent === 'nodeJsTestAgent' &&
+          status === 'online' &&
+          version === '1.0.0-test'
+        ) {
           remote.removeListener('agent', testFunc)
           done()
         }
@@ -90,10 +92,12 @@ describe('Agent Life-Cycle', () => {
     it('VrpcClient should see the agent offline', async () => {
       const promise = new Promise(resolve => {
         const testFunc = ({ domain, agent, status, version }) => {
-          if (domain === 'test.vrpc' &&
-          agent === 'nodeJsTestAgent' &&
-          status === 'offline' &&
-          version === '1.0.0-test') {
+          if (
+            domain === 'test.vrpc' &&
+            agent === 'nodeJsTestAgent' &&
+            status === 'offline' &&
+            version === '1.0.0-test'
+          ) {
             remote.removeListener('agent', testFunc)
             resolve()
           }
@@ -114,9 +118,11 @@ describe('Agent Life-Cycle', () => {
       await remoteInner.connect()
       const promise = new Promise((resolve, reject) => {
         remoteInner.on('agent', ({ domain, agent, status }) => {
-          if (domain === 'test.vrpc' &&
-          agent === 'nodeJsTestAgent' &&
-          status === 'offline') {
+          if (
+            domain === 'test.vrpc' &&
+            agent === 'nodeJsTestAgent' &&
+            status === 'offline'
+          ) {
             reject(new Error('Agent should have been unregistered'))
           }
         })
@@ -160,7 +166,7 @@ describe('Instance life-cycle', () => {
     })
     it('should be possible to start several instances', async () => {
       const newInstances = []
-      remote.on('instanceNew', (instances) => {
+      remote.on('instanceNew', instances => {
         newInstances.push(...instances)
       })
       await remote.create({
@@ -191,26 +197,20 @@ describe('Instance life-cycle', () => {
         className: 'Foo',
         functionName: 'foo'
       })
-      assert.deepStrictEqual(
-        result,
-        [
-          { id: 'foo-1', val: 'foo-1', err: null },
-          { id: 'foo-2', val: 'foo-2', err: null }
-        ]
-      )
+      assert.deepStrictEqual(result, [
+        { id: 'foo-1', val: 'foo-1', err: null },
+        { id: 'foo-2', val: 'foo-2', err: null }
+      ])
     })
     it('should be possible to call async functions across all instances', async () => {
       const result = await remote.callAll({
         className: 'Foo',
         functionName: 'promisedFoo'
       })
-      assert.deepStrictEqual(
-        result,
-        [
-          { id: 'foo-1', val: 'promised-foo-1', err: null },
-          { id: 'foo-2', val: 'promised-foo-2', err: null }
-        ]
-      )
+      assert.deepStrictEqual(result, [
+        { id: 'foo-1', val: 'promised-foo-1', err: null },
+        { id: 'foo-2', val: 'promised-foo-2', err: null }
+      ])
     })
   })
   describe('Instances attach', () => {
@@ -233,34 +233,31 @@ describe('Instance life-cycle', () => {
       await remote.end()
     })
     it('should be possible to list and attach all instances', async () => {
-      assert.deepEqual(inst1, { Foo: ['foo-1', 'foo-2'], Bar: ['bar-1'], MiniFoo: [] })
-      const inst2 = await remote.getAvailableInstances('Foo')
-      assert.deepEqual(inst2, ['foo-1', 'foo-2'])
-      const foo1 = await remote.getInstance({
-        className: 'Foo',
-        instance: 'foo-1'
+      assert.deepEqual(inst1, {
+        Foo: ['foo-1', 'foo-2'],
+        Bar: ['bar-1'],
+        MiniFoo: []
       })
+      const inst2 = await remote.getAvailableInstances({ className: 'Foo' })
+      assert.deepEqual(inst2, ['foo-1', 'foo-2'])
+      const foo1 = await remote.getInstance('foo-1', { className: 'Foo' })
       assert.strictEqual(await foo1.foo(), 'foo-1')
       const foo2 = await remote.getInstance('foo-2')
       assert.strictEqual(await foo2.foo(), 'foo-2')
-      const bar1 = await remote.getInstance({
-        className: 'Bar',
-        instance: 'bar-1'
-      })
+      const bar1 = await remote.getInstance('bar-1', { className: 'Bar' })
       assert.strictEqual(await bar1.bar(), 'bar-1')
       try {
         await remote.getInstance('no-exist')
         assert.isTrue(false)
-      } catch (err) {
-      }
+      } catch (err) {}
     })
     it('should be possible to delete instances', async () => {
       const removed = []
-      remote.on('instanceGone', (instances) => {
+      remote.on('instanceGone', instances => {
         removed.push(...instances)
       })
-      await remote.delete({ className: 'Foo', instance: 'foo-2' })
-      const inst2 = await remote.getAvailableInstances('Foo')
+      await remote.delete('foo-2', { className: 'Foo' })
+      const inst2 = await remote.getAvailableInstances({ className: 'Foo' })
       assert.deepEqual(inst1, { Foo: ['foo-1'], Bar: ['bar-1'], MiniFoo: [] })
       assert.deepEqual(inst2, ['foo-1'])
       assert.deepStrictEqual(removed, ['foo-2'])
@@ -340,8 +337,8 @@ describe('Event Callbacks', () => {
         className: 'Foo',
         instance: 'foo'
       })
-      const cb = (value) => localEvents.push(value)
-      const cbo = (value) => localEvents.push(value)
+      const cb = value => localEvents.push(value)
+      const cbo = value => localEvents.push(value)
       await foo.once('echo', cb)
       await foo.on('echo', cb)
       await foo.on('echo', cbo)
