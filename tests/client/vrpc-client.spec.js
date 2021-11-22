@@ -302,7 +302,8 @@ describe('vrpc-client', () => {
         assert(instanceNewSpy.notCalled)
       })
       it('should not list any available instances', () => {
-        const instances = client.getAvailableInstances('Foo', {
+        const instances = client.getAvailableInstances({
+          className: 'Foo',
           agent: 'agent1'
         })
         assert.strictEqual(instances.length, 0)
@@ -407,7 +408,8 @@ describe('vrpc-client', () => {
         })
       })
       it('should list the available instances', () => {
-        const instances = client.getAvailableInstances('Foo', {
+        const instances = client.getAvailableInstances({
+          className: 'Foo',
           agent: 'agent1'
         })
         assert.deepStrictEqual(instances, ['instance1', 'instance2'])

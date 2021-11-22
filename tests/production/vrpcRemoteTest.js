@@ -16,7 +16,7 @@ emitter.on('removed', entry => removedEntries.push(entry))
 
 describe('An instance of the VrpcClient class', () => {
   let vrpc
-  it('should be construct-able given an optional domain', async() => {
+  it('should be construct-able given an optional domain', async () => {
     vrpc = new VrpcClient({
       domain: 'test.vrpc',
       token: process.env.VRPC_TEST_TOKEN,
@@ -44,7 +44,10 @@ describe('An instance of the VrpcClient class', () => {
         })
         assert.fail()
       } catch (err) {
-        assert.equal(err.message, 'Proxy creation for class "DoesNotExist" on agent "js" and domain "test.vrpc" timed out (> 1500 ms)')
+        assert.equal(
+          err.message,
+          'Proxy creation for class "DoesNotExist" on agent "js" and domain "test.vrpc" timed out (> 1500 ms)'
+        )
       }
     })
     let testClass
@@ -56,7 +59,10 @@ describe('An instance of the VrpcClient class', () => {
       })
       assert.ok(testClass)
       await new Promise(resolve => setTimeout(resolve, 300))
-      const available = await vrpc.getAvailableInstances('TestClass', 'js')
+      const available = await vrpc.getAvailableInstances({
+        className: 'TestClass',
+        agent: 'js'
+      })
       assert.ok(available.includes('testClass'))
     })
     describe('The corresponding TestClass proxy', () => {
@@ -75,14 +81,14 @@ describe('An instance of the VrpcClient class', () => {
       it('should return an empty object after calling getRegistry()', async () => {
         assert.isEmpty(await testClass.getRegistry())
       })
-      it('should return false after calling getCategory(\'test\')', async () => {
+      it("should return false after calling getCategory('test')", async () => {
         assert.isFalse(await testClass.hasEntry('test'))
       })
       it('should allow to register an EventEmitter as callback argument', async () => {
         await testClass.notifyOnNew({ emitter, event: 'new' })
         await testClass.notifyOnRemoved({ emitter, event: 'removed' })
       })
-      it('should add a new entry by calling addEntry(\'test\')', async () => {
+      it("should add a new entry by calling addEntry('test')", async () => {
         const originalEntry = {
           member1: 'first entry',
           member2: 42,
@@ -100,7 +106,7 @@ describe('An instance of the VrpcClient class', () => {
         const registry = await testClass.getRegistry()
         assert.equal(registry.test[0].member1, originalEntry.member1)
       })
-      it('should remove the entry by calling removeEntry(\'test\')', async () => {
+      it("should remove the entry by calling removeEntry('test')", async () => {
         const entry = await testClass.removeEntry('test')
         assert.equal(entry.member1, 'first entry')
         assert.isFalse(await testClass.hasEntry('test'))
@@ -172,7 +178,10 @@ describe('An instance of the VrpcClient class', () => {
           })
           assert.fail()
         } catch (err) {
-          assert.equal(err.message, 'Function call "TestClass::doesNotExist()" timed out (> 1500 ms)')
+          assert.equal(
+            err.message,
+            'Function call "TestClass::doesNotExist()" timed out (> 1500 ms)'
+          )
         }
       })
     })
@@ -220,7 +229,7 @@ describe('Another instance of the VrpcClient class', () => {
       })
       it('should not be possible to attach to non-existing instance', async () => {
         try {
-          await vrpc.getInstance({ className: 'TestClass', instance: 'bad' })
+          await vrpc.getInstance('bad', { className: 'TestClass' })
           assert.fail()
         } catch (err) {
           assert.equal(err.message, 'Could not find instance: bad (> 6000 ms)')
@@ -235,7 +244,7 @@ describe('Another instance of the VrpcClient class', () => {
         }
       })
       it('should be possible to attach to the named instance', async () => {
-        test1 = await vrpc.getInstance({ className: 'TestClass', instance: 'test1' })
+        test1 = await vrpc.getInstance('test1', { className: 'TestClass' })
         assert.isObject(test1)
       })
       describe('The attached named instance', () => {
@@ -251,19 +260,19 @@ describe('Another instance of the VrpcClient class', () => {
           assert.isNotFunction(test1.crazy)
         })
         it('should return the correct registry as provided during construction', async () => {
-          assert.deepEqual((await test1.getRegistry()), { test: [1, 2, 3] })
+          assert.deepEqual(await test1.getRegistry(), { test: [1, 2, 3] })
         })
         it('should be delete-able', async () => {
-          const deleted = await vrpc.delete({
-            className: 'TestClass',
-            instance: 'test1'
-          })
+          const deleted = await vrpc.delete('test1', { className: 'TestClass' })
           assert.isTrue(deleted)
           try {
-            await vrpc.getInstance({ className: 'TestClass', instance: 'test1' })
+            await vrpc.getInstance('test1', { className: 'TestClass' })
             assert.fail()
           } catch (err) {
-            assert.equal(err.message, 'Could not find instance: test1 (> 6000 ms)')
+            assert.equal(
+              err.message,
+              'Could not find instance: test1 (> 6000 ms)'
+            )
           }
         })
       })

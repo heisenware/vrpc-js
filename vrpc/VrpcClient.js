@@ -336,37 +336,15 @@ class VrpcClient extends EventEmitter {
    *
    * @param {String} instance The instance to be retrieved
    * @param {Object} [options] Explicitly define agent and class
-   * @param {String} options.className Name of the instance's class
-   * @param {String} options.agent Agent name. If not provided class default is used
-   * @param {bool} options.noWait If true immediately fail if instance could not be found in local cache
+   * @param {String} [options.className] Name of the instance's class
+   * @param {String} [options.agent] Agent name. If not provided class default is used as priority hit
+   * @param {bool} [options.noWait=false] If true immediately fail if instance could not be found in local cache
    * @returns {Promise<Proxy>} Proxy object reflecting the remotely existing instance
    */
-  async getInstance (instance, options) {
+  async getInstance (instance, options = {}) {
     if (this._proxies[instance]) return this._proxies[instance]
-    if (typeof instance === 'string') {
-      const {
-        agent,
-        className,
-        instance: instanceString
-      } = await this._getInstanceData(instance, options)
-      return this._createProxy(agent, className, instanceString)
-    } else {
-      // deprecate this
-      this._indicateDeprecation(
-        'VrpcClient.getInstance(): ' +
-          'Using an object as single argument is deprecated, ' +
-          'use "getInstance(instance, options)" instead.'
-      )
-      const fakedOptions = { ...instance }
-      const fakedInstance = fakedOptions.instance
-      delete fakedOptions.instance
-      const {
-        agent,
-        className,
-        instance: instanceString
-      } = await this._getInstanceData(fakedInstance, fakedOptions)
-      return this._createProxy(agent, className, instanceString)
-    }
+    const { agent, className } = await this._getInstanceData(instance, options)
+    return this._createProxy(agent, className, instance)
   }
 
   /**
@@ -378,30 +356,17 @@ class VrpcClient extends EventEmitter {
    * @param {String} instance The instance to be deleted
    * @param {Object} [options] Explicitly define agent and class
    * @param {String} options.className Name of the instance's class
-   * @param {String} options.agent Agent name. If not provided class default is used
+   * @param {String} options.agent Agent name. If not provided class default is used as priority hit
    * @returns {Promise<Boolean>} true if successful, false otherwise
    */
-  async delete (instance, options) {
-    let instanceData = { agent: this._agent }
-    if (typeof instance === 'string') {
-      instanceData = await this._getInstanceData(instance)
-      if (options) instanceData = { ...options, ...instanceData }
-    } else {
-      // deprecate this
-      this._indicateDeprecation(
-        'VrpcClient.delete(): ' +
-          'Using an object as single argument is deprecated, ' +
-          'use "delete(instance, options)" instead.'
-      )
-      instanceData = { ...instanceData, ...instance }
-    }
-    const { agent, className, instance: instanceString } = instanceData
+  async delete (instance, options = {}) {
+    const { agent, className } = await this._getInstanceData(instance, options)
     const json = {
       c: className,
       f: '__delete__',
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: `${this._domain}/${os.hostname()}/${this._instance}`,
-      a: [instanceString],
+      a: [instance],
       v: VRPC_PROTOCOL_VERSION
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
@@ -535,19 +500,7 @@ class VrpcClient extends EventEmitter {
    * @param {Boolean} [options.mustBeOnline=true] Only retrieve currently online agents
    * @returns {Array} Array of agent names.
    */
-  getAvailableAgents (options = {}) {
-    /// DEPRECATION INFORMATION AND WORKAROUND - TO BE REMOVED IN 3.x
-    // `options = {}` was `domain = this._domain` before
-    if (typeof options === 'string') {
-      this._indicateDeprecation(
-        'VrpcClient.getAvailableAgents(): ' +
-          'Providing a domain here has no effect and will be an error in future.'
-      )
-      options = { mustBeOnline: true }
-    }
-    ///
-
-    const { mustBeOnline = true } = options
+  getAvailableAgents ({ mustBeOnline = true } = {}) {
     const agents = []
     if (mustBeOnline) {
       // loop agents
@@ -568,34 +521,7 @@ class VrpcClient extends EventEmitter {
    * @param {Boolean} [options.mustBeOnline=true] Only retrieve currently online classes
    * @returns {Array} Array of class names.
    */
-  getAvailableClasses (
-    options = { agent: this._agent, mustBeOnline: true },
-    domain
-  ) {
-    /// DEPRECATION INFORMATION AND WORKAROUND - TO BE REMOVED IN 3.x
-    let agent = this._agent
-    let mustBeOnline = true
-    // `options = {}` was `agent = this._agent` before
-    if (typeof options === 'string') {
-      this._indicateDeprecation(
-        'VrpcClient.getAvailableClasses(): ' +
-          'setting the agent as string argument is deprecated.`' +
-          'Use `{ agent: <myAgent> }` instead.'
-      )
-      agent = options
-    } else {
-      agent = options.agent
-      mustBeOnline = options.mustBeOnline
-    }
-    // was `domain = this._domain` before
-    if (domain) {
-      this._indicateDeprecation(
-        'VrpcClient.getAvailableClasses(): ' +
-          'Providing a domain here has no effect and will be an error in future.'
-      )
-    }
-    ///
-
+  getAvailableClasses ({ agent = this._agent, mustBeOnline = true } = {}) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (!this._agents[agent]) return []
     const { classes, status } = this._agents[agent]
@@ -606,41 +532,17 @@ class VrpcClient extends EventEmitter {
   /**
    * Retrieves all (named) instances on specific class and agent.
    *
-   * @param {String} className Class name
    * @param {Object} [options]
+   * @param {String} options.className Class name
    * @param {String} [options.agent] Agent name. If not provided class default is used
    * @param {Boolean} [options.mustBeOnline=true] Only retrieve currently online classes
    * @returns {Array} Array of instance names
    */
-  getAvailableInstances (
+  getAvailableInstances ({
     className,
-    options = { agent: this._agent, mustBeOnline: true },
-    domain
-  ) {
-    /// DEPRECATION INFORMATION AND WORKAROUND - TO BE REMOVED IN 3.x
-    let agent = this._agent
-    let mustBeOnline = true
-    // `options = {}` was `agent = this._agent` before
-    if (typeof options === 'string') {
-      this._indicateDeprecation(
-        'VrpcClient.getAvailableInstances(): ' +
-          'Setting the agent as string argument is deprecated.`' +
-          'Use `{ agent: <myAgent> }` instead.'
-      )
-      agent = options
-    } else {
-      agent = options.agent
-      mustBeOnline = options.mustBeOnline
-    }
-    // was `domain = this._domain` before
-    if (domain) {
-      this._indicateDeprecation(
-        'VrpcClient.getAvailableInstances(): ' +
-          'Providing a domain here has no effect and will be an error in future.'
-      )
-    }
-    ///
-
+    agent = this._agent,
+    mustBeOnline = true
+  } = {}) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (!this._agents[agent]) return []
     const { classes, status } = this._agents[agent]
@@ -651,41 +553,17 @@ class VrpcClient extends EventEmitter {
   /**
    * Retrieves all member functions of specific class and agent.
    *
-   * @param {String} className Class name
    * @param {Object} [options]
+   * @param {String} options.className Class name
    * @param {String} [options.agent] Agent name. If not provided class default is used
    * @param {Boolean} [options.mustBeOnline=true] Only retrieve currently online classes
    * @returns {Array} Array of member function names
    */
-  getAvailableMemberFunctions (
+  getAvailableMemberFunctions ({
     className,
-    options = { agent: this._agent, mustBeOnline: true },
-    domain
-  ) {
-    /// DEPRECATION INFORMATION AND WORKAROUND - TO BE REMOVED IN 3.x
-    let agent = this._agent
-    let mustBeOnline = true
-    // `options = {}` was `agent = this._agent` before
-    if (typeof options === 'string') {
-      this._indicateDeprecation(
-        'VrpcClient.getAvailableMemberFunctions(): ' +
-          'Setting the agent as string argument is deprecated.`' +
-          'Use `{ agent: <myAgent> }` instead.'
-      )
-      agent = options
-    } else {
-      agent = options.agent
-      mustBeOnline = options.mustBeOnline
-    }
-    // was `domain = this._domain` before
-    if (domain) {
-      this._indicateDeprecation(
-        'VrpcClient.getAvailableMemberFunctions(): ' +
-          'Providing a domain here has no effect and will be an error in future.'
-      )
-    }
-    ///
-
+    agent = this._agent,
+    mustBeOnline = true
+  } = {}) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (!this._agents[agent]) return []
     const { classes, status } = this._agents[agent]
@@ -698,41 +576,17 @@ class VrpcClient extends EventEmitter {
   /**
    * Retrieves all static functions of specific class and agent.
    *
-   * @param {String} className Class name
    * @param {Object} [options]
+   * @param {String} options.className Class name
    * @param {String} [options.agent] Agent name. If not provided class default is used
    * @param {Boolean} [options.mustBeOnline=true] Only retrieve currently online classes
    * @returns {Array} Array of static function names
    */
-  getAvailableStaticFunctions (
+  getAvailableStaticFunctions ({
     className,
-    options = { agent: this._agent, mustBeOnline: true },
-    domain
-  ) {
-    /// DEPRECATION INFORMATION AND WORKAROUND - TO BE REMOVED IN 3.x
-    let agent = this._agent
-    let mustBeOnline = true
-    // `options = {}` was `agent = this._agent` before
-    if (typeof options === 'string') {
-      this._indicateDeprecation(
-        'VrpcClient.getAvailableStaticFunctions(): ' +
-          'Setting the agent as string argument is deprecated.`' +
-          'Use `{ agent: <myAgent> }` instead.'
-      )
-      agent = options
-    } else {
-      agent = options.agent
-      mustBeOnline = options.mustBeOnline
-    }
-    // was `domain = this._domain` before
-    if (domain) {
-      this._indicateDeprecation(
-        'VrpcClient.getAvailableStaticFunctions(): ' +
-          'Providing a domain here has no effect and will be an error in future.'
-      )
-    }
-    ///
-
+    agent = this._agent,
+    mustBeOnline = true
+  } = {}) {
     if (agent === '*') throw new Error('Agent must be specified')
     if (!this._agents[agent]) return []
     const { classes, status } = this._agents[agent]
@@ -947,7 +801,8 @@ class VrpcClient extends EventEmitter {
           const json = {
             c: instance,
             f: name,
-            i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+            i: `${this._instance}-${this._invokeId++ %
+              Number.MAX_SAFE_INTEGER}`,
             s: this._vrpcClientId,
             a: wrapped,
             v: VRPC_PROTOCOL_VERSION
@@ -1111,7 +966,7 @@ class VrpcClient extends EventEmitter {
     )
   }
 
-  async _getInstanceData (instance, options = {}) {
+  async _getInstanceData (instance, options) {
     const instanceData = this._getInstanceFromCache(instance, options)
     if (!instanceData) {
       if (options.noWait) {
@@ -1123,6 +978,21 @@ class VrpcClient extends EventEmitter {
   }
 
   _getInstanceFromCache (instance, options = {}) {
+    // when no agent is specified, but an explicit class default exists give
+    // such instances priority in being found
+    if (!options.agent && this._agent !== '*') {
+      const { classes, status } = this._agents[this._agent]
+      if (!classes || status === 'offline') {
+        for (const className in classes) {
+          if (options.className && className !== options.className) continue
+          const { instances } = classes[className]
+          if (!instances) continue
+          if (instances.includes(instance)) {
+            return { agent, className, instance }
+          }
+        }
+      }
+    }
     // loop agents
     for (const agent in this._agents) {
       if (options.agent && agent !== options.agent) continue
