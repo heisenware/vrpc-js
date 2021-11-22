@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - missing 'create' event in VrpcAdapter
 - respecting isolation state in callAll
 
+### Changed
+
+- cleaned API and tests from deprecation supports, those will now result in
+  errors
+
 ## [3.0.0-alpha.2] - 19 Nov 2021
 
 ### Fixed
