@@ -479,6 +479,11 @@ class VrpcAdapter {
         isIsolated: false
       })
       json.r = instanceId
+      VrpcAdapter._emitter.emit('create', {
+        args,
+        className,
+        instance: instanceId
+      })
     } catch (err) {
       json.e = err.message
     }
@@ -487,8 +492,12 @@ class VrpcAdapter {
   static _handleCallAll (json) {
     try {
       const calls = []
-      for (const [id, { className, instance }] of VrpcAdapter._instances) {
-        if (className !== json.c) continue
+      for (const [
+        id,
+        { className, instance, isIsolated }
+      ] of VrpcAdapter._instances) {
+        // TODO Think about a configurable behavior w.r.t. isolated instances...
+        if (className !== json.c || isIsolated) continue
         let v
         let e = null
         try {
