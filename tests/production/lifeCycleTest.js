@@ -180,7 +180,8 @@ describe('Instance life-cycle', () => {
       })
       const foo3 = await remote.create({
         className: 'Foo',
-        args: ['foo-3']
+        args: ['foo-3'],
+        isIsolated: true
       })
       assert.strictEqual(await foo3.foo(), 'foo-3')
       assert.deepStrictEqual(newInstances, ['foo-1', 'foo-2', 'bar-1'])
