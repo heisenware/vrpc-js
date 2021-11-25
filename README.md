@@ -21,7 +21,7 @@ same) programming language. Unlike RPC, VRPC furthermore supports:
   client - multiple agents)
 - service discovery
 - outbound-connection-only network architecture (using MQTT technology)
-- isolated (multi-tenant) and shared access modes for remote-resources
+- isolated (multi-tenant) and shared access modes to remote resources
 - asynchronous language constructs (callbacks, promises, event-loops)
 - OOP (classes, objects, member functions) and functional (lambda) patterns
 - exception forwarding
