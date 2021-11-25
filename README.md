@@ -16,13 +16,12 @@ VRPC - Variadic Remote Procedure Calls - is an enhancement of the old RPC
 written in any programming language by functions written in any other (or the
 same) programming language. Unlike RPC, VRPC furthermore supports:
 
-- non-intrusive adaption of existing code, making it remotely callable
+- non-intrusive adaption of existing code, making it callable remotely
 - remote function calls on many distributed receivers at the same time (one
   client - multiple agents)
 - service discovery
 - outbound-connection-only network architecture (using MQTT technology)
-- isolated (multi-tenant) and shared access modes to remotely available
-  resources
+- isolated (multi-tenant) and shared access modes for remote-resources
 - asynchronous language constructs (callbacks, promises, event-loops)
 - OOP (classes, objects, member functions) and functional (lambda) patterns
 - exception forwarding
@@ -31,7 +30,7 @@ VRPC is available for an entire spectrum of programming technologies including
 embedded (Arduino, header-only C++, etc.), data-science (Python, R,
 etc.), and web (Javascript, React, etc.) technologies.
 
-As a robust and highly performing communication system it can build the
+As a robust and highly performing communication system, it can build the
 foundation of complex digitization projects in the area of (I)IoT or
 Cloud-Computing.
 
