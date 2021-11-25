@@ -537,8 +537,14 @@ describe('vrpc-client', () => {
         await client.delete('agent1Foo1')
       })
       it('should work for synchronous functions', async () => {
+        const valueSpy = sinon.spy()
+        const retOn = await agent1Foo1.on('value', valueSpy)
+        assert.strictEqual(retOn, true)
         const value = await agent1Foo1.increment()
         assert.strictEqual(value, 1)
+        assert(valueSpy.calledWith(1))
+        const retOff = await agent1Foo1.off('value', valueSpy)
+        assert.strictEqual(retOff, true)
       })
       it('should work for asynchronous functions', async () => {
         const value = await agent1Foo1.resolvePromise(100)
@@ -648,12 +654,15 @@ describe('vrpc-client', () => {
       })
       it('should allow batch event-registration across agents', async () => {
         const callbackSpy = sinon.spy()
-        await client.callAll({
+        const ret = await client.callAll({
           agent: '*',
           className: 'Foo',
           functionName: 'on',
           args: ['value', callbackSpy]
         })
+        // both instances of agent1 were subscribed previously and are correctly
+        // skipped here
+        assert.deepStrictEqual(ret.map(({ val }) => val), [true, true])
         await agent1Foo1.increment()
         await new Promise(resolve => setTimeout(resolve, 100))
         assert(callbackSpy.calledOnce)

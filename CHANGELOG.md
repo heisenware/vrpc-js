@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - cleaned API and tests from deprecation supports, those will now result in
   errors
+- intercepting return value of EventEmitter functions and changing it from
+  potentially gigantic object (as it returns `this`) to `true`
 
 ## [3.0.0-alpha.2] - 19 Nov 2021
 
