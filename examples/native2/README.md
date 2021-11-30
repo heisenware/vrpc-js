@@ -148,7 +148,7 @@ std::string Bar::_random() const {
 This adapter code shows some new features, such as adding custom data types,
 handling callbacks, overloads and static functions.
 
-*src/binding.cpp*
+*src/adapter.cpp*
 
 ```cpp
 #include "Bar.hpp"

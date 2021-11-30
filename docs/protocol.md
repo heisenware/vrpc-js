@@ -49,11 +49,11 @@ General RPC **response** payload pattern:
 
 > **NOTE 1**
 >
->- if `<function>` refers to a member function the `<context>` must reflect the
+>- if `<function>` refers to a member function, `<context>` must reflect the
 >  corresponding **instance name**
->- if `<function>` refers to a static function the `<context>` must reflect the
+>- if `<function>` refers to a static function, `<context>` must reflect the
 >  corresponding **class name**
->- if `<function>` refers to a global function the `<context>` must have the value
+>- if `<function>` refers to a global function, `<context>` must have the value
 >  `__global__`
 >
 > **NOTE 2**
@@ -67,7 +67,7 @@ General RPC **response** payload pattern:
 > the full signature in form of:
 >
 > ```xml
-> <methodName>[-<typename arg1>[<typename arg2>][...]]]
+> <methodName>[-<typename arg1>:[<typename arg2>:][...]]]
 > ```
 >
 > where `typename` can be one of:
@@ -93,11 +93,11 @@ General RPC **response** payload pattern:
 2. VRPC generates an MQTT client ID like so:
 
     ```xml
-    vrpca<agentInstance>X<random>
+    va3<agentInstance>
     ```
 
-    where `<agentInstance>` reflects the first 13 chars of an md5 hash composed
-    out of domain and agent and random being composed of 4 chars.
+    where `<agentInstance>` reflects a 20 characters long hash generated
+    out of domain and agent name.
 
 3. VRPC **publishes** the (retained) agent info message:
 
@@ -192,10 +192,10 @@ VRPC **publishes** the (retained) agent info message:
 2. VRPC generates an MQTT client ID like so:
 
     ```xml
-    vrpcc<random>X<processInfo>
+    vc3<random><processInfo>
     ```
 
-    where `<random>` are 4 random characters and `<processInfo>` is a 13
+    where `<random>` are 8 random characters and `<processInfo>` is a 12
     character long string composed of host specific properties (i.e. stays the
     same on the same host)
 
