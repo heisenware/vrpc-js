@@ -62,7 +62,7 @@ VRPC_MEMBER_FUNCTION(Foo, void, setValue, int);
 ```
 
 See [here](docs/reference/cppBinding.md) for a full reference of all available
-binding macros.
+adapter macros.
 
 ## STEP 3: Creation of a native addon
 
