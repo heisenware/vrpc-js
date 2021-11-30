@@ -162,6 +162,7 @@ class VrpcClient extends EventEmitter {
       keepalive: 30,
       clientId: this._mqttClientId,
       rejectUnauthorized: false,
+      connectTimeout: this._timeout,
       will: {
         topic: `${this._vrpcClientId}/__clientInfo__`,
         payload: JSON.stringify({ status: 'offline' })
@@ -248,14 +249,12 @@ class VrpcClient extends EventEmitter {
         this._eventEmitter.emit(i, { a, e, r })
       }
     })
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+    return new Promise((resolve, reject) => {
+      this._client.once('offline', () => {
+        this._client.end()
         reject(new Error(`Connection trial timed out (> ${this._timeout} ms)`))
-      }, this._timeout)
-      this.once('connect', () => {
-        clearTimeout(timer)
-        resolve()
       })
+      this._client.once('connect', resolve)
     })
   }
 
