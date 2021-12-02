@@ -12,7 +12,7 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
 
 Non-intrusively binds any C++ code and provides access in form of asynchronous
 remote procedural callbacks (RPC).
-Author: Dr. Burkhard C. Heisen (https://github.com/bheisen/vrpc)
+Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc-hpp)
 
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
@@ -373,6 +373,7 @@ template <std::size_t I = 0, typename... Args>
     I<sizeof...(Args), void>::type get_signature(std::string& signature,
                                                  const std::tuple<Args...>& t) {
   json j = {{"t", std::get<I>(t)}};
+  if (!signature.empty()) signature += ":";
   signature += j["t"].type_name();
   return get_signature<I + 1, Args...>(signature, t);
 }
@@ -389,6 +390,7 @@ inline std::string get_signature() {
 inline std::string get_signature(const json& json) {
   std::string signature;
   for (const auto& it : json) {
+    if (!signature.empty()) signature += ":";
     signature += it.type_name();
   }
   return signature.empty() ? signature : "-" + signature;
