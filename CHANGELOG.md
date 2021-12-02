@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [unreleased]
 
+### Added
+
+- `vrpcOn` / `vrpcOff` feature to client
+
 ### Fixed
 
 - unhandled promise rejection on initial connect timeout
+- missing documentation for VrpcNative
+
+### Changed
+
+- error messages as triggered on remote agents (no include context info)
 
 ## [3.0.0-alpha.3] - 25 Nov 2021
 
