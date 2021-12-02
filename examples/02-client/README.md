@@ -38,7 +38,7 @@ async function main () {
   // create a remote client
   const client = new VrpcClient({
     domain: 'public.vrpc',
-    agent: 'bheisen-aff8@burkhardsXps-linux-js'
+    agent: `<yourBarAgent>`
   })
 
   // connect it
