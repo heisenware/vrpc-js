@@ -921,7 +921,7 @@ class VrpcClient extends EventEmitter {
           wrapped.push(id)
         } else if (functionName.startsWith('vrpcOn')) {
           // special case of injected vrpcOn function
-          const id = `__f__${context}-${functionName}`
+          const id = `__f__${remoteId}-${functionName}`
           wrapped.push(id)
           this._eventEmitter.on(id, ({ a }) => x.apply(null, a))
         } else {
