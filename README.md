@@ -1,11 +1,11 @@
 # VRPC - Variadic Remote Procedure Calls
 
-[![Build Status](https://travis-ci.com/heisenware/vrpc.svg?branch=master)](https://travis-ci.com/heisenware/vrpc)
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/heisenware/vrpc/master/LICENSE)
+[![Build Status](https://travis-ci.com/heisenware/vrpc-js.svg?branch=master)](https://travis-ci.com/heisenware/vrpc-js)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/heisenware/vrpc-js/master/LICENSE)
 [![Semver](https://img.shields.io/badge/semver-2.0.0-blue)](https://semver.org/spec/v2.0.0.html)
-[![GitHub Releases](https://img.shields.io/github/tag/heisenware/vrpc.svg)](https://github.com/heisenware/vrpc/tag)
-[![GitHub Issues](https://img.shields.io/github/issues/heisenware/vrpc.svg)](http://github.com/heisenware/vrpc/issues)
-![ci](https://github.com/heisenware/vrpc/actions/workflows/ci.yml/badge.svg)
+[![GitHub Releases](https://img.shields.io/github/tag/heisenware/vrpc-js.svg)](https://github.com/heisenware/vrpc-js/tag)
+[![GitHub Issues](https://img.shields.io/github/issues/heisenware/vrpc-js.svg)](http://github.com/heisenware/vrpc-js/issues)
+![ci](https://github.com/heisenware/vrpc-js/actions/workflows/ci.yml/badge.svg)
 
 ## Visit our website: [vrpc.io](https://vrpc.io)
 
