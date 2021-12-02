@@ -41,7 +41,7 @@ const EventEmitter = require('events')
 const { nanoid } = require('nanoid')
 
 /**
- * Client capable of creating proxy objects and locally calling
+ * Client capable of creating proxy classes and objects to locally call
  * functions as provided through native addons.
  */
 class VrpcNative {
@@ -64,6 +64,15 @@ class VrpcNative {
     })
   }
 
+  /**
+   * Provides a proxy class to an existing one in the native addon
+   *
+   * You can use the returned class in the usual way. Static function calls
+   * are forwarded to the native addon, as are any instantiations and member
+   * function calls.
+   * @param {String} className The name of the class
+   * @returns Proxy Class
+   */
   getClass (className) {
     if (!this.getAvailableClasses().includes(className)) {
       throw new Error(`Native addon does not provide class: ${className}`)
@@ -226,6 +235,11 @@ class VrpcNative {
     return Klass
   }
 
+  /**
+   * Deletes a proxy object and its underlying instance
+   * @param {Object} proxy A proxy object
+   * @returns True in case of success, false otherwise
+   */
   delete (proxy) {
     if (!typeof proxy === 'object' || !proxy.vrpcProxyId) {
       throw new Error('Provided argument seems not to be a VRPC proxy')
@@ -238,6 +252,15 @@ class VrpcNative {
     return JSON.parse(this._adapter.call(JSON.stringify(json))).r
   }
 
+  /**
+   * Secondary option to call a static function (when creation of a proxy class
+   * seems to be too much overhead)
+   *
+   * @param {String} className The class on which the static function should be called
+   * @param {String} functionName Name of the static function
+   * @param  {...any} args The function arguments
+   * @returns The output of the underlying static function
+   */
   callStatic (className, functionName, ...args) {
     if (functionName === 'vrpcOff') {
       const id = `__f__${className}-vrpcOn:${args[0]}`
