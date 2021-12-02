@@ -13,7 +13,7 @@ communication.</p>
 functions as provided through one or more (distributed) agents.</p>
 </dd>
 <dt><a href="#VrpcNative">VrpcNative</a></dt>
-<dd><p>Client capable of creating proxy objects and locally calling
+<dd><p>Client capable of creating proxy classes and objects to locally call
 functions as provided through native addons.</p>
 </dd>
 </dl>
@@ -519,9 +519,9 @@ functions as provided through one or more (distributed) agents.
     * [.getSystemInformation()](#VrpcClient+getSystemInformation) ⇒ <code>Object</code>
     * [.getAvailableAgents([options])](#VrpcClient+getAvailableAgents) ⇒ <code>Array</code>
     * [.getAvailableClasses([options])](#VrpcClient+getAvailableClasses) ⇒ <code>Array</code>
-    * [.getAvailableInstances(className, [options])](#VrpcClient+getAvailableInstances) ⇒ <code>Array</code>
-    * [.getAvailableMemberFunctions(className, [options])](#VrpcClient+getAvailableMemberFunctions) ⇒ <code>Array</code>
-    * [.getAvailableStaticFunctions(className, [options])](#VrpcClient+getAvailableStaticFunctions) ⇒ <code>Array</code>
+    * [.getAvailableInstances([options])](#VrpcClient+getAvailableInstances) ⇒ <code>Array</code>
+    * [.getAvailableMemberFunctions([options])](#VrpcClient+getAvailableMemberFunctions) ⇒ <code>Array</code>
+    * [.getAvailableStaticFunctions([options])](#VrpcClient+getAvailableStaticFunctions) ⇒ <code>Array</code>
     * [.reconnectWithToken(token, [options])](#VrpcClient+reconnectWithToken) ⇒ <code>Promise</code>
     * [.unregisterAgent(agent)](#VrpcClient+unregisterAgent) ⇒ <code>Promise.&lt;Boolean&gt;</code>
     * [.end()](#VrpcClient+end) ⇒ <code>Promise</code>
@@ -669,9 +669,9 @@ data.
 
 - instance <code>String</code> - The instance to be retrieved
 - [options] <code>Object</code> - Explicitly define agent and class
-    - .className <code>String</code> - Name of the instance's class
-    - .agent <code>String</code> - Agent name. If not provided class default is used
-    - .noWait <code>bool</code> - If true immediately fail if instance could not be found in local cache
+    - [.className] <code>String</code> - Name of the instance's class
+    - [.agent] <code>String</code> - Agent name. If not provided class default is used as priority hit
+    - [.noWait] <code>bool</code> <code> = false</code> - If true immediately fail if instance could not be found in local cache
 
 
 * * *
@@ -691,7 +691,7 @@ client information, or provide an object with explicit meta data.
 - instance <code>String</code> - The instance to be deleted
 - [options] <code>Object</code> - Explicitly define agent and class
     - .className <code>String</code> - Name of the instance's class
-    - .agent <code>String</code> - Agent name. If not provided class default is used
+    - .agent <code>String</code> - Agent name. If not provided class default is used as priority hit
 
 
 * * *
@@ -796,15 +796,15 @@ Retrieves all available classes on specific agent.
 
 <a name="VrpcClient+getAvailableInstances"></a>
 
-### vrpcClient.getAvailableInstances(className, [options]) ⇒ <code>Array</code>
+### vrpcClient.getAvailableInstances([options]) ⇒ <code>Array</code>
 Retrieves all (named) instances on specific class and agent.
 
 **Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Array</code> - Array of instance names  
 **Params**
 
-- className <code>String</code> - Class name
 - [options] <code>Object</code>
+    - .className <code>String</code> - Class name
     - [.agent] <code>String</code> - Agent name. If not provided class default is used
     - [.mustBeOnline] <code>Boolean</code> <code> = true</code> - Only retrieve currently online classes
 
@@ -813,15 +813,15 @@ Retrieves all (named) instances on specific class and agent.
 
 <a name="VrpcClient+getAvailableMemberFunctions"></a>
 
-### vrpcClient.getAvailableMemberFunctions(className, [options]) ⇒ <code>Array</code>
+### vrpcClient.getAvailableMemberFunctions([options]) ⇒ <code>Array</code>
 Retrieves all member functions of specific class and agent.
 
 **Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Array</code> - Array of member function names  
 **Params**
 
-- className <code>String</code> - Class name
 - [options] <code>Object</code>
+    - .className <code>String</code> - Class name
     - [.agent] <code>String</code> - Agent name. If not provided class default is used
     - [.mustBeOnline] <code>Boolean</code> <code> = true</code> - Only retrieve currently online classes
 
@@ -830,15 +830,15 @@ Retrieves all member functions of specific class and agent.
 
 <a name="VrpcClient+getAvailableStaticFunctions"></a>
 
-### vrpcClient.getAvailableStaticFunctions(className, [options]) ⇒ <code>Array</code>
+### vrpcClient.getAvailableStaticFunctions([options]) ⇒ <code>Array</code>
 Retrieves all static functions of specific class and agent.
 
 **Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Array</code> - Array of static function names  
 **Params**
 
-- className <code>String</code> - Class name
 - [options] <code>Object</code>
+    - .className <code>String</code> - Class name
     - [.agent] <code>String</code> - Agent name. If not provided class default is used
     - [.mustBeOnline] <code>Boolean</code> <code> = true</code> - Only retrieve currently online classes
 
@@ -1050,13 +1050,16 @@ mqtt.Client#end(), this event is emitted once the callback returns.
 <a name="VrpcNative"></a>
 
 ## VrpcNative
-Client capable of creating proxy objects and locally calling
+Client capable of creating proxy classes and objects to locally call
 functions as provided through native addons.
 
 **Kind**: global class  
 
 * [VrpcNative](#VrpcNative)
     * [new VrpcNative(adapter)](#new_VrpcNative_new)
+    * [.getClass(className)](#VrpcNative+getClass) ⇒
+    * [.delete(proxy)](#VrpcNative+delete) ⇒
+    * [.callStatic(className, functionName, ...args)](#VrpcNative+callStatic) ⇒
     * [.getAvailableClasses()](#VrpcNative+getAvailableClasses) ⇒ <code>Array.&lt;String&gt;</code>
 
 
@@ -1070,6 +1073,55 @@ Constructs a local caller object, able to communicate to natively added C++
 **Params**
 
 - adapter <code>Object</code> - An adapter object, typically loaded as native addon
+
+
+* * *
+
+<a name="VrpcNative+getClass"></a>
+
+### vrpcNative.getClass(className) ⇒
+Provides a proxy class to an existing one in the native addon
+
+You can use the returned class in the usual way. Static function calls
+are forwarded to the native addon, as are any instantiations and member
+function calls.
+
+**Kind**: instance method of [<code>VrpcNative</code>](#VrpcNative)  
+**Returns**: Proxy Class  
+**Params**
+
+- className <code>String</code> - The name of the class
+
+
+* * *
+
+<a name="VrpcNative+delete"></a>
+
+### vrpcNative.delete(proxy) ⇒
+Deletes a proxy object and its underlying instance
+
+**Kind**: instance method of [<code>VrpcNative</code>](#VrpcNative)  
+**Returns**: True in case of success, false otherwise  
+**Params**
+
+- proxy <code>Object</code> - A proxy object
+
+
+* * *
+
+<a name="VrpcNative+callStatic"></a>
+
+### vrpcNative.callStatic(className, functionName, ...args) ⇒
+Secondary option to call a static function (when creation of a proxy class
+seems to be too much overhead)
+
+**Kind**: instance method of [<code>VrpcNative</code>](#VrpcNative)  
+**Returns**: The output of the underlying static function  
+**Params**
+
+- className <code>String</code> - The class on which the static function should be called
+- functionName <code>String</code> - Name of the static function
+- ...args <code>any</code> - The function arguments
 
 
 * * *
