@@ -77,7 +77,7 @@ class Bar {
     if (done) {
       setTimeout(() => {
         done(`Your drink is ready! I mixed ${a[0]} with ${a[1]} and a bit of ${a[2]}.`)
-      }, 3000)
+      }, 2000)
     }
     await new Promise(resolve => setTimeout(resolve, 1000))
     return 'In preparation...'
