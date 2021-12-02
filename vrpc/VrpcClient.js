@@ -371,7 +371,7 @@ class VrpcClient extends EventEmitter {
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
     this._mqttPublish(topic, JSON.stringify(json))
     if (this._proxies[instance]) delete this._proxies[instance]
-    return this._handleAgentAnswer(json)
+    return this._handleAgentAnswer(json, agent)
   }
 
   /**
@@ -403,7 +403,7 @@ class VrpcClient extends EventEmitter {
     const topic = `${this._domain}/${agent}/${className}/__static__/${functionName}`
     await this._waitUntilClassIsOnline(agent, className)
     this._mqttPublish(topic, JSON.stringify(json))
-    return this._handleAgentAnswer(json)
+    return this._handleAgentAnswer(json, agent)
   }
 
   /**
@@ -454,7 +454,7 @@ class VrpcClient extends EventEmitter {
         json.a = [functionName, ...wrapped]
         await this._waitUntilClassIsOnline(x, className)
         this._mqttPublish(topic, JSON.stringify(json))
-        const tmp = await this._handleAgentAnswer(json)
+        const tmp = await this._handleAgentAnswer(json, x)
         result.push(...tmp)
       }
       return result
@@ -469,7 +469,7 @@ class VrpcClient extends EventEmitter {
     json.a = [functionName, ...wrapped]
     await this._waitUntilClassIsOnline(agent, className)
     this._mqttPublish(topic, JSON.stringify(json))
-    return this._handleAgentAnswer(json)
+    return this._handleAgentAnswer(json, agent)
   }
 
   /**
@@ -807,7 +807,7 @@ class VrpcClient extends EventEmitter {
             v: VRPC_PROTOCOL_VERSION
           }
           this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
-          return this._handleAgentAnswer(json)
+          return this._handleAgentAnswer(json, agent)
         } catch (err) {
           throw new Error(
             `Could not remotely call "${name}" because: ${err.message}`
@@ -815,12 +815,43 @@ class VrpcClient extends EventEmitter {
         }
       }
     })
+    if (!uniqueFuncs.has('vrpcOn') && !uniqueFuncs.has('vrpcOff')) {
+      proxy.vrpcOn = async (functionName, ...args) => {
+        if (!uniqueFuncs.has(functionName)) throw new Error('Bad magic')
+        try {
+          const json = {
+            f: functionName,
+            c: this.vrpcInstanceId,
+            a: this._wrapArguments(
+              proxyId,
+              `vrpcOn:${functionName}`,
+              ...args
+            ),
+            s: this._vrpcClientId,
+            v: VRPC_PROTOCOL_VERSION
+          }
+          this._mqttPublish(
+            `${targetTopic}/${functionName}`,
+            JSON.stringify(json)
+          )
+          return this._handleAgentAnswer(json, agent)
+        } catch (err) {
+          throw new Error(
+            `Could not remotely call "${functionName}" because: ${err.message}`
+          )
+        }
+      }
+      proxy.vrpcOff = (functionName) => {
+        const id = `__f__${proxyId}-vrpcOn:${functionName}`
+        this._eventEmitter.removeAllListeners(id)
+      }
+    }
     return proxy
   }
 
-  async _handleAgentAnswer ({ i, c, f }) {
+  async _handleAgentAnswer ({ i, c, f }, agent) {
     return new Promise((resolve, reject) => {
-      const msg = `Function call "${c}::${f}()" timed out (> ${this._timeout} ms)`
+      const msg = `Function call "${c}::${f}()" on agent "${agent}" timed out (> ${this._timeout} ms)`
       const timer = setTimeout(() => {
         this._eventEmitter.removeAllListeners(i)
         reject(new Error(msg))
@@ -828,7 +859,7 @@ class VrpcClient extends EventEmitter {
       this._eventEmitter.once(i, data => {
         clearTimeout(timer)
         if (data.e) {
-          reject(new Error(data.e))
+          reject(new Error(`[vrpc ${agent}-${c}-${f}]: ${data.e}`))
         } else {
           const ret = data.r
           // Handle functions returning a promise
@@ -871,12 +902,12 @@ class VrpcClient extends EventEmitter {
     args.forEach((x, i) => {
       // Check whether provided argument is a function
       if (this._isFunction(x)) {
-        // Check special case of an event emitter registration
-        // We test three conditions:
-        // 1) functionName must be "on"
-        // 2) callback is second argument
-        // 3) first argument was string
         if (functionName === 'on' && i === 1 && typeof args[0] === 'string') {
+          // special case of an event emitter registration
+          // we test three conditions:
+          // 1) functionName must be "on"
+          // 2) callback is second argument
+          // 3) first argument was string
           const id = this._addEventSubscription(remoteId, args[0], x)
           if (!id) isHandledLocally = true
           wrapped.push(id)
@@ -888,8 +919,13 @@ class VrpcClient extends EventEmitter {
           const id = this._removeEventSubscription(remoteId, args[0], x)
           if (!id) isHandledLocally = true
           wrapped.push(id)
-          // Regular function callback
+        } else if (functionName.startsWith('vrpcOn')) {
+          // special case of injected vrpcOn function
+          const id = `__f__${context}-${functionName}`
+          wrapped.push(id)
+          this._eventEmitter.on(id, ({ a }) => x.apply(null, a))
         } else {
+          // Regular function callback
           const id = `__f__${remoteId}-${functionName}-${i}-${this._invokeId++ %
             Number.MAX_SAFE_INTEGER}`
           wrapped.push(id)
@@ -898,6 +934,7 @@ class VrpcClient extends EventEmitter {
           })
         }
       } else if (this._isEmitter(x)) {
+        // special case of an EventEmitter provided as argument
         const { emitter, event } = x
         const id = `__f__${remoteId}-${functionName}-${i}-${event}`
         wrapped.push(id)

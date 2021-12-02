@@ -149,6 +149,7 @@ describe('vrpc-client', () => {
             'callback',
             'resolvePromise',
             'rejectPromise',
+            'onValue',
             'setMaxListeners',
             'getMaxListeners',
             'emit',
@@ -365,6 +366,7 @@ describe('vrpc-client', () => {
             'callback',
             'resolvePromise',
             'rejectPromise',
+            'onValue',
             'setMaxListeners',
             'getMaxListeners',
             'emit',
@@ -524,31 +526,43 @@ describe('vrpc-client', () => {
           agent: 'agent2',
           className: 'Foo',
           instance: 'agent2Foo1',
-          args: [2]
+          args: [3]
         })
         await client.create({
           agent: 'agent2',
           className: 'Foo',
           instance: 'agent2Foo2',
-          args: [2]
+          args: [3]
         })
       })
       after(async () => {
         await client.delete('agent1Foo1')
       })
       it('should work for synchronous functions', async () => {
-        const valueSpy = sinon.spy()
-        const retOn = await agent1Foo1.on('value', valueSpy)
+        const valueSpy1 = sinon.spy()
+        const valueSpy2 = sinon.spy()
+        const retOn = await agent1Foo1.on('value', valueSpy1)
+        await agent1Foo1.vrpcOn('onValue', valueSpy2)
         assert.strictEqual(retOn, true)
-        const value = await agent1Foo1.increment()
+        let value = await agent1Foo1.increment()
         assert.strictEqual(value, 1)
-        assert(valueSpy.calledWith(1))
-        const retOff = await agent1Foo1.off('value', valueSpy)
+        assert(valueSpy1.calledWith(1))
+        assert(valueSpy2.calledWith(1))
+        value = await agent1Foo1.increment()
+        assert.strictEqual(value, 2)
+        assert(valueSpy1.calledWith(2))
+        assert(valueSpy2.calledWith(2))
+        const retOff = await agent1Foo1.off('value', valueSpy1)
         assert.strictEqual(retOff, true)
+        await agent1Foo1.vrpcOff('onValue')
+        value = await agent1Foo1.increment()
+        assert.strictEqual(value, 3)
+        assert(valueSpy1.callCount, 2)
+        assert(valueSpy2.callCount, 2)
       })
       it('should work for asynchronous functions', async () => {
         const value = await agent1Foo1.resolvePromise(100)
-        assert.strictEqual(value, 1)
+        assert.strictEqual(value, 3)
       })
       it('should work for functions with callback arguments', async () => {
         const callbackSpy = sinon.spy()
@@ -556,7 +570,7 @@ describe('vrpc-client', () => {
         await new Promise(resolve => setTimeout(resolve, 100))
         assert(callbackSpy.calledOnce)
         assert.strictEqual(callbackSpy.args[0][0], null)
-        assert.strictEqual(callbackSpy.args[0][1], 1)
+        assert.strictEqual(callbackSpy.args[0][1], 3)
       })
       it('should allow batch-calling synchronous functions on a single agent', async () => {
         const value = await client.callAll({
@@ -566,7 +580,7 @@ describe('vrpc-client', () => {
         })
         assert.deepStrictEqual(
           value.map(({ val }) => val),
-          [2, 2]
+          [4, 2]
         )
         assert.deepStrictEqual(
           value.map(({ err }) => err),
@@ -584,7 +598,7 @@ describe('vrpc-client', () => {
         })
         assert.deepStrictEqual(
           value.map(({ val }) => val),
-          [2, 2]
+          [3, 3]
         )
         assert.deepStrictEqual(
           value.map(({ err }) => err),
@@ -600,10 +614,6 @@ describe('vrpc-client', () => {
           functionName: 'increment'
         })
         assert.deepStrictEqual(
-          value.map(({ val }) => val),
-          [3, 3, 3, 3]
-        )
-        assert.deepStrictEqual(
           value.map(({ err }) => err),
           [null, null, null, null]
         )
@@ -612,6 +622,22 @@ describe('vrpc-client', () => {
         assert(ids.includes('agent1Foo2'))
         assert(ids.includes('agent2Foo1'))
         assert(ids.includes('agent2Foo2'))
+        value.forEach(({ id, val }) => {
+          switch (id) {
+            case 'agent1Foo1':
+              assert(val, 5)
+              break
+            case 'agent1Foo2':
+              assert(val, 3)
+              break
+            case 'agent2Foo1':
+              assert(val, 4)
+              break
+            case 'agent2Foo2':
+              assert(val, 4)
+              break
+          }
+        })
       })
       it('should allow batch-calling asynchronous functions across agents', async () => {
         const value = await client.callAll({
@@ -620,10 +646,6 @@ describe('vrpc-client', () => {
           functionName: 'resolvePromise'
         })
         assert.deepStrictEqual(
-          value.map(({ val }) => val),
-          [3, 3, 3, 3]
-        )
-        assert.deepStrictEqual(
           value.map(({ err }) => err),
           [null, null, null, null]
         )
@@ -632,6 +654,22 @@ describe('vrpc-client', () => {
         assert(ids.includes('agent1Foo2'))
         assert(ids.includes('agent2Foo1'))
         assert(ids.includes('agent2Foo2'))
+        value.forEach(({ id, val }) => {
+          switch (id) {
+            case 'agent1Foo1':
+              assert(val, 5)
+              break
+            case 'agent1Foo2':
+              assert(val, 3)
+              break
+            case 'agent2Foo1':
+              assert(val, 4)
+              break
+            case 'agent2Foo2':
+              assert(val, 4)
+              break
+          }
+        })
       })
       it('should allow batch event-registration on a single agent', async () => {
         const callbackSpy = sinon.spy()
@@ -645,7 +683,7 @@ describe('vrpc-client', () => {
         await new Promise(resolve => setTimeout(resolve, 100))
         assert(callbackSpy.calledOnce)
         assert.strictEqual(callbackSpy.args[0][0], 'agent1Foo1')
-        assert.strictEqual(callbackSpy.args[0][1], 4)
+        assert.strictEqual(callbackSpy.args[0][1], 6)
         await agent1Foo2.increment()
         await new Promise(resolve => setTimeout(resolve, 100))
         assert(callbackSpy.calledTwice)
@@ -667,12 +705,12 @@ describe('vrpc-client', () => {
         await new Promise(resolve => setTimeout(resolve, 100))
         assert(callbackSpy.calledOnce)
         assert.strictEqual(callbackSpy.args[0][0], 'agent1Foo1')
-        assert.strictEqual(callbackSpy.args[0][1], 5)
+        assert.strictEqual(callbackSpy.args[0][1], 7)
         await agent2Foo1.increment()
         await new Promise(resolve => setTimeout(resolve, 100))
         assert(callbackSpy.calledTwice)
         assert.strictEqual(callbackSpy.args[1][0], 'agent2Foo1')
-        assert.strictEqual(callbackSpy.args[1][1], 4)
+        assert.strictEqual(callbackSpy.args[1][1], 5)
       })
     })
   })
