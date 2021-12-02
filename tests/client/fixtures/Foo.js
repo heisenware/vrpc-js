@@ -47,6 +47,11 @@ class Foo extends EventEmitter {
       setTimeout(() => reject(new Error(`Test Error: ${this._value}`), ms))
     })
   }
+
+  // this does not really make sense for node, but could well be an API in C++
+  onValue (callback) {
+    this.on('value', callback)
+  }
 }
 
 module.exports = Foo

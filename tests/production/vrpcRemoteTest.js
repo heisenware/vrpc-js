@@ -117,7 +117,7 @@ describe('An instance of the VrpcClient class', () => {
           await testClass.removeEntry('test')
           assert.isTrue(false)
         } catch (err) {
-          assert.equal(err.message, 'Can not remove non-existing entry')
+          assert.equal(err.message, '[vrpc js-testClass-removeEntry]: Can not remove non-existing entry')
         }
       })
       it('should properly forward promises', async () => {
@@ -180,7 +180,7 @@ describe('An instance of the VrpcClient class', () => {
         } catch (err) {
           assert.equal(
             err.message,
-            'Function call "TestClass::doesNotExist()" timed out (> 1500 ms)'
+            'Function call "TestClass::doesNotExist()" on agent "js" timed out (> 1500 ms)'
           )
         }
       })
