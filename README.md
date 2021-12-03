@@ -1,6 +1,5 @@
 # VRPC - Variadic Remote Procedure Calls
 
-[![Build Status](https://travis-ci.com/heisenware/vrpc-js.svg?branch=master)](https://travis-ci.com/heisenware/vrpc-js)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/heisenware/vrpc-js/master/LICENSE)
 [![Semver](https://img.shields.io/badge/semver-2.0.0-blue)](https://semver.org/spec/v2.0.0.html)
 [![GitHub Releases](https://img.shields.io/github/tag/heisenware/vrpc-js.svg)](https://github.com/heisenware/vrpc-js/tag)
