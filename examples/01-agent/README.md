@@ -15,7 +15,7 @@ the example in two, but directly head to the bar.
 >
 > Finally create a directory `src` and you are good to go.
 
-## STEP 1: Node.js code that should be bound
+## STEP 1: Existing Node.js code
 
 We pretend that the code below already existed and should be made remotely
 accessible.
