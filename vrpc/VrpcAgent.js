@@ -346,23 +346,23 @@ class VrpcAgent extends EventEmitter {
   }
 
   _getClasses () {
-    return VrpcAdapter.getAvailableClasses()
+    return VrpcAdapter._getClassesArray()
   }
 
   _getInstances (className) {
-    return VrpcAdapter.getAvailableInstances(className)
+    return VrpcAdapter._getInstancesArray(className)
   }
 
   _getMemberFunctions (className) {
-    return VrpcAdapter.getAvailableMemberFunctions(className)
+    return VrpcAdapter._getMemberFunctionsArray(className)
   }
 
   _getStaticFunctions (className) {
-    return VrpcAdapter.getAvailableStaticFunctions(className)
+    return VrpcAdapter._getStaticFunctionsArray(className)
   }
 
   _getMetaData (className) {
-    return VrpcAdapter.getAvailableMetaData(className)
+    return VrpcAdapter._getMetaData(className)
   }
 
   async _ensureConnected () {
@@ -564,10 +564,8 @@ class VrpcAgent extends EventEmitter {
     if (json.status === 'offline') {
       const entry = this._isolatedInstances.get(clientId)
       if (entry) {
-        // anonymous
         entry.forEach(instanceId => {
           const json = { f: '__delete__', a: [instanceId], r: null }
-          // TODO Do not mutate!
           VrpcAdapter._call(json)
           if (json.r) {
             this._log.debug(`Auto-deleted isolated instance: ${instanceId}`)
@@ -748,8 +746,7 @@ class VrpcAgent extends EventEmitter {
 /**
  * Event 'clientGone'
  *
- * Emitted when a VRPC client exited that before produced state (e.g. created
- * an anonymous or named instance).
+ * Emitted when a tracked VRPC client exited.
  *
  * @event VrpcAgent#clientGone
  * @type {String} clientId
