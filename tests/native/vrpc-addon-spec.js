@@ -53,7 +53,7 @@ describe('The native addon', () => {
     })
   })
 
-  describe('should properly handle creation of anonymous instances', () => {
+  describe('should properly handle creation of isolated instances', () => {
     // The proxy instanceId we will test with
     let instanceId
 
@@ -61,7 +61,7 @@ describe('The native addon', () => {
       const json = {
         c: 'TestClass',
         f: '__createIsolated__',
-        a: []
+        a: ['random123']
       }
       const ret = JSON.parse(addon.call(JSON.stringify(json)))
       assert.property(ret, 'r')
