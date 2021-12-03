@@ -261,17 +261,17 @@ class VrpcClient extends EventEmitter {
   /**
    * Creates a new remote instance and provides a proxy to it.
    *
-   * Remote instances can be "named" or "anonymous". Named instances are
-   * shareable and re-attachable across clients as long as they are not
-   * explicitly deleted. Life-cycle changes of named instances are available
-   * under the `class`, `instanceNew`, and `instanceGone` events. A named
-   * instance is created when specifying the `instance` option.
+   * Remote instances can be "shared" or "isolated". Shared instances are
+   * visible and re-attachable across clients as long as they are not
+   * explicitly deleted. Life-cycle changes of shared instances are available
+   * under the `class`, `instanceNew`, and `instanceGone` events. A shared
+   * instance is created by default (`isIsolated: false`).
    *
-   * When the `instance` option is not provided, the created proxy is the only
-   * object capable of issuing remote function calls. The remote instance stays
-   * invisible to other clients.
+   * When the `isIsolated` option is true, the remote instance stays invisible
+   * to other clients and the corresponding proxy object is the only way to
+   * issue commands.
    *
-   * **NOTE** When creating a named instance that already exists, the new proxy will
+   * **NOTE** When creating an instance that already exists, the new proxy will
    * simply attach to (and not re-create) it - just like `getInstance()` was
    * called.
    *
@@ -279,28 +279,32 @@ class VrpcClient extends EventEmitter {
    * @param {String} options.className Name of the class which should be
    * instantiated
    * @param {String} [options.instance] Name of the created instance. If not
-   * provided an (invisible) id will be generated
+   * provided an id will be generated
    * @param {Array} [options.args] Positional arguments for the constructor call
    * @param {String} [options.agent] Agent name. If not provided class default
    * is used
-   * @param {bool} [options.cacheProxy=false] If true the proxy object for a given
-   * instance is cached and used in subsequent calls
-   * @returns {Promise<Proxy>} Object reflecting a proxy to the original one
-   * handled by the agent
+   * @param {bool} [options.cacheProxy=false] If true the proxy object for a
+   * given instance is cached and (re-)used in subsequent calls
+   * @param {bool} [options.isIsolated=false] If true the created proxy will be
+   * visible only to the client who created it
+   * @returns {Promise<Proxy>} Object reflecting a proxy to the original object
+   * which is handled by the agent
    * @example
-   * // create anonymous instance
+   * // create isolated instance
    * const proxy1 = await client.create({
-   *   className: 'Foo'
+   *   className: 'Foo',
+   *   instance: 'myPersonalInstance',
+   *   isIsolated: true
    * })
-   * // create named instance
+   * // create shared instance
    * const proxy2 = await client.create({
    *   className: 'Foo',
-   *   instance: 'myFooInstance'
+   *   instance: 'aSharedFooInstance'
    * })
-   * // create named instance providing three constructor arguments
+   * // create shared instance providing three constructor arguments
    * const proxy3 = await client.create({
    *   className: 'Bar',
-   *   instance: 'myBarInstance',
+   *   instance: 'mySharedBarInstance',
    *   args: [42, "second argument", { some: 'option' }]
    * })
    */
@@ -529,7 +533,7 @@ class VrpcClient extends EventEmitter {
   }
 
   /**
-   * Retrieves all (named) instances on specific class and agent.
+   * Retrieves all (shared) instances on specific class and agent.
    *
    * @param {Object} [options]
    * @param {String} options.className Class name
@@ -822,11 +826,7 @@ class VrpcClient extends EventEmitter {
           const json = {
             f: functionName,
             c: this.vrpcInstanceId,
-            a: this._wrapArguments(
-              proxyId,
-              `vrpcOn:${functionName}`,
-              ...args
-            ),
+            a: this._wrapArguments(proxyId, `vrpcOn:${functionName}`, ...args),
             s: this._vrpcClientId,
             v: VRPC_PROTOCOL_VERSION
           }
@@ -841,7 +841,7 @@ class VrpcClient extends EventEmitter {
           )
         }
       }
-      proxy.vrpcOff = (functionName) => {
+      proxy.vrpcOff = functionName => {
         const id = `__f__${proxyId}-vrpcOn:${functionName}`
         this._eventEmitter.removeAllListeners(id)
       }
@@ -1081,7 +1081,7 @@ class VrpcClient extends EventEmitter {
  * @param {String} info.domain - Domain name
  * @param {String} info.agent - Agent name
  * @param {String} info.className - Class name
- * @param {Array.<String>} info.instances - Array of named instances
+ * @param {Array.<String>} info.instances - Array of instances
  * @param {Array.<String>} info.memberFunctions - Array of member functions
  * @param {Array.<String>} info.staticFunctions - Array of static functions
  * @param {MetaData} info.meta - Object associating further information to functions

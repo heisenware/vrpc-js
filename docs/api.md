@@ -48,15 +48,11 @@ communication.
         * [.addPluginPath(dirPath, [maxLevel])](#VrpcAdapter.addPluginPath)
         * [.register(code, [options])](#VrpcAdapter.register)
         * [.registerInstance(obj, options)](#VrpcAdapter.registerInstance)
-        * [.create(className, ...args)](#VrpcAdapter.create) ⇒ <code>Object</code>
-        * [.createNamed(className, instance, ...args)](#VrpcAdapter.createNamed) ⇒ <code>Object</code>
+        * [.create(options)](#VrpcAdapter.create) ⇒ <code>Object</code>
         * [.delete(instance)](#VrpcAdapter.delete) ⇒ <code>Boolean</code>
         * [.getInstance(instance)](#VrpcAdapter.getInstance) ⇒ <code>Object</code>
         * [.getAvailableClasses()](#VrpcAdapter.getAvailableClasses) ⇒ <code>Array.&lt;String&gt;</code>
         * [.getAvailableInstances(className)](#VrpcAdapter.getAvailableInstances) ⇒ <code>Array.&lt;String&gt;</code>
-        * [.getAvailableMemberFunctions(className)](#VrpcAdapter.getAvailableMemberFunctions) ⇒ <code>Array.&lt;String&gt;</code>
-        * [.getAvailableStaticFunctions(className)](#VrpcAdapter.getAvailableStaticFunctions) ⇒ <code>Array.&lt;String&gt;</code>
-        * [.getAvailableMetaData(className)](#VrpcAdapter.getAvailableMetaData) ⇒ [<code>MetaData</code>](#MetaData)
 
 
 * * *
@@ -66,7 +62,7 @@ communication.
 ### "create"
 Event 'create'
 
-Emitted on creation of named instance
+Emitted on creation of shared instance
 
 **Kind**: event emitted by [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Properties**
@@ -85,7 +81,7 @@ Emitted on creation of named instance
 ### "delete"
 Event 'delete'
 
-Emitted on deletion of named instance
+Emitted on deletion of shared instance
 
 **Kind**: event emitted by [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Properties**
@@ -160,31 +156,21 @@ provides it as meta information
 
 <a name="VrpcAdapter.create"></a>
 
-### VrpcAdapter.create(className, ...args) ⇒ <code>Object</code>
-Creates an un-managed, anonymous instance
+### VrpcAdapter.create(options) ⇒ <code>Object</code>
+Creates a new instance
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Object</code> - The real instance (not a proxy!)  
 **Params**
 
-- className <code>String</code> - Name of the class to create an instance of
-- ...args <code>any</code> - Arguments to provide to the constructor
-
-
-* * *
-
-<a name="VrpcAdapter.createNamed"></a>
-
-### VrpcAdapter.createNamed(className, instance, ...args) ⇒ <code>Object</code>
-Creates a managed named instance
-
-**Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
-**Returns**: <code>Object</code> - The real instance (not a proxy!)  
-**Params**
-
-- className <code>String</code> - Name of the class to create an instance of
-- instance <code>String</code> - Name of the instance
-- ...args <code>any</code> - Arguments to provide to the constructor
+- options <code>Object</code>
+    - .className <code>String</code> - Name of the class which should be
+instantiated
+    - [.instance] <code>String</code> - Name of the created instance. If not
+provided an id will be generated
+    - [.args] <code>Array</code> - Positional arguments for the constructor call
+    - [.isIsolated] <code>bool</code> <code> = false</code> - If true the created instance will
+be visible only to the client who created it
 
 
 * * *
@@ -192,13 +178,13 @@ Creates a managed named instance
 <a name="VrpcAdapter.delete"></a>
 
 ### VrpcAdapter.delete(instance) ⇒ <code>Boolean</code>
-Deletes a managed instance
+Deletes an instance
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Boolean</code> - True in case of success, false otherwise  
 **Params**
 
-- instance <code>String</code> - Name of the instance to be deleted
+- instance <code>String</code> | <code>Object</code> - Instance (name or object itself) to be deleted
 
 
 * * *
@@ -237,48 +223,6 @@ Provides the names of all currently running instances.
 **Params**
 
 - className <code>String</code> - Name of class to retrieve the instances for
-
-
-* * *
-
-<a name="VrpcAdapter.getAvailableMemberFunctions"></a>
-
-### VrpcAdapter.getAvailableMemberFunctions(className) ⇒ <code>Array.&lt;String&gt;</code>
-Provides all available member functions of the specified class.
-
-**Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
-**Returns**: <code>Array.&lt;String&gt;</code> - Array of member function names  
-**Params**
-
-- className <code>String</code> - Name of class to provide member functions for
-
-
-* * *
-
-<a name="VrpcAdapter.getAvailableStaticFunctions"></a>
-
-### VrpcAdapter.getAvailableStaticFunctions(className) ⇒ <code>Array.&lt;String&gt;</code>
-Provides all available static functions of a registered class.
-
-**Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
-**Returns**: <code>Array.&lt;String&gt;</code> - Array of static function names  
-**Params**
-
-- className <code>String</code> - Name of class to provide static functions for
-
-
-* * *
-
-<a name="VrpcAdapter.getAvailableMetaData"></a>
-
-### VrpcAdapter.getAvailableMetaData(className) ⇒ [<code>MetaData</code>](#MetaData)
-Provides all available meta data of the registered class.
-
-**Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
-**Returns**: [<code>MetaData</code>](#MetaData) - Meta Data  
-**Params**
-
-- className <code>String</code> - Name of class to provide meta data for
 
 
 * * *
@@ -466,8 +410,7 @@ mqtt.Client#end(), this event is emitted once the callback returns.
 ### "clientGone"
 Event 'clientGone'
 
-Emitted when a VRPC client exited that before produced state (e.g. created
-an anonymous or named instance).
+Emitted when a tracked VRPC client exited.
 
 **Kind**: event emitted by [<code>VrpcAgent</code>](#VrpcAgent)  
 
@@ -603,51 +546,55 @@ try {
 ### vrpcClient.create(options) ⇒ <code>Promise.&lt;Proxy&gt;</code>
 Creates a new remote instance and provides a proxy to it.
 
-Remote instances can be "named" or "anonymous". Named instances are
-shareable and re-attachable across clients as long as they are not
-explicitly deleted. Life-cycle changes of named instances are available
-under the `class`, `instanceNew`, and `instanceGone` events. A named
-instance is created when specifying the `instance` option.
+Remote instances can be "shared" or "isolated". Shared instances are
+visible and re-attachable across clients as long as they are not
+explicitly deleted. Life-cycle changes of shared instances are available
+under the `class`, `instanceNew`, and `instanceGone` events. A shared
+instance is created by default (`isIsolated: false`).
 
-When the `instance` option is not provided, the created proxy is the only
-object capable of issuing remote function calls. The remote instance stays
-invisible to other clients.
+When the `isIsolated` option is true, the remote instance stays invisible
+to other clients and the corresponding proxy object is the only way to
+issue commands.
 
-**NOTE** When creating a named instance that already exists, the new proxy will
+**NOTE** When creating an instance that already exists, the new proxy will
 simply attach to (and not re-create) it - just like `getInstance()` was
 called.
 
 **Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
-**Returns**: <code>Promise.&lt;Proxy&gt;</code> - Object reflecting a proxy to the original one
-handled by the agent  
+**Returns**: <code>Promise.&lt;Proxy&gt;</code> - Object reflecting a proxy to the original object
+which is handled by the agent  
 **Params**
 
 - options <code>Object</code>
     - .className <code>String</code> - Name of the class which should be
 instantiated
     - [.instance] <code>String</code> - Name of the created instance. If not
-provided an (invisible) id will be generated
+provided an id will be generated
     - [.args] <code>Array</code> - Positional arguments for the constructor call
     - [.agent] <code>String</code> - Agent name. If not provided class default
 is used
-    - [.cacheProxy] <code>bool</code> <code> = false</code> - If true the proxy object for a given
-instance is cached and used in subsequent calls
+    - [.cacheProxy] <code>bool</code> <code> = false</code> - If true the proxy object for a
+given instance is cached and (re-)used in subsequent calls
+    - [.isIsolated] <code>bool</code> <code> = false</code> - If true the created proxy will be
+visible only to the client who created it
 
 **Example**  
 ```js
-// create anonymous instance
+// create isolated instance
 const proxy1 = await client.create({
-  className: 'Foo'
+  className: 'Foo',
+  instance: 'myPersonalInstance',
+  isIsolated: true
 })
-// create named instance
+// create shared instance
 const proxy2 = await client.create({
   className: 'Foo',
-  instance: 'myFooInstance'
+  instance: 'aSharedFooInstance'
 })
-// create named instance providing three constructor arguments
+// create shared instance providing three constructor arguments
 const proxy3 = await client.create({
   className: 'Bar',
-  instance: 'myBarInstance',
+  instance: 'mySharedBarInstance',
   args: [42, "second argument", { some: 'option' }]
 })
 ```
@@ -797,7 +744,7 @@ Retrieves all available classes on specific agent.
 <a name="VrpcClient+getAvailableInstances"></a>
 
 ### vrpcClient.getAvailableInstances([options]) ⇒ <code>Array</code>
-Retrieves all (named) instances on specific class and agent.
+Retrieves all (shared) instances on specific class and agent.
 
 **Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Array</code> - Array of instance names  
@@ -921,7 +868,7 @@ or functions of this class have changed.
     - .domain <code>String</code> - Domain name
     - .agent <code>String</code> - Agent name
     - .className <code>String</code> - Class name
-    - .instances <code>Array.&lt;String&gt;</code> - Array of named instances
+    - .instances <code>Array.&lt;String&gt;</code> - Array of instances
     - .memberFunctions <code>Array.&lt;String&gt;</code> - Array of member functions
     - .staticFunctions <code>Array.&lt;String&gt;</code> - Array of static functions
     - .meta [<code>MetaData</code>](#MetaData) - Object associating further information to functions

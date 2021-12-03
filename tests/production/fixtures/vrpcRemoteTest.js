@@ -4,7 +4,7 @@
 
 const { assert } = require('chai')
 const EventEmitter = require('events')
-const { VrpcClient } = require('../../index')
+const { VrpcClient } = require('../../../index')
 
 const emitter = new EventEmitter()
 const newEntries = []
@@ -201,7 +201,7 @@ describe('Another instance of the VrpcClient class', () => {
   })
   describe('The corresponding VrpcClient instance', () => {
     let proxy
-    it('should be able to create a named proxy instance', async () => {
+    it('should be able to create a shared proxy instance', async () => {
       proxy = await vrpc.create({
         className: 'TestClass',
         instance: 'test1',
@@ -243,11 +243,11 @@ describe('Another instance of the VrpcClient class', () => {
           assert.equal(err.message, 'Could not find instance: bad')
         }
       })
-      it('should be possible to attach to the named instance', async () => {
+      it('should be possible to attach to the shared instance', async () => {
         test1 = await vrpc.getInstance('test1', { className: 'TestClass' })
         assert.isObject(test1)
       })
-      describe('The attached named instance', () => {
+      describe('The attached shared instance', () => {
         it('should have all bound functions as own methods', () => {
           assert.isFunction(test1.getRegistry)
           assert.isFunction(test1.hasEntry)

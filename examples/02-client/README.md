@@ -51,7 +51,7 @@ async function main () {
   })
   console.log(` - Because, ${sense}`)
 
-  // create an anonymous remote instance of the bar class
+  // create a remote instance of the bar class
   const bar = await client.create({ className: 'Bar' })
 
   // register an event listener

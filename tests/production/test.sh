@@ -7,7 +7,7 @@ adapterFile="./fixtures/adapter.js"
 
 $executable -d test.vrpc -a js -f $adapterFile -t $VRPC_TEST_TOKEN & agent_pid=$!
 sleep 6
-../../node_modules/.bin/mocha vrpcRemoteTest.js --timeout 30000 --exit & mocha_pid=$!
+../../node_modules/.bin/mocha fixtures/vrpcRemoteTest.js --timeout 30000 --exit & mocha_pid=$!
 EXIT_CODE=$?
 sleep 30
 kill -9 "$agent_pid" > /dev/null 2>&1
