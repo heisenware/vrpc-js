@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - `vrpcOn` / `vrpcOff` feature to client
+- tests exclusively for VrpcAdapter
 
 ### Fixed
 
@@ -20,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - error messages as triggered on remote agents (no include context info)
+- removed obsolete public API from VrpcAdapter
 
 ## [3.0.0-alpha.3] - 25 Nov 2021
 

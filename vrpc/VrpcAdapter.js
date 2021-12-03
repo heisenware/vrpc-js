@@ -44,7 +44,7 @@ const Ajv = require('ajv')
 const caller = require('caller')
 const commentParser = require('./comment-parser')
 const EventEmitter = require('events')
-const { type } = require('os')
+const { nanoid } = require('nanoid')
 
 /**
  * Generates an adapter layer for existing code and enables further VRPC-based
@@ -147,14 +147,16 @@ class VrpcAdapter {
       const content = fs.readFileSync(absJsdocPath).toString('utf8')
       meta = this._parseComments(content)
     }
-    VrpcAdapter._functionRegistry.set(className, {
-      memberFunctions,
-      meta,
-      Klass: {},
-      withNew: false,
-      staticFunctions: [],
-      schema: null
-    })
+    if (!VrpcAdapter._functionRegistry.has(className)) {
+      VrpcAdapter._functionRegistry.set(className, {
+        memberFunctions,
+        meta,
+        Klass: {},
+        withNew: false,
+        staticFunctions: [],
+        schema: null
+      })
+    }
     VrpcAdapter._instances.set(instance, {
       className,
       instance: obj,
@@ -162,81 +164,56 @@ class VrpcAdapter {
     })
   }
 
-  static getClasses () {
-    return JSON.stringify(VrpcAdapter._getClassesArray())
-  }
-
-  static getMemberFunctions (className) {
-    return JSON.stringify(VrpcAdapter._getMemberFunctionsArray(className))
-  }
-
-  static getStaticFunctions (className) {
-    return JSON.stringify(VrpcAdapter._getStaticFunctionsArray(className))
-  }
-
-  static getMetaData (className) {
-    return JSON.stringify(VrpcAdapter._getMetaData(className))
-  }
-
-  static getInstances (className) {
-    return JSON.stringify(VrpcAdapter._getInstancesArray(className))
-  }
-
-  static call (jsonString) {
-    const json = JSON.parse(jsonString)
-    VrpcAdapter._call(json)
-    return JSON.stringify(json)
-  }
-
-  static onCallback (callback) {
-    VrpcAdapter._callback = callback
-  }
-
-  // convenience interface if used in parallel - as local factory and from remote
+  /*****************************************************
+  * convenience interface if used as plug-able factory *
+  ******************************************************/
 
   /**
-   * Creates an un-managed, anonymous instance
+   * Creates a new instance
    *
-   * @param {String} className Name of the class to create an instance of
-   * @param  {...any} args  Arguments to provide to the constructor
+   * @param {Object} options
+   * @param {String} options.className Name of the class which should be
+   * instantiated
+   * @param {String} [options.instance] Name of the created instance. If not
+   * provided an id will be generated
+   * @param {Array} [options.args] Positional arguments for the constructor call
+   * @param {bool} [options.isIsolated=false] If true the created instance will
+   * be visible only to the client who created it
    * @returns {Object} The real instance (not a proxy!)
    */
-  static create (className, ...args) {
-    if (typeof className === 'string') {
-      return VrpcAdapter._create(className, ...args)
-    }
-    if (typeof className === 'object') {
-      if (className.instance) {
-        return VrpcAdapter._createNamed(
-          className.className,
-          className.instance,
-          ...className.args
-        )
-      }
-      return VrpcAdapter._create(className.className, ...className.args)
-    }
+  static create ({
+    className,
+    instance = nanoid(8),
+    args = [],
+    isIsolated = false
+  } = {}) {
+    const json = { c: className, a: [instance, ...args] }
+    const obj = isIsolated
+      ? VrpcAdapter._handleCreateIsolated(json)
+      : VrpcAdapter._handleCreateShared(json)
+    if (json.e) throw new Error(json.e)
+    return obj
   }
 
   /**
-   * Creates a managed named instance
+   * Deletes an instance
    *
-   * @param {String} className Name of the class to create an instance of
-   * @param {String} instance Name of the instance
-   * @param  {...any} args Arguments to provide to the constructor
-   * @returns {Object} The real instance (not a proxy!)
-   */
-  static createNamed (className, instance, ...args) {
-    return VrpcAdapter._createNamed(className, instance, ...args)
-  }
-
-  /**
-   * Deletes a managed instance
-   *
-   * @param {String} instance Name of the instance to be deleted
+   * @param {String|Object} instance Instance (name or object itself) to be deleted
    * @returns {Boolean} True in case of success, false otherwise
    */
   static delete (instance) {
-    return VrpcAdapter._delete(instance)
+    if (typeof instance === 'string') {
+      return VrpcAdapter._delete(instance)
+    }
+    if (typeof instance === 'object') {
+      for (const [k, v] of VrpcAdapter._instances) {
+        if (v.instance === instance) {
+          VrpcAdapter._instances.delete(k)
+          return true
+        }
+      }
+      return false
+    }
   }
 
   /**
@@ -270,34 +247,14 @@ class VrpcAdapter {
     return VrpcAdapter._getInstancesArray(className)
   }
 
-  /**
-   * Provides all available member functions of the specified class.
-   *
-   * @param {String} className Name of class to provide member functions for
-   * @return {Array.<String>} Array of member function names
-   */
-  static getAvailableMemberFunctions (className) {
-    return VrpcAdapter._getMemberFunctionsArray(className)
+  static call (jsonString) {
+    const json = JSON.parse(jsonString)
+    VrpcAdapter._call(json)
+    return JSON.stringify(json)
   }
 
-  /**
-   * Provides all available static functions of a registered class.
-   *
-   * @param {String} className Name of class to provide static functions for
-   * @returns {Array.<String>} Array of static function names
-   */
-  static getAvailableStaticFunctions (className) {
-    return VrpcAdapter._getStaticFunctionsArray(className)
-  }
-
-  /**
-   * Provides all available meta data of the registered class.
-   *
-   * @param {String} className Name of class to provide meta data for
-   * @returns {MetaData} Meta Data
-   */
-  static getAvailableMetaData (className) {
-    return VrpcAdapter._getMetaData(className)
+  static onCallback (callback) {
+    VrpcAdapter._callback = callback
   }
 
   /**
@@ -445,6 +402,7 @@ class VrpcAdapter {
         VrpcAdapter._handleDelete(json)
         break
       default:
+        // this call may have the side-effect of taking a listener on board
         VrpcAdapter._handleCall(json)
     }
     const after = Object.keys(VrpcAdapter._listeners).length
@@ -454,26 +412,35 @@ class VrpcAdapter {
   }
 
   static _handleCreateIsolated (json) {
+    let instance
     try {
       const className = json.c
       const [instanceId, ...args] = json.a
-      const instance = VrpcAdapter._create(className, instanceId, ...args)
+      instance = VrpcAdapter._create(className, instanceId, ...args)
       VrpcAdapter._instances.set(instanceId, {
         instance,
         className,
         isIsolated: true
       })
+      VrpcAdapter._emitter.emit('create', {
+        args,
+        className,
+        isIsolated: true,
+        instance: instanceId
+      })
       json.r = instanceId
     } catch (err) {
       json.e = err.message
     }
+    return instance
   }
 
   static _handleCreateShared (json) {
+    let instance
     try {
       const className = json.c
       const [instanceId, ...args] = json.a
-      const instance = VrpcAdapter._create(className, instanceId, ...args)
+      instance = VrpcAdapter._create(className, instanceId, ...args)
       VrpcAdapter._instances.set(instanceId, {
         instance,
         className,
@@ -483,11 +450,13 @@ class VrpcAdapter {
       VrpcAdapter._emitter.emit('create', {
         args,
         className,
+        isIsolated: false,
         instance: instanceId
       })
     } catch (err) {
       json.e = err.message
     }
+    return instance
   }
 
   static _handleCallAll (json) {
@@ -812,7 +781,7 @@ class VrpcAdapter {
 /**
  * Event 'create'
  *
- * Emitted on creation of named instance
+ * Emitted on creation of shared instance
  *
  * @event VrpcAdapter#create
  * @type {Object}
@@ -824,7 +793,7 @@ class VrpcAdapter {
 /**
  * Event 'delete'
  *
- * Emitted on deletion of named instance
+ * Emitted on deletion of shared instance
  *
  * @event VrpcAdapter#delete
  * @type {Object}
