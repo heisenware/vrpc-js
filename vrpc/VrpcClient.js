@@ -116,7 +116,7 @@ class VrpcClient extends EventEmitter {
     this._invokeId = 0
     this._proxyId = 0
     this._client = null
-    this._cachedSubscriptions = new Map()
+    this._cachedSubscriptions = {}
     this._proxies = {}
     if (log === 'console') {
       this._log = console
@@ -230,10 +230,12 @@ class VrpcClient extends EventEmitter {
           staticFunctions,
           meta
         } = json
-        if (removed.length !== 0)
+        if (removed.length !== 0) {
           this.emit('instanceGone', removed, { domain, agent, className })
-        if (added.length !== 0)
+        }
+        if (added.length !== 0) {
           this.emit('instanceNew', added, { domain, agent, className })
+        }
         this.emit('class', {
           domain,
           agent,
@@ -320,9 +322,9 @@ class VrpcClient extends EventEmitter {
     const json = {
       c: className,
       f: isIsolated ? '__createIsolated__' : '__createShared__',
+      a: [instance, ...args],
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: `${this._domain}/${os.hostname()}/${this._instance}`,
-      a: [instance, ...args],
       v: VRPC_PROTOCOL_VERSION
     }
     const proxy = await this._getProxy(agent, className, json)
@@ -367,9 +369,9 @@ class VrpcClient extends EventEmitter {
     const json = {
       c: className,
       f: '__delete__',
+      a: [instance],
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: `${this._domain}/${os.hostname()}/${this._instance}`,
-      a: [instance],
       v: VRPC_PROTOCOL_VERSION
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
@@ -394,14 +396,19 @@ class VrpcClient extends EventEmitter {
     args = [],
     agent = this._agent
   } = {}) {
-    const wrapped = this._wrapArguments(className, functionName, ...args)
+    const wrapped = this._wrapArguments({
+      agent,
+      className,
+      functionName,
+      args
+    })
     if (!wrapped) return // Skipping remote call -> handled locally
     const json = {
       c: className,
       f: functionName,
+      a: wrapped,
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: this._vrpcClientId,
-      a: wrapped,
       v: VRPC_PROTOCOL_VERSION
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/${functionName}`
@@ -439,36 +446,38 @@ class VrpcClient extends EventEmitter {
     const json = {
       c: className,
       f: functionName,
+      a: [],
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
       s: this._vrpcClientId,
-      a: [],
       v: VRPC_PROTOCOL_VERSION
     }
     if (agent === '*') {
       const result = []
       const agents = this.getAvailableAgents()
-      for (const x of agents) {
-        const topic = `${this._domain}/${x}/${className}/__static__/__callAll__`
-        const wrapped = this._wrapArguments(
-          `${x}-${className}`,
+      for (const agent of agents) {
+        const topic = `${this._domain}/${agent}/${className}/__static__/__callAll__`
+        const wrapped = this._wrapArguments({
+          agent,
+          className,
           functionName,
-          ...args
-        )
+          args
+        })
         if (!wrapped) continue // using cache
         json.a = [functionName, ...wrapped]
-        await this._waitUntilClassIsOnline(x, className)
+        await this._waitUntilClassIsOnline(agent, className)
         this._mqttPublish(topic, JSON.stringify(json))
-        const tmp = await this._handleAgentAnswer(json, x)
+        const tmp = await this._handleAgentAnswer(json, agent)
         result.push(...tmp)
       }
       return result
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__callAll__`
-    const wrapped = this._wrapArguments(
-      `${agent}-${className}`,
+    const wrapped = this._wrapArguments({
+      agent,
+      className,
       functionName,
-      ...args
-    )
+      args
+    })
     if (!wrapped) return // using cache
     json.a = [functionName, ...wrapped]
     await this._waitUntilClassIsOnline(agent, className)
@@ -667,7 +676,7 @@ class VrpcClient extends EventEmitter {
       .createHash('md5')
       .update(clientInfo)
       .digest('hex')
-      .substr(0, 12)
+      .substring(0, 12)
     return `vc3${this._instance}${md5}` // 3 + 8 + 12 = 23 (max clientId)
   }
 
@@ -796,25 +805,52 @@ class VrpcClient extends EventEmitter {
     // Remove overloads
     const uniqueFuncs = new Set(functions)
     // Build proxy
-    uniqueFuncs.forEach(name => {
-      proxy[name] = async (...args) => {
-        const wrapped = this._wrapArguments(proxyId, name, ...args)
-        if (!wrapped) return // Skipping remote call -> handled locally
+    uniqueFuncs.forEach(functionName => {
+      // as we are messing with Node.js' event system we have to intercept here
+      if (functionName === 'removeAllListeners') {
+        proxy[functionName] = async eventName => {
+          if (!eventName) {
+            throw new Error('VRPC does not support removing all listeners')
+          }
+          const topic = `${this._domain}/${agent}/${className}/${instance}:${eventName}`
+          const id = `__e__${topic}`
+          if (this._cachedSubscriptions[topic]) {
+            this._eventEmitter.removeAllListeners(id)
+            this._mqttUnsubscribe(topic)
+            delete this._cachedSubscriptions[topic]
+          }
+          return true
+        }
+        return
+      }
+      proxy[functionName] = async (...args) => {
+        const wrapped = this._wrapArguments({
+          agent,
+          className,
+          instance,
+          proxyId,
+          functionName,
+          args
+        })
+        if (!wrapped) return true // Skipping remote call -> handled locally
         try {
           const json = {
             c: instance,
-            f: name,
+            f: functionName,
+            a: wrapped,
             i: `${this._instance}-${this._invokeId++ %
               Number.MAX_SAFE_INTEGER}`,
             s: this._vrpcClientId,
-            a: wrapped,
             v: VRPC_PROTOCOL_VERSION
           }
-          this._mqttPublish(`${targetTopic}/${name}`, JSON.stringify(json))
+          this._mqttPublish(
+            `${targetTopic}/${functionName}`,
+            JSON.stringify(json)
+          )
           return this._handleAgentAnswer(json, agent)
         } catch (err) {
           throw new Error(
-            `Could not remotely call "${name}" because: ${err.message}`
+            `Could not remotely call "${functionName}" because: ${err.message}`
           )
         }
       }
@@ -822,11 +858,22 @@ class VrpcClient extends EventEmitter {
     if (!uniqueFuncs.has('vrpcOn') && !uniqueFuncs.has('vrpcOff')) {
       proxy.vrpcOn = async (functionName, ...args) => {
         if (!uniqueFuncs.has(functionName)) throw new Error('Bad magic')
+        const wrapped = this._wrapArguments({
+          agent,
+          className,
+          instance,
+          proxyId,
+          functionName: 'vrpcOn',
+          args: [functionName, ...args]
+        })
+        if (!wrapped) return // Skipping remote call -> handled locally
         try {
           const json = {
+            c: instance,
             f: functionName,
-            c: this.vrpcInstanceId,
-            a: this._wrapArguments(proxyId, `vrpcOn:${functionName}`, ...args),
+            a: wrapped.slice(1), // first argument was remote function name
+            i: `${this._instance}-${this._invokeId++ %
+              Number.MAX_SAFE_INTEGER}`,
             s: this._vrpcClientId,
             v: VRPC_PROTOCOL_VERSION
           }
@@ -842,7 +889,8 @@ class VrpcClient extends EventEmitter {
         }
       }
       proxy.vrpcOff = functionName => {
-        const id = `__f__${proxyId}-vrpcOn:${functionName}`
+        const topic = `${this._domain}/${agent}/${className}/${instance}-${functionName}`
+        const id = `__e__${topic}`
         this._eventEmitter.removeAllListeners(id)
       }
     }
@@ -863,8 +911,9 @@ class VrpcClient extends EventEmitter {
         } else {
           const ret = data.r
           // Handle functions returning a promise
-          if (typeof ret === 'string' && ret.substr(0, 5) === '__p__') {
+          if (typeof ret === 'string' && ret.substring(0, 5) === '__p__') {
             this._eventEmitter.once(ret, promiseData => {
+              // TODO improve error message here, like above
               if (promiseData.e) reject(new Error(promiseData.e))
               else resolve(promiseData.r)
             })
@@ -896,85 +945,128 @@ class VrpcClient extends EventEmitter {
     })
   }
 
-  _wrapArguments (remoteId, functionName, ...args) {
+  _wrapArguments ({ agent, className, instance, proxyId, functionName, args }) {
     const wrapped = []
-    let isHandledLocally = false
-    args.forEach((x, i) => {
+    for (const [i, x] of args.entries()) {
       // Check whether provided argument is a function
       if (this._isFunction(x)) {
-        if (functionName === 'on' && i === 1 && typeof args[0] === 'string') {
-          // special case of an event emitter registration
+        const callback = x
+        if (
+          functionName === 'vrpcOn' ||
+          (functionName === 'on' && i === 1 && typeof args[0] === 'string')
+        ) {
+          // special case of an (remote-)event emitter registration
           // we test three conditions:
           // 1) functionName must be "on"
           // 2) callback is second argument
           // 3) first argument was string
-          const id = this._addEventSubscription(remoteId, args[0], x)
-          if (!id) isHandledLocally = true
+          const event = args[0]
+          const id = this._onRemoteEvent({
+            agent,
+            className,
+            instance,
+            event,
+            callback
+          })
+          // indicate that no network call is required
+          if (id === null) return null
           wrapped.push(id)
+          continue
         } else if (
           (functionName === 'off' || functionName === 'removeListener') &&
           i === 1 &&
           typeof args[0] === 'string'
         ) {
-          const id = this._removeEventSubscription(remoteId, args[0], x)
-          if (!id) isHandledLocally = true
+          const event = args[0]
+          const id = this._offRemoteEvent({
+            agent,
+            className,
+            instance,
+            event,
+            callback
+          })
+          // indicate that no network call is required
+          if (id === null) return null
           wrapped.push(id)
-        } else if (functionName.startsWith('vrpcOn')) {
-          // special case of injected vrpcOn function
-          const id = `__f__${remoteId}-${functionName}`
-          wrapped.push(id)
-          this._eventEmitter.on(id, ({ a }) => x.apply(null, a))
+          continue
         } else {
-          // Regular function callback
+          // Regular function callback (can be static or member function)
+          const remoteId = proxyId || `${agent}-${className}`
           const id = `__f__${remoteId}-${functionName}-${i}-${this._invokeId++ %
             Number.MAX_SAFE_INTEGER}`
           wrapped.push(id)
-          this._eventEmitter.once(id, ({ a }) => {
-            x.apply(null, a) // This is the actual function call
-          })
+          this._eventEmitter.once(id, ({ a }) => x.apply(null, a))
+          continue
         }
-      } else if (this._isEmitter(x)) {
-        // special case of an EventEmitter provided as argument
-        const { emitter, event } = x
-        const id = `__f__${remoteId}-${functionName}-${i}-${event}`
-        wrapped.push(id)
-        this._eventEmitter.on(id, ({ a }) => {
-          emitter.emit(event, ...a)
-        })
-      } else {
-        wrapped.push(x)
       }
-    })
-    if (isHandledLocally) return null
+      // special case of an EventEmitter provided as argument
+      if (this._isEmitter(x)) {
+        const { emitter, event } = x
+        const id = this._onRemoteEvent({
+          agent,
+          className,
+          instance,
+          event,
+          callback: (...args) => emitter.emit(event, ...args)
+        })
+        // indicate that no network call is required
+        if (id === null) return null
+        wrapped.push(id)
+        continue
+      }
+      // default behavior is to not touch
+      wrapped.push(x)
+    }
     return wrapped
   }
 
-  _addEventSubscription (remoteId, event, callback) {
-    const id = `__f__${remoteId}-${event}`
-    if (this._cachedSubscriptions.has(id)) {
-      this._cachedSubscriptions.get(id).on(id, callback)
-      return
+  _onRemoteEvent ({ agent, className, instance, event, callback }) {
+    // the topic on which any remote event will be published to
+    const topic = instance
+      ? `${this._domain}/${agent}/${className}/${instance}:${event}`
+      : `${this._domain}/${agent}/${className}/${event}`
+    // prepare a special id for the agent to know that events should be
+    // published to the provided topic after the prefix
+    const id = `__e__${topic}`
+    // call our proxy callback when remote events were received
+    const handler = ({ a }) => callback.apply(null, a)
+    this._eventEmitter.on(id, handler)
+    if (!this._cachedSubscriptions[topic]) {
+      // when not yet subscribed to this topic do it now and start counting
+      this._mqttSubscribe(topic)
+      this._cachedSubscriptions[topic] = [{ callback, handler }]
+      return id
     }
-    const emitter = new EventEmitter()
-    emitter.on(id, callback)
-    this._cachedSubscriptions.set(id, emitter)
-    this._eventEmitter.on(id, ({ a }) => {
-      emitter.emit(id, ...a)
-    })
-    return id
+    // otherwise just add the new callback-handler pair
+    this._cachedSubscriptions[topic].push({ callback, handler })
+    // indicate that no network call is required
+    return null
   }
 
-  _removeEventSubscription (remoteId, event, callback) {
-    const id = `__f__${remoteId}-${event}`
-    if (this._cachedSubscriptions.has(id)) {
-      const emitter = this._cachedSubscriptions.get(id)
-      emitter.removeListener(id, callback)
-      if (emitter.listenerCount(id) === 0) {
-        this._cachedSubscriptions.delete(id)
-        this._eventEmitter.removeAllListeners(id)
+  _offRemoteEvent ({ agent, className, instance, event, callback }) {
+    const topic = instance
+      ? `${this._domain}/${agent}/${className}/${instance}:${event}`
+      : `${this._domain}/${agent}/${className}/${event}`
+    const id = `__e__${topic}`
+    if (this._cachedSubscriptions[topic]) {
+      const index = this._cachedSubscriptions[topic].findIndex(x => x.callback === callback)
+      if (index === -1) {
+        this._log.warn(`Failed removing event listener ${id}`)
+        return null
+      }
+      const [{ handler }] = this._cachedSubscriptions[topic].splice(index, 1)
+      this._eventEmitter.removeListener(id, handler)
+      if (this._cachedSubscriptions[topic].length === 0) {
+        this._mqttUnsubscribe(topic)
+        delete this._cachedSubscriptions[topic]
         return id
       }
+      // indicate that no network call is required
+      return null
+    } else {
+      this._log.warn(`Can not unsubscribe from non-existing event: ${event}`)
     }
+    return id
   }
 
   _stripSignature (method) {

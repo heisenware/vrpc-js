@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - error messages as triggered on remote agents (no include context info)
 - removed obsolete public API from VrpcAdapter
+- internal handling of EventEmitter subscriptions
+  - now publishing a single message per event to a fixed topic
+  - dispatching happens by the broker not by the agent anymore
+  - this saves a lot of traffic when many clients subscribe to same events
+- reduced size of response messages by skipping redundant information
+- order of items within RPC message
 
 ## [3.0.0-alpha.3] - 25 Nov 2021
 

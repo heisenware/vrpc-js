@@ -376,14 +376,18 @@ class VrpcAgent extends EventEmitter {
   }
 
   _handleVrpcCallback (json) {
-    const { s } = json
+    const { s, i, r, e, a } = json
+    const topic = i.startsWith('__e__') ? i.slice(5) : s
     try {
-      this._log.debug(`Forwarding callback to: ${s} with payload:`, json)
-      this._mqttPublish(s, VrpcAgent._stringifySafely(json))
+      this._log.debug(`Forwarding callback to: ${topic} with payload:`, json)
+      this._mqttPublish(
+        topic,
+        VrpcAgent._stringifySafely({ a, r, e, i, v: VRPC_PROTOCOL_VERSION })
+      )
     } catch (err) {
       this._log.warn(
         err,
-        `Problem publishing vrpc callback to ${sender} because of: ${err.message}`
+        `Problem publishing vrpc callback to ${topic} because of: ${err.message}`
       )
     }
   }
@@ -549,7 +553,9 @@ class VrpcAgent extends EventEmitter {
           break
         }
       }
-      this._mqttPublish(json.s, VrpcAgent._stringifySafely(json))
+      const { a, r, e, i, v } = json
+      const res = e ? { a, r, e, i, v } : { a, r, i, v }
+      this._mqttPublish(json.s, VrpcAgent._stringifySafely(res))
     } catch (err) {
       this._log.error(
         err,
@@ -562,6 +568,7 @@ class VrpcAgent extends EventEmitter {
     // Client went offline
     const clientId = topic.slice(0, -15) // /__clientInfo__ = 15
     if (json.status === 'offline') {
+      VrpcAdapter._unregisterClient(clientId)
       const entry = this._isolatedInstances.get(clientId)
       if (entry) {
         entry.forEach(instanceId => {
@@ -572,7 +579,6 @@ class VrpcAgent extends EventEmitter {
           }
         })
       }
-      VrpcAdapter._unregisterEventListeners(clientId)
       this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
       this.emit('clientGone', clientId)
     }
@@ -618,7 +624,6 @@ class VrpcAgent extends EventEmitter {
   _unregisterInstance (instanceId, clientId) {
     const entryIsolated = this._isolatedInstances.get(clientId)
     if (entryIsolated && entryIsolated.has(instanceId)) {
-      VrpcAdapter._unregisterEventListenersOfInstance(instanceId)
       entryIsolated.delete(instanceId)
       if (entryIsolated.length === 0) {
         this._isolatedInstances.delete(clientId)
@@ -631,7 +636,6 @@ class VrpcAgent extends EventEmitter {
     this._sharedInstances.forEach(async v => {
       if (v.has(instanceId)) {
         found = true
-        VrpcAdapter._unregisterEventListenersOfInstance(instanceId)
         v.delete(instanceId)
         if (v.length === 0) {
           this._sharedInstances.delete(clientId)
