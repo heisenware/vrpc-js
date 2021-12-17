@@ -101,17 +101,20 @@ class VrpcAdapter {
    * NOTE: This function currently only supports registration of classes (either
    * when provided as object or when exported on the provided module path)
    */
-  static register (code, options = {}) {
+   static register (code, options = {}) {
     if (typeof code === 'string') {
       const absPath = path.resolve(caller(), '../', code)
       const relPath = path.relative(__dirname, absPath)
-      const absJsdocPath = `${absPath}.js`
+      const absJsdocPath =
+        absPath && absPath.endsWith('.js') ? absPath : `${absPath}.js`
       const Klass = require(relPath)
       this._registerClass(Klass, absJsdocPath, options)
     } else {
       const { jsdocPath } = options
+      const sJsdocPath =
+        jsdocPath && jsdocPath.endsWith('.js') ? jsdocPath : `${jsdocPath}.js`
       if (jsdocPath) {
-        const absJsdocPath = path.resolve(caller(), '../', `${jsdocPath}.js`)
+        const absJsdocPath = path.resolve(caller(), '../', sJsdocPath)
         this._registerClass(code, absJsdocPath, { ...options, jsdoc: true })
       } else {
         this._registerClass(code, null, options)

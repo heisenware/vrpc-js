@@ -1,4 +1,5 @@
 'use strict'
+const path = require('path')
 const assert = require('assert')
 const sinon = require('sinon')
 const VrpcAdapter = require('../../vrpc/VrpcAdapter')
@@ -41,6 +42,15 @@ describe('vrpc-adapter', () => {
         'TestClassNested',
         'TestClassNoDoc',
         'TestClassDoc'
+      ])
+    })
+    it('should manually register a class given a dirname expression', () => {
+      VrpcAdapter.register(path.join(__dirname, './fixtures/TestDirname.js'))
+      assert.deepStrictEqual(VrpcAdapter.getAvailableClasses(), [
+        'TestClassNested',
+        'TestClassNoDoc',
+        'TestClassDoc',
+        'TestDirname'
       ])
     })
     it('should manually register an instance', () => {
@@ -133,7 +143,6 @@ describe('vrpc-adapter', () => {
   describe('documentation parsing', () => {
     it('should have parsed meta information', () => {
       const meta = VrpcAdapter._getMetaData('TestClassDoc')
-      console.log('meta', meta)
       assert.deepEqual(Object.keys(meta), [
         '__createShared__',
         'getValue',

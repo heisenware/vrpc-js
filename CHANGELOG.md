@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - `vrpcOn` / `vrpcOff` feature to client
 - tests exclusively for VrpcAdapter
+- support for `path.join(__dirname, <path>)` expressions when registering class
 
 ### Fixed
 
