@@ -819,7 +819,26 @@ class VrpcClient extends EventEmitter {
             this._mqttUnsubscribe(topic)
             delete this._cachedSubscriptions[topic]
           }
-          return true
+          try {
+            const json = {
+              c: instance,
+              f: functionName,
+              a: [eventName],
+              i: `${this._instance}-${this._invokeId++ %
+                Number.MAX_SAFE_INTEGER}`,
+              s: this._vrpcClientId,
+              v: VRPC_PROTOCOL_VERSION
+            }
+            this._mqttPublish(
+              `${targetTopic}/${functionName}`,
+              JSON.stringify(json)
+            )
+            return this._handleAgentAnswer(json, agent)
+          } catch (err) {
+            throw new Error(
+              `Could not remotely call "${functionName}" because: ${err.message}`
+            )
+          }
         }
         return
       }
@@ -1032,7 +1051,7 @@ class VrpcClient extends EventEmitter {
     const handler = ({ a }) => callback.apply(null, a)
     this._eventEmitter.on(id, handler)
     if (!this._cachedSubscriptions[topic]) {
-      // when not yet subscribed to this topic do it now and start counting
+      // when not yet subscribed to this topic do it now
       this._mqttSubscribe(topic)
       this._cachedSubscriptions[topic] = [{ callback, handler }]
       return id

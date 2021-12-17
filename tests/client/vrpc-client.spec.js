@@ -4,6 +4,7 @@
 const { VrpcClient } = require('../../index')
 const assert = require('assert')
 const sinon = require('sinon')
+const { should } = require('chai')
 
 describe('vrpc-client', () => {
   /*******************************
@@ -700,7 +701,10 @@ describe('vrpc-client', () => {
         })
         // both instances of agent1 were subscribed previously and are correctly
         // skipped here
-        assert.deepStrictEqual(ret.map(({ val }) => val), [true, true])
+        assert.deepStrictEqual(
+          ret.map(({ val }) => val),
+          [true, true]
+        )
         await agent1Foo1.increment()
         await new Promise(resolve => setTimeout(resolve, 100))
         assert(callbackSpy.calledOnce)
@@ -711,6 +715,132 @@ describe('vrpc-client', () => {
         assert(callbackSpy.calledTwice)
         assert.strictEqual(callbackSpy.args[1][0], 'agent2Foo1')
         assert.strictEqual(callbackSpy.args[1][1], 5)
+      })
+    })
+  })
+  /******************
+   * event handling *
+   ******************/
+  describe('event handling', () => {
+    let client1
+    let client2
+    before(async () => {
+      client1 = new VrpcClient({
+        broker: 'mqtt://broker',
+        domain: 'test.vrpc'
+      })
+      await client1.connect()
+      client2 = new VrpcClient({
+        broker: 'mqtt://broker',
+        domain: 'test.vrpc'
+      })
+      await client2.connect()
+    })
+    after(async () => {
+      await client1.end()
+      await client2.end()
+    })
+    context('single proxy to single instance', () => {
+      let bar
+      before(async () => {
+        bar = await client1.create({
+          agent: 'agent1',
+          className: 'Bar',
+          instance: 'bar'
+        })
+      })
+      after(async () => {
+        await client1.delete('bar')
+      })
+      it('should properly implement "once"', async () =>{
+        const valueSpy = sinon.spy()
+        await bar.once('value', valueSpy)
+        await bar.increment()
+        assert(valueSpy.calledOnce)
+        await bar.increment()
+        assert(valueSpy.calledOnce)
+      })
+      it('should properly implement "on/off"', async () => {
+        const valueSpy = sinon.spy()
+        await bar.on('value', valueSpy)
+        await bar.increment()
+        assert(valueSpy.calledOnce)
+        await bar.increment()
+        assert(valueSpy.calledTwice)
+        await bar.off('value', valueSpy)
+        await bar.increment()
+        assert(valueSpy.calledTwice)
+        await bar.on('value', valueSpy)
+        await bar.increment()
+        assert(valueSpy.calledThrice)
+      })
+      it('should properly handle multiple "on/off"', async () => {
+        const valueSpy = sinon.spy()
+        await bar.on('value', valueSpy)
+        await bar.on('value', valueSpy)
+        await bar.increment()
+        assert.strictEqual(valueSpy.callCount, 2)
+        await bar.increment()
+        assert.strictEqual(valueSpy.callCount, 4)
+        await bar.off('value', valueSpy)
+        await bar.increment()
+        assert.strictEqual(valueSpy.callCount, 5)
+        await bar.off('value', valueSpy)
+        await bar.increment()
+        assert.strictEqual(valueSpy.callCount, 5)
+      })
+      it('should properly handle "removeAllListeners"', async () => {
+        const valueSpy = sinon.spy()
+        await bar.on('value', valueSpy)
+        await bar.on('value', valueSpy)
+        await bar.increment()
+        assert.strictEqual(valueSpy.callCount, 2)
+        await bar.removeAllListeners('value')
+        await bar.increment()
+        assert.strictEqual(valueSpy.callCount, 2)
+      })
+    })
+    context('multi proxy to single instance', () => {
+      let bar1
+      let bar2
+      before(async () => {
+        bar1 = await client1.create({
+          agent: 'agent1',
+          className: 'Bar',
+          instance: 'bar'
+        })
+        bar2 = await client1.create({
+          agent: 'agent1',
+          className: 'Bar',
+          instance: 'bar'
+        })
+      })
+      after(async () => {
+        await client1.delete('bar')
+      })
+      it('should properly implement "on/off"', async () => {
+        const valueSpy1 = sinon.spy()
+        const valueSpy2 = sinon.spy()
+        await bar1.on('value', valueSpy1)
+        await bar2.on('value', valueSpy2)
+        await bar1.increment()
+        assert(valueSpy1.calledOnce)
+        assert(valueSpy2.calledOnce)
+        await bar2.increment()
+        assert(valueSpy1.calledTwice)
+        assert(valueSpy2.calledTwice)
+        await bar1.off('value', valueSpy1)
+        await bar1.increment()
+        assert(valueSpy1.calledTwice)
+        assert(valueSpy2.calledThrice)
+        await bar2.off('value', valueSpy2)
+        await bar2.increment()
+        assert(valueSpy1.calledTwice)
+        assert(valueSpy2.calledThrice)
+        await bar1.on('value', valueSpy1)
+        await bar1.increment()
+        assert(valueSpy1.calledThrice)
+        assert(valueSpy2.calledThrice)
       })
     })
   })

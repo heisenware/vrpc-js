@@ -518,8 +518,15 @@ class VrpcAdapter {
   }
 
   static _handleCall (json) {
+    // special case: removeAllListeners
+    if (json.f === 'removeAllListeners') {
+      VrpcAdapter._removeAllListeners(json.a[0], json.s, json.c)
+      json.r = true
+      return
+    }
     const unwrapped = VrpcAdapter._unwrapArguments(json)
-    if (!unwrapped) { // this call must be skipped (event emitter stuff)
+    if (!unwrapped) {
+      // this call must be skipped (event emitter stuff)
       json.r = true
       return
     }
@@ -624,13 +631,13 @@ class VrpcAdapter {
     const unwrapped = []
     for (const arg of args) {
       // find those args that actually need to be functions
-      if (
-        typeof arg === 'string' &&
-        (arg.slice(0, 5) === '__f__' || arg.slice(0, 5) === '__e__')
-      ) {
-        const listener = this._generateFunction(arg, json, instanceId)
+      if (typeof arg === 'string' && arg.slice(0, 5) === '__f__') {
+        const callback = this._generateCallback(arg, json, instanceId)
+        unwrapped.push(callback)
+      } else if (typeof arg === 'string' && arg.slice(0, 5) === '__e__') {
+        const listener = this._generateListener(arg, json, instanceId)
         unwrapped.push(listener)
-        // track clients that are registering callbacks
+        // start tracking clients that are registering event listeners
         if (!VrpcAdapter._listeners[arg]) {
           VrpcAdapter._listeners[arg] = {
             listener,
@@ -642,7 +649,7 @@ class VrpcAdapter {
           VrpcAdapter._listeners[arg].clients.push(sender)
         }
         // see whether the requested listener is an EventEmitter registration
-        if (func === 'on') {
+        if (func === 'on' || func === 'addListener') {
           // if this event is already registered avoid a second registration
           if (VrpcAdapter._listeners[arg].event) {
             return null // means that this call won't be forwarded
@@ -650,14 +657,16 @@ class VrpcAdapter {
           VrpcAdapter._listeners[arg].event = args[0]
         }
         if (func === 'off' || func === 'removeListener') {
-          const { clients } = VrpcAdapter._listeners[arg]
+          const { clients, listener, event } = VrpcAdapter._listeners[arg]
           const filteredClients = clients.filter(x => x !== sender)
-          // don't unregister this event, when other clients are still listening
+          // don't unregister this event, as other clients are still listening
           if (filteredClients.length > 0) {
             VrpcAdapter._listeners[arg].clients = filteredClients
-            return null // means that this call won't be forwarded
+          } else {
+            delete VrpcAdapter._listeners[arg]
+            VrpcAdapter.getInstance(context).off(event, listener)
           }
-          delete VrpcAdapter._listeners[arg]
+          return null // means that this call won't be forwarded
         }
       } else {
         // default behavior is to not touch
@@ -667,15 +676,36 @@ class VrpcAdapter {
     return unwrapped
   }
 
-  static _generateFunction (id, json, instanceId) {
-    const callback = (...innerArgs) => {
-      // do not even trigger a callback for already offline clients
+  static _removeAllListeners (event, sender, context) {
+    for (const [key, value] of Object.entries(VrpcAdapter._listeners)) {
+      if (value.event === event) {
+        const filteredClients = value.clients.filter(x => x !== sender)
+        if (filteredClients.length > 0) {
+          VrpcAdapter._listeners[key].clients = filteredClients
+        } else {
+          delete VrpcAdapter._listeners[key]
+          VrpcAdapter.getInstance(context).off(event, value.listener)
+        }
+      }
+    }
+  }
+
+  static _generateCallback (id, json, instanceId) {
+    return (...innerArgs) => {
+      // callAll expects the instanceId as first argument
+      const a = instanceId ? [instanceId, ...innerArgs] : [...innerArgs]
+      VrpcAdapter._callback({ a, s: json.s, i: id })
+    }
+  }
+
+  static _generateListener (id, json, instanceId) {
+    return (...innerArgs) => {
+      // do not even emit for already offline clients
       if (!VrpcAdapter._listeners[id]) return
       // callAll expects the instanceId as first argument
       const a = instanceId ? [instanceId, ...innerArgs] : [...innerArgs]
       VrpcAdapter._callback({ a, s: json.s, i: id })
     }
-    return callback
   }
 
   static _handlePromise (json, promise) {
