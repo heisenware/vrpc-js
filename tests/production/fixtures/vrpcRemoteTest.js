@@ -133,7 +133,7 @@ describe('An instance of the VrpcClient class', () => {
           await testClass.willThrowLater()
           assert.isTrue(false)
         } catch (err) {
-          assert.equal(err.message, 'Some test error')
+          assert.equal(err.message, '[vrpc js-testClass-willThrowLater]: Some test error')
         }
       })
       it('should be able to call a static function', async () => {

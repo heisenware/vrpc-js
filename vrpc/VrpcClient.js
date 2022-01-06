@@ -933,7 +933,7 @@ class VrpcClient extends EventEmitter {
           if (typeof ret === 'string' && ret.substring(0, 5) === '__p__') {
             this._eventEmitter.once(ret, promiseData => {
               // TODO improve error message here, like above
-              if (promiseData.e) reject(new Error(promiseData.e))
+              if (promiseData.e) reject(new Error(`[vrpc ${agent}-${c}-${f}]: ${promiseData.e}`))
               else resolve(promiseData.r)
             })
           } else {

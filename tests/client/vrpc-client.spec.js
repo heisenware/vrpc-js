@@ -490,7 +490,7 @@ describe('vrpc-client', () => {
               args: [100]
             })
           },
-          { message: 'Test Error: 100' }
+          { message: '[vrpc agent1-Foo-staticRejectPromise]: Test Error: 100' }
         )
       })
       it('should work for functions with callback arguments', async () => {
