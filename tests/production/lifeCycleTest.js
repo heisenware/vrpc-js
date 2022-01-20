@@ -59,7 +59,6 @@ describe('Agent Life-Cycle', () => {
       agent = new VrpcAgent({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883',
         version: '1.0.0-test'
       })
@@ -67,7 +66,6 @@ describe('Agent Life-Cycle', () => {
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
       await remote.connect()
@@ -112,7 +110,6 @@ describe('Agent Life-Cycle', () => {
       const remoteInner = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
       await remoteInner.connect()
@@ -142,7 +139,6 @@ describe('Instance life-cycle', () => {
     agent = new VrpcAgent({
       domain: 'test.vrpc',
       agent: 'nodeJsTestAgent',
-      token: process.env.VRPC_TEST_TOKEN,
       broker: 'mqtts://vrpc.io:8883'
     })
     await agent.serve()
@@ -156,7 +152,6 @@ describe('Instance life-cycle', () => {
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
       await remote.connect()
@@ -220,7 +215,6 @@ describe('Instance life-cycle', () => {
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
       remote.on('class', ({ className, instances }) => {
@@ -277,7 +271,6 @@ describe('Event Callbacks', () => {
     agent = new VrpcAgent({
       domain: 'test.vrpc',
       agent: 'nodeJsTestAgent',
-      token: process.env.VRPC_TEST_TOKEN,
       broker: 'mqtts://vrpc.io:8883'
     })
     await agent.serve()
@@ -291,7 +284,6 @@ describe('Event Callbacks', () => {
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
       await remote.connect()
@@ -373,7 +365,6 @@ describe('Event Callbacks', () => {
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        token: process.env.VRPC_TEST_TOKEN,
         broker: 'mqtts://vrpc.io:8883'
       })
       await remote.connect()

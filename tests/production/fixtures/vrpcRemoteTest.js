@@ -19,7 +19,6 @@ describe('An instance of the VrpcClient class', () => {
   it('should be construct-able given an optional domain', async () => {
     vrpc = new VrpcClient({
       domain: 'test.vrpc',
-      token: process.env.VRPC_TEST_TOKEN,
       timeout: 1500
     })
     await vrpc.connect()
@@ -193,8 +192,7 @@ describe('Another instance of the VrpcClient class', () => {
   it('should be construct-able with pre-defined domain and agent', async () => {
     vrpc = new VrpcClient({
       domain: 'test.vrpc',
-      agent: 'js',
-      token: process.env.VRPC_TEST_TOKEN
+      agent: 'js'
     })
     await vrpc.connect()
     assert.isObject(vrpc)
