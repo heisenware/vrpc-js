@@ -158,7 +158,7 @@ main()
 ```
 
 That's it, try it by running the executable in an all-default setting (using the
-vrpc.io broker and the free `public.vrpc` domain):
+free vrpc.io):
 
 ```bash
 node index.js
@@ -167,9 +167,8 @@ node index.js
 With that you made your Node.js code remotely callable!
 
 Convince yourself and point your browser to
-[live.vrpc.io](https://live.vrpc.io). Log in using `public.vrpc` as domain name
-and leave the token empty. You should see your agent online (it uses your user-,
-host- and platform name).
+[VRPC - Live](https://live.vrpc.io) and use `vrpc` as domain name.
+You should see your agent online (it uses your user-, host- and platform name).
 
 Or call your code from another piece of code running somewhere else on the
 planet. Follow e.g. the `Node.js Client` example.
@@ -190,30 +189,42 @@ planet. Follow e.g. the `Node.js Client` example.
 
 ## Optional steps to make your communication private
 
-### STEP A: Create a free VRPC account
+Using the services from [Heisenware GmbH](https://heisenware.com) you can make
+your communication private by obtaining an exclusive and access controlled
+domain.
+
+### STEP A: Create a Heisenware account
 
 If you already have an account, simply skip this step.
 
-If not, quickly create a new one by clicking on "CREATE NEW ACCOUNT" using the
-[VRPC App](https://app.vrpc.io). It takes less than a minute and the only thing
-required is your name and a valid email address.
+If not, quickly create a new one
+[here](https://admin.heisenware.cloud/#/createAccount). It takes less than a
+minute and the only thing required is your name and a valid email address.
 
-### STEP B: Create a free domain
+### STEP B: Get a domain
 
 If you already have a domain, simply skip this step.
 
-If not, navigate to the `Domains` tab in your VRPC app and click *ADD DOMAIN*,
-choose a free domain and hit *Start 30 days trial* button.
+If not, navigate to the `Domains` tab in the [Admin
+Tool](https://admin.heisenware.cloud) and click *ADD DOMAIN*, choose a free
+domain and hit *Start 30 days trial* button.
 
-### STEP C: Test VRPC installation and connectivity
+### STEP C: Test connectivity
 
 For any agent to work, you must provide it with a valid domain and access
-token. You get an access token from your VRPC app using the `Access Control` tab.
+token. You get an access token from your [Admin
+Tool](https://admin.heisenware.cloud) using the *Access Control* tab.
 
-Simply copy the *defaultAgentToken* or create a new one and use this.
+Simply copy the default *Agent Token* or create a new one and use this.
 
 Having that you are ready to make the communication to your agent private:
 
 ```bash
-node index.js -d <yourDomain> -t <yourToken>
+node index.js -b mqtts://heisenware.cloud -d <yourDomain> -t <yourToken>
 ```
+
+ **IMPORTANT**
+>
+> Use `heisenware.cloud` as broker host when working with professional
+> Heisenware accounts.
+>

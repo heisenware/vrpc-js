@@ -121,14 +121,31 @@ Node.js bar implementation!
 
 ## Optional steps to make your communication private
 
-A private communication requires the agent already being started using your own
-domain as created via the [VRPC App](https://app.vrpc.io) app. Please refer to
-an agent example for further details.
+Using the services from [Heisenware GmbH](https://heisenware.com) you can make
+your communication private by obtaining an exclusive and access controlled
+domain.
 
-### STEP A: Retrieve client access token
+### STEP A: Create a Heisenware account
 
-Using the [VRPC App](https://app.vrpc.io), navigate to the *Access Control* tab
-and copy the `defaultClientToken` of the `fullAccess` role.
+If you already have an account, simply skip this step.
+
+If not, quickly create a new one
+[here](https://admin.heisenware.cloud/#/createAccount). It takes less than a
+minute and the only thing required is your name and a valid email address.
+
+### STEP B: Get a domain
+
+If you already have a domain, simply skip this step.
+
+If not, navigate to the `Domains` tab in the [Admin
+Tool](https://admin.heisenware.cloud) and click *ADD DOMAIN*, choose a free
+domain and hit *Start 30 days trial* button.
+
+### STEP C: Test connectivity
+
+Using the [Admin
+Tool](https://admin.heisenware.cloud), navigate to the *Access Control* tab
+and copy the default `Client Token` of the `Full Access` role.
 
 Or create a new role that has sufficient rights to access all functions of the
 `Bar` class served by your agent.
@@ -140,7 +157,14 @@ const VrpcClient = new VrpcClient({
   domain: '<yourDomain',
   agent: '<yourAgent>',
   token: '<yourToken>'
+  broker: 'mqtts://heisenware.cloud'
 })
 ```
 
 and you are good to go.
+
+**IMPORTANT**
+>
+> Use `heisenware.cloud` as broker host when working with professional
+> Heisenware accounts.
+>
