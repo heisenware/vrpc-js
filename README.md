@@ -36,10 +36,10 @@ Cloud-Computing.
 
 Understand how to use it by looking at the examples:
 
-- [Agent Example](examples/agent/README.md)
-- [Client Example](examples/client/README.md)
-- [Simple C++ Embedding Example](examples/native1/README.md)
-- [Advanced C++ Embedding Example](examples/native2/README.md)
+- [Agent Example](examples/01-agent/README.md)
+- [Client Example](examples/02-client/README.md)
+- [Simple C++ Embedding Example](examples/03-native-simple/README.md)
+- [Advanced C++ Embedding Example](examples/04-native-advanced/README.md)
 
 Get all the details by reading the documentation:
 
