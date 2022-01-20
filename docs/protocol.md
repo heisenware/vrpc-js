@@ -36,13 +36,10 @@ General RPC **response** payload pattern:
 
 ```json
 {
-  "c": "<context>",
-  "f": "<function>",
   "a": ["<arguments>"],
   "r": "<return value>",
   "e": "<error message>",
   "i": "<correlationId>",
-  "s": "<sender>",
   "v": "<protocolVersion>"
 }
 ```
