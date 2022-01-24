@@ -101,7 +101,7 @@ class VrpcAdapter {
    * NOTE: This function currently only supports registration of classes (either
    * when provided as object or when exported on the provided module path)
    */
-   static register (code, options = {}) {
+  static register (code, options = {}) {
     if (typeof code === 'string') {
       const absPath = path.resolve(caller(), '../', code)
       const relPath = path.relative(__dirname, absPath)
@@ -609,14 +609,12 @@ class VrpcAdapter {
   static _unregisterClient (clientId) {
     for (const [key, value] of Object.entries(VrpcAdapter._listeners)) {
       const { instance, event, listener, clients } = value
-      const filteredClients = clients.filter(x => x !== clientId)
-      if (filteredClients.length === 0) {
+      clients.delete(clientId)
+      if (clients.size === 0) {
         if (event) {
           VrpcAdapter.getInstance(instance).removeListener(event, listener)
         }
         delete VrpcAdapter._listeners[key]
-      } else {
-        VrpcAdapter._listeners[key].clients = filteredClients
       }
     }
   }
@@ -630,42 +628,59 @@ class VrpcAdapter {
   }
 
   static _unwrapArguments (json, instanceId) {
-    const { f: func, s: sender, a: args, c: context } = json
-    const unwrapped = []
+    const sender = json.s
+    let context = json.c
+    let func = json.f
+    let args = json.a
+    // things are different if we came from callAll (instanceId !== undefined)
+    if (instanceId) {
+      context = instanceId
+      func = args[0]
+      args = args.slice(1)
+    }
+    const unwrapped = instanceId ? [func] : []
     for (const arg of args) {
       // find those args that actually need to be functions
       if (typeof arg === 'string' && arg.slice(0, 5) === '__f__') {
-        const callback = this._generateCallback(arg, json, instanceId)
+        const callback = this._generateCallback(arg, sender, instanceId)
         unwrapped.push(callback)
       } else if (typeof arg === 'string' && arg.slice(0, 5) === '__e__') {
-        const listener = this._generateListener(arg, json, instanceId)
+        const listener = this._generateListener(arg, sender, instanceId)
         unwrapped.push(listener)
         // start tracking clients that are registering event listeners
         if (!VrpcAdapter._listeners[arg]) {
           VrpcAdapter._listeners[arg] = {
             listener,
-            clients: [sender],
-            instance: context,
+            clients: new Set([sender]),
+            instances: new Set(),
             event: null
           }
         } else {
-          VrpcAdapter._listeners[arg].clients.push(sender)
+          VrpcAdapter._listeners[arg].clients.add(sender)
         }
         // see whether the requested listener is an EventEmitter registration
         if (func === 'on' || func === 'addListener') {
-          // if this event is already registered avoid a second registration
-          if (VrpcAdapter._listeners[arg].event) {
+          // if this event is already registered on the given instance
+          // avoid a second registration
+          if (
+            VrpcAdapter._listeners[arg].event &&
+            VrpcAdapter._listeners[arg].instances.has(context)
+          ) {
             return null // means that this call won't be forwarded
           }
           VrpcAdapter._listeners[arg].event = args[0]
+          VrpcAdapter._listeners[arg].instances.add(context)
         }
         if (func === 'off' || func === 'removeListener') {
-          const { clients, listener, event } = VrpcAdapter._listeners[arg]
-          const filteredClients = clients.filter(x => x !== sender)
-          // don't unregister this event, as other clients are still listening
-          if (filteredClients.length > 0) {
-            VrpcAdapter._listeners[arg].clients = filteredClients
-          } else {
+          const {
+            clients,
+            instances,
+            listener,
+            event
+          } = VrpcAdapter._listeners[arg]
+          clients.delete(sender)
+          instances.delete(context)
+          if (clients.size === 0) {
             delete VrpcAdapter._listeners[arg]
             VrpcAdapter.getInstance(context).off(event, listener)
           }
@@ -682,10 +697,8 @@ class VrpcAdapter {
   static _removeAllListeners (event, sender, context) {
     for (const [key, value] of Object.entries(VrpcAdapter._listeners)) {
       if (value.event === event) {
-        const filteredClients = value.clients.filter(x => x !== sender)
-        if (filteredClients.length > 0) {
-          VrpcAdapter._listeners[key].clients = filteredClients
-        } else {
+        value.clients.delete(sender)
+        if (value.clients.size === 0) {
           delete VrpcAdapter._listeners[key]
           VrpcAdapter.getInstance(context).off(event, value.listener)
         }
@@ -693,21 +706,21 @@ class VrpcAdapter {
     }
   }
 
-  static _generateCallback (id, json, instanceId) {
+  static _generateCallback (id, sender, instanceId) {
     return (...innerArgs) => {
       // callAll expects the instanceId as first argument
       const a = instanceId ? [instanceId, ...innerArgs] : [...innerArgs]
-      VrpcAdapter._callback({ a, s: json.s, i: id })
+      VrpcAdapter._callback({ a, s: sender, i: id })
     }
   }
 
-  static _generateListener (id, json, instanceId) {
+  static _generateListener (id, sender, instanceId) {
     return (...innerArgs) => {
       // do not even emit for already offline clients
       if (!VrpcAdapter._listeners[id]) return
       // callAll expects the instanceId as first argument
       const a = instanceId ? [instanceId, ...innerArgs] : [...innerArgs]
-      VrpcAdapter._callback({ a, s: json.s, i: id })
+      VrpcAdapter._callback({ a, s: sender, i: id })
     }
   }
 

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - Jan 24 2022
+
+### Fixed
+
+- non-functional event un-subscription on silent client disconnect and when
+  initially registered via `callAll`
+
 ## [3.0.0] - Jan 20 2022
 
 ### Added
