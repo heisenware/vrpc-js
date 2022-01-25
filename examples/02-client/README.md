@@ -37,7 +37,7 @@ const { VrpcClient } = require('vrpc')
 async function main () {
   // create a remote client
   const client = new VrpcClient({
-    domain: 'public.vrpc',
+    domain: 'vrpc',
     agent: `<yourBarAgent>`
   })
 

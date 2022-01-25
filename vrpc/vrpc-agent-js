@@ -23,7 +23,7 @@ parser.add_argument(
   {
     help: 'The prefix for all vrpc communication',
     type: 'string',
-    default: 'public.vrpc'
+    default: 'vrpc'
   }
 )
 parser.add_argument(

@@ -70,7 +70,7 @@ class VrpcClient extends EventEmitter {
    * @param {Boolean} [options.bestEffort=false] If true, message will be sent with best effort, i.e. no caching if offline
    * @example
    * const client = new VrpcClient({
-   *   domain: 'public.vrpc',
+   *   domain: 'vrpc',
    *   broker: 'mqtt://vrpc.io'
    * })
    */
