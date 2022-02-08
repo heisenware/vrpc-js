@@ -152,7 +152,6 @@ class VrpcClient extends EventEmitter {
     let username = this._username
     let password = this._password
     if (this._token) {
-      username = '__token__'
       password = this._token
     }
     const options = {
