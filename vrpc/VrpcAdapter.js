@@ -608,11 +608,13 @@ class VrpcAdapter {
 
   static _unregisterClient (clientId) {
     for (const [key, value] of Object.entries(VrpcAdapter._listeners)) {
-      const { instance, event, listener, clients } = value
+      const { instances, event, listener, clients } = value
       clients.delete(clientId)
       if (clients.size === 0) {
         if (event) {
-          VrpcAdapter.getInstance(instance).removeListener(event, listener)
+          instances.forEach(instance => {
+            VrpcAdapter.getInstance(instance).removeListener(event, listener)
+          })
         }
         delete VrpcAdapter._listeners[key]
       }

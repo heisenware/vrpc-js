@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - removed implicit setting of username to `__token__` when authenticating with
   access token
 
+### Fixed
+
+- bug during un-registering obsolete event subscriptions
+
 ## [3.0.1] - Jan 24 2022
 
 ### Fixed
