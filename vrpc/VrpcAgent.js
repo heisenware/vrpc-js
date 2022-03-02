@@ -130,7 +130,6 @@ class VrpcAgent extends EventEmitter {
     this._broker = broker
     this._qos = bestEffort ? 0 : 1
     this._version = version
-    this._isReconnect = false
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -169,7 +168,7 @@ class VrpcAgent extends EventEmitter {
       .createHash('md5')
       .update(this._domain + this._agent)
       .digest('hex')
-      .substr(0, 20)
+      .substring(0, 20)
     let username = this._username
     let password = this._password
     if (this._token) {
@@ -194,12 +193,7 @@ class VrpcAgent extends EventEmitter {
     this._log.info(`Agent  : ${this._agent}`)
     this._log.info(`Broker : ${this._broker}`)
     this._log.info('Connecting to MQTT server...')
-    const wasEnded = await this._clearPersistedSession()
-    if (wasEnded) return
-    this._client = mqtt.connect(this._broker, {
-      ...this._options,
-      clean: false
-    })
+    this._client = mqtt.connect(this._broker, this._options)
     this._client.on('connect', this._handleConnect.bind(this))
     this._client.on('reconnect', this._handleReconnect.bind(this))
     this._client.on('error', this._handleError.bind(this))
@@ -238,7 +232,6 @@ class VrpcAgent extends EventEmitter {
         }
       }
       await new Promise(resolve => this._client.end(false, {}, resolve))
-      await this._clearPersistedSession()
     } catch (err) {
       this._log.error(err, `Problem during disconnecting agent: ${err.message}`)
     }
@@ -282,27 +275,6 @@ class VrpcAgent extends EventEmitter {
       hostname: os.hostname(),
       version: this._version,
       v: VRPC_PROTOCOL_VERSION
-    })
-  }
-
-  /**
-   * @return {Boolean} true if `agent.end()` was explicitly called
-   */
-  async _clearPersistedSession () {
-    // Clear potentially existing persisted sessions
-    const client = mqtt.connect(this._broker, { ...this._options, clean: true })
-    client.on('error', err => this.emit('error', err))
-    client.on('offline', () => this.emit('offline'))
-    client.on('reconnect', () => this.emit('reconnect'))
-    return new Promise(resolve => {
-      client.on('connect', () => {
-        client.end(false, {}, () => resolve(false))
-      })
-      // Will be triggered if the user called 'agent.end()'
-      this.once('end', () => {
-        client.end()
-        resolve(true)
-      })
     })
   }
 
@@ -375,6 +347,8 @@ class VrpcAgent extends EventEmitter {
         resolve()
       } else {
         this._client.once('connect', resolve)
+        // Will be triggered if the user called 'agent.end()'
+        this.once('end', resolve)
       }
     })
   }
@@ -413,16 +387,6 @@ class VrpcAgent extends EventEmitter {
 
   _handleConnect () {
     this._log.info('[OK]')
-    if (this._isReconnect) {
-      this._publishAgentInfoMessage()
-      const classes = this._getClasses()
-      classes.forEach(className => {
-        this._publishClassInfoMessage(className)
-      })
-      this.emit('connect')
-      this._isReconnect = false
-      return
-    }
     try {
       const topics = this._generateTopics()
       if (topics.length > 0) this._mqttSubscribe(topics)
@@ -670,7 +634,6 @@ class VrpcAgent extends EventEmitter {
   }
 
   _handleReconnect () {
-    this._isReconnect = true
     this._log.warn(`Reconnecting to ${this._broker}`)
     this.emit('reconnect')
   }
