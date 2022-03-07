@@ -661,7 +661,7 @@ class VrpcClient extends EventEmitter {
   }
 
   static _generateUserName () {
-    return `${os.userInfo().username}@${os.hostname()}-${os.platform()}-js`
+    return `client@${os.hostname()}-${os.platform()}-js`
   }
 
   _createMqttClientId () {
