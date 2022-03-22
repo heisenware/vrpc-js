@@ -92,7 +92,7 @@ class VrpcAgent extends EventEmitter {
    *
    * @constructor
    * @param {Object} obj
-   * @param {String} [obj.username='<user>-<pathId>@<hostname>-<platform>-js'] MQTT username
+   * @param {String} [obj.username] MQTT username
    * @param {String} [obj.password] MQTT password (if no token is provided)
    * @param {String} [obj.token] Access token
    * @param {String} [obj.domain='vrpc'] The domain under which the agent-provided code is reachable
@@ -109,9 +109,9 @@ class VrpcAgent extends EventEmitter {
    * })
    */
   constructor ({
-    token,
+    username,
     password,
-    username = VrpcAgent._generateAgentName(),
+    token,
     domain = 'vrpc',
     agent = VrpcAgent._generateAgentName(),
     broker = 'mqtts://vrpc.io:8883',
@@ -172,8 +172,11 @@ class VrpcAgent extends EventEmitter {
     let username = this._username
     let password = this._password
     if (this._token) {
-      username = username || this._agent
+      username = `${this._domain}:${this._agent}`
       password = this._token
+    } else if (!this._password) {
+      username = `${this._domain}:${this._agent}`
+      password = this._generateToken()
     }
     this._options = {
       username,
@@ -237,10 +240,6 @@ class VrpcAgent extends EventEmitter {
     }
   }
 
-  static _generateUserName () {
-    return `${os.userInfo().username}@${os.hostname()}-${os.platform()}-js`
-  }
-
   static _generateAgentName () {
     const { username } = os.userInfo()
     const pathId = crypto
@@ -249,6 +248,13 @@ class VrpcAgent extends EventEmitter {
       .digest('hex')
       .substring(0, 4)
     return `${username}-${pathId}@${os.hostname()}-${os.platform()}-js`
+  }
+
+  _generateToken () {
+    return crypto
+      .createHash('md5')
+      .update(this._domain + VrpcAgent._generateAgentName())
+      .digest('hex')
   }
 
   _validateDomain (domain) {
