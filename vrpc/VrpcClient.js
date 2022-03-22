@@ -59,7 +59,7 @@ class VrpcClient extends EventEmitter {
    *
    * @constructor
    * @param {Object} options
-   * @param {String} [options.username='<user>@<hostname>-<platform>-js'] MQTT username
+   * @param {String} [options.username] MQTT username
    * @param {String} [options.password] MQTT password (if no token is provided)
    * @param {String} [options.token] Access token
    * @param {String} options.domain Sets the domain
@@ -77,7 +77,7 @@ class VrpcClient extends EventEmitter {
   constructor ({
     token,
     password,
-    username = VrpcClient._generateUserName(),
+    username,
     domain,
     agent = '*',
     broker = 'mqtts://vrpc.io:8883',
@@ -152,7 +152,7 @@ class VrpcClient extends EventEmitter {
     let username = this._username
     let password = this._password
     if (this._token) {
-      username = username || VrpcClient._generateUserName()
+      username = username || this._generateUserName()
       password = this._token
     }
     const options = {
@@ -660,8 +660,8 @@ class VrpcClient extends EventEmitter {
     return new Promise(resolve => this._client.end(false, {}, resolve))
   }
 
-  static _generateUserName () {
-    return `client@${os.hostname()}-${os.platform()}-js`
+  _generateUserName () {
+    return `${this._domain}:client@${os.hostname()}-${os.platform()}-js`
   }
 
   _createMqttClientId () {
