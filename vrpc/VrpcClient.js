@@ -667,7 +667,6 @@ class VrpcClient extends EventEmitter {
   _createMqttClientId () {
     const clientInfo =
       os.arch() +
-      JSON.stringify(os.cpus()) +
       os.homedir() +
       os.hostname() +
       JSON.stringify(os.networkInterfaces()) +

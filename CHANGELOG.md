@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - removed `os.userInfo()` from generated client username as browsers do not
   support this function
 - failing mqtt reconnection when using websocket on a browser that goes inactive
+- removed changing `os.cpus()` call making the clientId stable on same executable
 
 ## [3.0.3] - Feb 09 2022
 
