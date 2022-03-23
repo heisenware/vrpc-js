@@ -698,6 +698,12 @@ class VrpcClient extends EventEmitter {
           this._log.warn(
             `Could not publish MQTT message because: ${err.message}`
           )
+          if (err.message === 'client disconnecting') {
+            // Workaround for an already reported bug in MQTT.js (#1284)
+            this._log.info('Forcing reconnect now...')
+            this._client.disconnecting = false
+            this._client.reconnect()
+          }
         }
       }
     )
@@ -712,6 +718,12 @@ class VrpcClient extends EventEmitter {
           this._log.warn(
             `Could not subscribe to topic: ${topic} because: ${err.message}`
           )
+          if (err.message === 'client disconnecting') {
+            // Workaround for an already reported bug in MQTT.js (#1284)
+            this._log.info('Forcing reconnect now...')
+            this._client.disconnecting = false
+            this._client.reconnect()
+          }
         } else {
           if (granted.length === 0) {
             this._log.debug(`Already subscribed to: ${topic}`)
