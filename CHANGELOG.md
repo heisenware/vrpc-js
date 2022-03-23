@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - changed generated username on agent to include domain information
 - generating username when neither token nor password are provided
 - changed client's username generation to as well include domain information
-- increased client's keepalive to 120 to hopefully mitigate websocket
   disconnects on inactive browser pages
 
 ### Fixed

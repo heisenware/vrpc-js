@@ -159,7 +159,7 @@ class VrpcClient extends EventEmitter {
       username,
       password,
       clean: true,
-      keepalive: 120,
+      keepalive: 30,
       clientId: this._mqttClientId,
       rejectUnauthorized: false,
       connectTimeout: this._timeout,
