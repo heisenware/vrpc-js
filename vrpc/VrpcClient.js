@@ -701,7 +701,7 @@ class VrpcClient extends EventEmitter {
             // Workaround for an already reported bug in MQTT.js (#1284)
             this._log.info('Forcing reconnect now...')
             this._client.disconnecting = false
-            this._client.reconnect()
+            this._client.end(true, {}, () => this._client.reconnect())
           }
         }
       }
@@ -721,7 +721,7 @@ class VrpcClient extends EventEmitter {
             // Workaround for an already reported bug in MQTT.js (#1284)
             this._log.info('Forcing reconnect now...')
             this._client.disconnecting = false
-            this._client.reconnect()
+            this._client.end(true, {}, () => this._client.reconnect())
           }
         } else {
           if (granted.length === 0) {
