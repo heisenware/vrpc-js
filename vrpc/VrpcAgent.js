@@ -251,9 +251,22 @@ class VrpcAgent extends EventEmitter {
   }
 
   _generateToken () {
+    const uid =
+      this._domain +
+      os.userInfo().username +
+      path.resolve() +
+      os.arch() +
+      os.homedir() +
+      os.hostname() +
+      os.platform() +
+      os.release() +
+      os.totalmem() +
+      os.type() +
+      JSON.stringify(os.networkInterfaces()) +
+      JSON.stringify(os.cpus().map(({ model }) => model))
     return crypto
       .createHash('md5')
-      .update(this._domain + VrpcAgent._generateAgentName())
+      .update(uid)
       .digest('hex')
   }
 
