@@ -579,6 +579,7 @@ describe('vrpc-client', () => {
           className: 'Foo',
           functionName: 'increment'
         })
+        console.log('## value', value)
         assert.deepStrictEqual(
           value.map(({ val }) => val),
           [4, 2]

@@ -390,7 +390,7 @@ class VrpcAdapter {
   }
 
   static _call (json) {
-    const before = Object.keys(VrpcAdapter._listeners).length
+    this._mustTrackClient = false // reset client tracking flag
     switch (json.f) {
       case '__createIsolated__':
         VrpcAdapter._handleCreateIsolated(json)
@@ -408,10 +408,9 @@ class VrpcAdapter {
         // this call may have the side-effect of taking a listener on board
         VrpcAdapter._handleCall(json)
     }
-    const after = Object.keys(VrpcAdapter._listeners).length
     // if we took a listener on board we must tell our caller such that
     // things can be cleaned up later.
-    return after > before
+    return this._mustTrackClient
   }
 
   static _handleCreateIsolated (json) {
@@ -593,13 +592,7 @@ class VrpcAdapter {
       if (VrpcAdapter._isFunction(entry.removeAllListeners)) {
         entry.removeAllListeners()
       }
-      for (const [key, { clients, instance }] of Object.entries(
-        VrpcAdapter._listeners
-      )) {
-        if (instance === instanceId) {
-          VrpcAdapter._listeners[key] = { clients }
-        }
-      }
+      delete VrpcAdapter._listeners[instanceId]
       VrpcAdapter._instances.delete(instanceId)
       return true
     }
@@ -607,18 +600,18 @@ class VrpcAdapter {
   }
 
   static _unregisterClient (clientId) {
-    for (const [key, value] of Object.entries(VrpcAdapter._listeners)) {
-      const { instances, event, listener, clients } = value
-      clients.delete(clientId)
-      if (clients.size === 0) {
-        if (event) {
-          instances.forEach(instance => {
-            VrpcAdapter.getInstance(instance).removeListener(event, listener)
-          })
+    Object.entries(VrpcAdapter._listeners).forEach(([ik, iv]) => {
+      Object.entries(iv).forEach(([ek, ev]) => {
+        const { clients, listener, event } = ev
+        if (clients.has(clientId)) {
+          clients.delete(clientId)
+          if (clients.size === 0) {
+            VrpcAdapter.getInstance(ik).removeListener(event, listener)
+            delete VrpcAdapter._listeners[ik][ek]
+          }
         }
-        delete VrpcAdapter._listeners[key]
-      }
-    }
+      })
+    })
   }
 
   static _validate (schema, params) {
@@ -630,100 +623,160 @@ class VrpcAdapter {
   }
 
   static _unwrapArguments (json, instanceId) {
-    const sender = json.s
-    let context = json.c
-    let func = json.f
-    let args = json.a
-    // things are different if we came from callAll (instanceId !== undefined)
-    if (instanceId) {
-      context = instanceId
-      func = args[0]
-      args = args.slice(1)
-    }
-    const unwrapped = instanceId ? [func] : []
+    const clientId = json.s
+    // if we came from a "callAll" we will have an instanceId defined
+    // things are different for callAll as we have to dispatch the instanceIds
+    const isCallAll = instanceId !== undefined
+    const context = isCallAll ? instanceId : json.c
+    const args = isCallAll ? json.a.slice(1) : json.a
+    const func = isCallAll ? json.a[0] : json.f
+    const unwrapped = isCallAll ? [func] : []
     for (const arg of args) {
-      // find those args that actually need to be functions
-      if (typeof arg === 'string' && arg.slice(0, 5) === '__f__') {
-        const callback = this._generateCallback(arg, sender, instanceId)
-        unwrapped.push(callback)
-      } else if (typeof arg === 'string' && arg.slice(0, 5) === '__e__') {
-        const listener = this._generateListener(arg, sender, instanceId)
-        unwrapped.push(listener)
-        // start tracking clients that are registering event listeners
-        if (!VrpcAdapter._listeners[arg]) {
-          VrpcAdapter._listeners[arg] = {
-            listener,
-            clients: new Set([sender]),
-            instances: new Set(),
-            event: null
+      if (typeof arg === 'string') {
+        if (arg.startsWith('__f__')) {
+          // function callback
+          unwrapped.push(
+            this._generateCallback({
+              clientId,
+              isCallAll,
+              instanceId: context,
+              eventId: arg
+            })
+          )
+        } else if (arg.startsWith('__e__')) {
+          // event registration
+          if (func === 'on' || func === 'addListener') {
+            this._mustTrackClient = true
+            const listener = VrpcAdapter._registerListener({
+              clientId,
+              isCallAll,
+              instanceId: context,
+              eventId: arg,
+              event: args[0]
+            })
+            if (
+              VrpcAdapter.getInstance(context)
+                .listeners(arg)
+                .includes(listener)
+            ) {
+              return null // skip call as listener is already registered
+            }
+            unwrapped.push(listener)
+            // event un-registration
+          } else if (func === 'off' || func === 'removeListener') {
+            const listener = VrpcAdapter._unregisterListener({
+              clientId,
+              instanceId: context,
+              eventId: arg
+            })
+            if (!listener) {
+              return null // skip call as others are still interested
+            }
+            unwrapped.push(listener)
+          } else {
+            this._mustTrackClient = true
+            const listener = VrpcAdapter._registerListener({
+              clientId,
+              isCallAll,
+              instanceId: context,
+              eventId: arg,
+              event: null
+            })
+            unwrapped.push(listener)
           }
         } else {
-          VrpcAdapter._listeners[arg].clients.add(sender)
-        }
-        // see whether the requested listener is an EventEmitter registration
-        if (func === 'on' || func === 'addListener') {
-          // if this event is already registered on the given instance
-          // avoid a second registration
-          if (
-            VrpcAdapter._listeners[arg].event &&
-            VrpcAdapter._listeners[arg].instances.has(context)
-          ) {
-            return null // means that this call won't be forwarded
-          }
-          VrpcAdapter._listeners[arg].event = args[0]
-          VrpcAdapter._listeners[arg].instances.add(context)
-        }
-        if (func === 'off' || func === 'removeListener') {
-          const {
-            clients,
-            instances,
-            listener,
-            event
-          } = VrpcAdapter._listeners[arg]
-          clients.delete(sender)
-          instances.delete(context)
-          if (clients.size === 0) {
-            delete VrpcAdapter._listeners[arg]
-            VrpcAdapter.getInstance(context).off(event, listener)
-          }
-          return null // means that this call won't be forwarded
+          unwrapped.push(arg)
         }
       } else {
-        // default behavior is to not touch
+        // regular argument
         unwrapped.push(arg)
       }
     }
     return unwrapped
   }
 
-  static _removeAllListeners (event, sender, context) {
-    for (const [key, value] of Object.entries(VrpcAdapter._listeners)) {
-      if (value.event === event) {
-        value.clients.delete(sender)
-        if (value.clients.size === 0) {
-          delete VrpcAdapter._listeners[key]
-          VrpcAdapter.getInstance(context).off(event, value.listener)
+  static _generateCallback ({ eventId, clientId, instanceId, isCallAll }) {
+    return (...innerArgs) => {
+      // "callAll" event notifications expect the instanceId as first argument
+      const a = isCallAll ? [instanceId, ...innerArgs] : [...innerArgs]
+      VrpcAdapter._callback({ a, s: clientId, i: eventId })
+    }
+  }
+
+  static _registerListener ({
+    eventId,
+    clientId,
+    instanceId,
+    event,
+    isCallAll
+  }) {
+    if (!VrpcAdapter._listeners[instanceId]) {
+      VrpcAdapter._listeners[instanceId] = {
+        [eventId]: {
+          event,
+          clients: new Set([clientId]),
+          listener: VrpcAdapter._generateListener({
+            eventId,
+            instanceId,
+            isCallAll
+          })
         }
+      }
+    } else if (!VrpcAdapter._listeners[instanceId][eventId]) {
+      VrpcAdapter._listeners[instanceId][eventId] = {
+        event,
+        clients: new Set([clientId]),
+        listener: VrpcAdapter._generateListener({
+          eventId,
+          instanceId,
+          isCallAll
+        })
+      }
+    } else {
+      VrpcAdapter._listeners[instanceId][eventId].clients.add(clientId)
+    }
+    return VrpcAdapter._listeners[instanceId][eventId].listener
+  }
+
+  static _generateListener ({ eventId, instanceId, isCallAll }) {
+    return (...innerArgs) => {
+      const a = isCallAll ? [instanceId, ...innerArgs] : [...innerArgs]
+      VrpcAdapter._callback({ a, i: eventId })
+    }
+  }
+
+  static _unregisterListener ({ eventId, clientId, instanceId }) {
+    if (
+      VrpcAdapter._listeners[instanceId] &&
+      VrpcAdapter._listeners[instanceId][eventId]
+    ) {
+      const { listener, clients } = VrpcAdapter._listeners[instanceId][eventId]
+      clients.delete(clientId)
+      if (clients.size === 0) {
+        delete VrpcAdapter._listeners[instanceId][eventId]
+        if (Object.keys(VrpcAdapter._listeners[instanceId]).length === 0) {
+          delete VrpcAdapter._listeners[instanceId]
+        }
+        return listener
       }
     }
   }
 
-  static _generateCallback (id, sender, instanceId) {
-    return (...innerArgs) => {
-      // callAll expects the instanceId as first argument
-      const a = instanceId ? [instanceId, ...innerArgs] : [...innerArgs]
-      VrpcAdapter._callback({ a, s: sender, i: id })
-    }
-  }
-
-  static _generateListener (id, sender, instanceId) {
-    return (...innerArgs) => {
-      // do not even emit for already offline clients
-      if (!VrpcAdapter._listeners[id]) return
-      // callAll expects the instanceId as first argument
-      const a = instanceId ? [instanceId, ...innerArgs] : [...innerArgs]
-      VrpcAdapter._callback({ a, s: sender, i: id })
-    }
+  static _removeAllListeners (event, clientId, instanceId) {
+    const eventIds = VrpcAdapter._listeners[instanceId]
+    if (!eventIds) return
+    Object.entries(eventIds).forEach(([ek, ev]) => {
+      if (ev.event === event && ev.clients.has(clientId)) {
+        ev.clients.delete(clientId)
+        if (ev.clients.size === 0) {
+          VrpcAdapter.getInstance(instanceId).removeListener(
+            ev.event,
+            ev.listener
+          )
+          delete VrpcAdapter._listeners[instanceId][ek]
+        }
+      }
+    })
   }
 
   static _handlePromise (json, promise) {
