@@ -253,6 +253,7 @@ class VrpcAgent extends EventEmitter {
   _generateToken () {
     const uid =
       this._domain +
+      this._agent +
       os.userInfo().username +
       path.resolve() +
       os.arch() +

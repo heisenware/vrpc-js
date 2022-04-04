@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - generating username when neither token nor password are provided
 - changed client's username generation to as well include domain information
   disconnects on inactive browser pages
+- added agent name info to token generator (allows to run in same folder)
 
 ### Fixed
 
