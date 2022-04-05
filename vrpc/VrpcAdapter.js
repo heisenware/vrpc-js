@@ -499,7 +499,7 @@ class VrpcAdapter {
   }
 
   static sanitizeEventListenerReturnValues (ret) {
-    return typeof ret === 'object' &&
+    return ret && typeof ret === 'object' &&
       ret._events !== undefined &&
       ret._eventsCount !== undefined
       ? true
