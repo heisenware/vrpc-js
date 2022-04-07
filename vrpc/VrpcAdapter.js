@@ -606,7 +606,10 @@ class VrpcAdapter {
         if (clients.has(clientId)) {
           clients.delete(clientId)
           if (clients.size === 0) {
-            VrpcAdapter.getInstance(ik).removeListener(event, listener)
+            const instance = VrpcAdapter.getInstance(ik)
+            if (instance && instance.removeListener) {
+              instance.removeListener(event, listener)
+            }
             delete VrpcAdapter._listeners[ik][ek]
           }
         }
