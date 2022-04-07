@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - potential access to null object resulting in remote exception
 
+### Changed
+
+- switched domain and agent separator from `:` to `/` when generating username
+
 ## [3.0.4] - Apr 04 2022
 
 ### Added

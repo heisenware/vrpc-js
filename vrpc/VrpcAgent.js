@@ -172,10 +172,10 @@ class VrpcAgent extends EventEmitter {
     let username = this._username
     let password = this._password
     if (this._token) {
-      username = `${this._domain}:${this._agent}`
+      username = `${this._domain}/${this._agent}`
       password = this._token
     } else if (!this._password) {
-      username = `${this._domain}:${this._agent}`
+      username = `${this._domain}/${this._agent}`
       password = this._generateToken()
     }
     this._options = {
