@@ -319,9 +319,38 @@ class VrpcAgent extends EventEmitter {
       (err, granted) => {
         if (err) {
           this._log.warn(
-            `Could not subscribe to topic '${topic}', because: ${err.message}`
+            `Could not subscribe to topic(s) '${topic}', because: ${err.message}`
           )
         } else {
+          const topicArray = Array.isArray(topic) ? topic : [topic]
+          const erroneousGranted = granted
+            .filter(x => x.qos === 128)
+            .map(x => x.topic)
+          if (erroneousGranted.length > 0) {
+            err = new Error(
+              `Could not subscribe all ${topicArray.length} topic(s) but got error qos=128 on following ${erroneousGranted.length} topic(s): ${erroneousGranted}`
+            )
+            err.code = 'SUBSCRIBE_FAILED'
+            err.subscribeOptions = options
+            this._log.error(err)
+            this.emit('error', err)
+          }
+          const reducedQos = granted.filter(x => x.qos < this._qos)
+          if (reducedQos.length > 0) {
+            err = new Error(
+              `Could not subscribe all ${
+                topicArray.length
+              } topic(s) at desired qos=${
+                this._qos
+              } but got reduced qos on following ${
+                reducedQos.length
+              } topic(s): ${JSON.stringify(reducedQos)}`
+            )
+            err.code = 'SUBSCRIBE_REDUCED_QOS'
+            err.subscribeOptions = options
+            this._log.warn(err)
+            this.emit('error', err)
+          }
           if (granted.length === 0) {
             this._log.debug(`Already subscribed to topic '${topic}'`)
           }
