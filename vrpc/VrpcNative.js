@@ -111,7 +111,13 @@ class VrpcNative {
             const id = `__f__${context}-${functionName}-${i}-${invokeId++ %
               Number.MAX_SAFE_INTEGER}`
             wrapped.push(id)
-            eventEmitter.once(id, a => x.apply(null, a))
+            eventEmitter.once(id, a => {
+              try {
+                x.apply(null, a) // This is the actual function call
+              } catch (err) {
+                console.error('VrpcNative:118: Failed to execute callback:', err)
+              }
+            })
           }
         } else if (VrpcNative._isEmitter(x)) {
           const { emitter, event } = x
