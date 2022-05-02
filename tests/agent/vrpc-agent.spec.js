@@ -96,6 +96,30 @@ describe('vrpc-agent', () => {
       it('should end', async () => {
         await agent.end()
       })
+      it('should connect with custom clientId', async () => {
+        const errorSpy = sinon.spy()
+        const reconnectSpy = sinon.spy()
+        const connectSpy = sinon.spy()
+        agent = new VrpcAgent({
+          broker: 'mqtt://broker:1883',
+          domain: 'test.vrpc',
+          agent: 'agent1',
+          username: 'Erwin',
+          password: '12345',
+          mqttClientId: 'myMqttClientId'
+        })
+        agent.on('error', errorSpy)
+        agent.on('reconnect', reconnectSpy)
+        agent.on('connect', connectSpy)
+        await agent.serve()
+        assert(errorSpy.notCalled)
+        assert(reconnectSpy.notCalled)
+        assert(connectSpy.calledOnce)
+        assert.equal(agent._client.options.clientId, 'myMqttClientId')
+      })
+      it('should end as well', async () => {
+        await agent.end()
+      })
     })
   })
   /**************************

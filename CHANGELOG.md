@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [unreleased]
 
+### Added
+
+- possibility to set a user-defined MQTT client ID for both, agent and client [#56]
+
 ### Fixed
 
 - potential access to null object resulting in remote exception
