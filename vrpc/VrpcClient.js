@@ -68,6 +68,7 @@ class VrpcClient extends EventEmitter {
    * @param {Number} [options.timeout=6000] Maximum time in ms to wait for a RPC answer
    * @param {Object} [options.log=console] Log object (must support debug, info, warn, and error level)
    * @param {Boolean} [options.bestEffort=false] If true, message will be sent with best effort, i.e. no caching if offline
+   * @param {String} [options.mqttClientId='<generated()>'] Explicitly set the mqtt client id.
    * @example
    * const client = new VrpcClient({
    *   domain: 'vrpc',
@@ -83,7 +84,8 @@ class VrpcClient extends EventEmitter {
     broker = 'mqtts://vrpc.io:8883',
     timeout = 6 * 1000,
     log = 'console',
-    bestEffort = false
+    bestEffort = false,
+    mqttClientId = null
   } = {}) {
     super()
     // domain sanity check
@@ -109,7 +111,7 @@ class VrpcClient extends EventEmitter {
     this._qos = this._qos = bestEffort ? 0 : 1
 
     this._instance = nanoid(8)
-    this._mqttClientId = this._createMqttClientId()
+    this._mqttClientId = mqttClientId || this._createMqttClientId()
     this._vrpcClientId = this._createVrpcClientId()
     this._agents = {}
     this._eventEmitter = new EventEmitter()

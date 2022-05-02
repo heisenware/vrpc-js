@@ -101,6 +101,7 @@ class VrpcAgent extends EventEmitter {
    * @param {Object} [obj.log=console] Log object (must support debug, info, warn, and error level)
    * @param {String} [obj.bestEffort=false] If true, message will be sent with best effort, i.e. no caching if offline
    * @param {String} [obj.version=''] The (user-defined) version of this agent
+   * @param {String} [obj.mqttClientId='<generated()>'] Explicitly set the mqtt client id.
    *
    * @example
    * const agent = new Agent({
@@ -117,7 +118,8 @@ class VrpcAgent extends EventEmitter {
     broker = 'mqtts://vrpc.io:8883',
     log = 'console',
     bestEffort = false,
-    version = ''
+    version = '',
+    mqttClientId = null
   } = {}) {
     super()
     this._validateDomain(domain)
@@ -130,6 +132,13 @@ class VrpcAgent extends EventEmitter {
     this._broker = broker
     this._qos = bestEffort ? 0 : 1
     this._version = version
+    this._mqttClientId =
+      mqttClientId ||
+      `va3${crypto
+        .createHash('md5')
+        .update(this._domain + this._agent)
+        .digest('hex')
+        .substring(0, 20)}`
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -164,11 +173,6 @@ class VrpcAgent extends EventEmitter {
    * rejects
    */
   async serve () {
-    const md5 = crypto
-      .createHash('md5')
-      .update(this._domain + this._agent)
-      .digest('hex')
-      .substring(0, 20)
     let username = this._username
     let password = this._password
     if (this._token) {
@@ -183,7 +187,7 @@ class VrpcAgent extends EventEmitter {
       password,
       keepalive: 30,
       connectTimeout: 10 * 1000,
-      clientId: `va3${md5}`,
+      clientId: this._mqttClientId,
       rejectUnauthorized: false,
       will: {
         topic: `${this._baseTopic}/__agentInfo__`,

@@ -81,6 +81,26 @@ describe('vrpc-client', () => {
         await client.end()
       })
     })
+    context('when constructed custom MQTT clientId', () => {
+      let client
+      it('should connect', async () => {
+        const connectSpy = sinon.spy()
+        client = new VrpcClient({
+          broker: 'mqtt://broker',
+          domain: 'test.vrpc',
+          mqttClientId: 'myMqttClientId'
+        })
+        client.once('connect', connectSpy)
+        await client.connect()
+        assert(connectSpy.calledOnce)
+      })
+      it('should use the custom MQTT client id', () => {
+        assert.equal(client._client.options.clientId, 'myMqttClientId')
+      })
+      it('should end', async () => {
+        await client.end()
+      })
+    })
   })
   /*******************************
    * agent and class information *
