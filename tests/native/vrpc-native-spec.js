@@ -112,7 +112,6 @@ describe('Embedding C++ to Node.js', () => {
           assert(notifyOnNewSpy.calledTwice)
           testClass.removeEntry('test3')
           assert(notifyOnRemovedSpy.calledThrice)
-
         })
         // FIXME Defaults are not yet working for C++ embedded in JS
         it.skip('should correctly work with defaults', () => {
@@ -241,13 +240,22 @@ describe('Embedding C++ to Node.js', () => {
           assert.equal(sleepTime, 100)
           done()
         })
-      }),
-        it('should properly receive callbacks (instance2)', done => {
-          testClass2.callMeBack(sleepTime => {
-            assert.equal(sleepTime, 100)
-            done()
-          })
+      })
+      it('should properly receive callbacks (instance2)', done => {
+        testClass2.callMeBack(sleepTime => {
+          assert.equal(sleepTime, 100)
+          done()
         })
+      })
+      it('should not throw but only log bad callbacks', done => {
+        const orig = console.error
+        console.error = (txt) => {
+          assert(txt.endsWith('garbage is not defined'))
+          done()
+        }
+        testClass2.callMeBack(() => garbage())
+        console.error = orig
+      })
       it('should be able to call a static function', () => {
         assert.equal(TestClass1.crazy(), 'who is crazy?')
         assert.equal(TestClass2.crazy(), 'who is crazy?')

@@ -106,12 +106,28 @@ class VrpcNative {
           if (functionName.startsWith('vrpcOn')) {
             const id = `__f__${context}-${functionName}`
             wrapped.push(id)
-            eventEmitter.on(id, a => x.apply(null, a))
+            eventEmitter.on(id, a => {
+              try {
+                x.apply(null, a)
+              } catch (err) {
+                console.error(
+                  `[VrpcNative ${context}-${functionName}]: Failed to execute callback, because: ${err.message}`
+                )
+              }
+            })
           } else {
             const id = `__f__${context}-${functionName}-${i}-${invokeId++ %
               Number.MAX_SAFE_INTEGER}`
             wrapped.push(id)
-            eventEmitter.once(id, a => x.apply(null, a))
+            eventEmitter.once(id, a => {
+              try {
+                x.apply(null, a)
+              } catch (err) {
+                console.error(
+                  `[VrpcNative ${context}-${functionName}]: Failed to execute callback, because: ${err.message}`
+                )
+              }
+            })
           }
         } else if (VrpcNative._isEmitter(x)) {
           const { emitter, event } = x

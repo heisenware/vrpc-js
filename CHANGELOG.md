@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - potential access to null object resulting in remote exception
 - more defensive programming when client used an non-emitter instance for
   registering events
+- potential application crash when VrpcNative was provided with a bad callback
+  which got called from within C++
 
 ### Changed
 
