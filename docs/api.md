@@ -240,7 +240,6 @@ Agent capable of making existing code available to remote control by clients.
     * _instance_
         * [.serve()](#VrpcAgent+serve) ⇒ <code>Promise</code>
         * [.end([obj], [unregister])](#VrpcAgent+end) ⇒ <code>Promise</code>
-        * [._clearPersistedSession()](#VrpcAgent+_clearPersistedSession) ⇒ <code>Boolean</code>
         * ["connect"](#VrpcAgent+event_connect)
         * ["reconnect"](#VrpcAgent+event_reconnect)
         * ["close"](#VrpcAgent+event_close)
@@ -262,7 +261,7 @@ Constructs an agent instance
 **Params**
 
 - obj <code>Object</code>
-    - [.username] <code>String</code> <code> = &#x27;&lt;user&gt;-&lt;pathId&gt;@&lt;hostname&gt;-&lt;platform&gt;-js&#x27;</code> - MQTT username
+    - [.username] <code>String</code> - MQTT username
     - [.password] <code>String</code> - MQTT password (if no token is provided)
     - [.token] <code>String</code> - Access token
     - [.domain] <code>String</code> <code> = &#x27;vrpc&#x27;</code> - The domain under which the agent-provided code is reachable
@@ -271,6 +270,7 @@ Constructs an agent instance
     - [.log] <code>Object</code> <code> = console</code> - Log object (must support debug, info, warn, and error level)
     - [.bestEffort] <code>String</code> <code> = false</code> - If true, message will be sent with best effort, i.e. no caching if offline
     - [.version] <code>String</code> <code> = &#x27;&#x27;</code> - The (user-defined) version of this agent
+    - [.mqttClientId] <code>String</code> <code> = &#x27;&lt;generated()&gt;&#x27;</code> - Explicitly set the mqtt client id.
 
 **Example**  
 ```js
@@ -314,14 +314,6 @@ Stops the agent
 - [obj] <code>Object</code>
 - [unregister] <code>Boolean</code> <code> = false</code> - If true, fully un-registers agent from broker
 
-
-* * *
-
-<a name="VrpcAgent+_clearPersistedSession"></a>
-
-### vrpcAgent.\_clearPersistedSession() ⇒ <code>Boolean</code>
-**Kind**: instance method of [<code>VrpcAgent</code>](#VrpcAgent)  
-**Returns**: <code>Boolean</code> - true if `agent.end()` was explicitly called  
 
 * * *
 
@@ -492,7 +484,7 @@ NOTE: Each instance creates its own physical connection to the broker.
 **Params**
 
 - options <code>Object</code>
-    - [.username] <code>String</code> <code> = &#x27;&lt;user&gt;@&lt;hostname&gt;-&lt;platform&gt;-js&#x27;</code> - MQTT username
+    - [.username] <code>String</code> - MQTT username
     - [.password] <code>String</code> - MQTT password (if no token is provided)
     - [.token] <code>String</code> - Access token
     - .domain <code>String</code> - Sets the domain
@@ -501,6 +493,8 @@ NOTE: Each instance creates its own physical connection to the broker.
     - [.timeout] <code>Number</code> <code> = 6000</code> - Maximum time in ms to wait for a RPC answer
     - [.log] <code>Object</code> <code> = console</code> - Log object (must support debug, info, warn, and error level)
     - [.bestEffort] <code>Boolean</code> <code> = false</code> - If true, message will be sent with best effort, i.e. no caching if offline
+    - [.mqttClientId] <code>String</code> <code> = &#x27;&lt;generated()&gt;&#x27;</code> - Explicitly sets the mqtt client id
+    - [.identity] <code>String</code> - Explicitly sets a vrpc client identity
 
 **Example**  
 ```js

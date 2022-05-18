@@ -26,8 +26,8 @@ services:
   broker:
     image: eclipse-mosquitto:1.6.12
     hostname: broker
-    ports:
-      - 1883:1883/tcp
+    # ports:
+    #   - 1883:1883/tcp
 
   agent1:
     image: node:12.16.1-alpine

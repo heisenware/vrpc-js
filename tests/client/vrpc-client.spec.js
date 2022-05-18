@@ -81,6 +81,31 @@ describe('vrpc-client', () => {
         await client.end()
       })
     })
+    context('when constructed using good parameters, identity and broker', () => {
+      let client
+      it('should connect', async () => {
+        const connectSpy = sinon.spy()
+        client = new VrpcClient({
+          broker: 'mqtt://broker',
+          domain: 'test.vrpc',
+          identity: 'Test Client'
+        })
+        client.once('connect', connectSpy)
+        await client.connect()
+        assert(connectSpy.calledOnce)
+      })
+      it('should provide a proper client id', () => {
+        const clientId = client.getClientId()
+        assert.strictEqual(typeof clientId, 'string')
+        const [domain, hostname, identity] = clientId.split('/')
+        assert.equal(domain, 'test.vrpc')
+        assert.equal(hostname, 'client')
+        assert.equal(identity, 'Test Client')
+      })
+      it('should end', async () => {
+        await client.end()
+      })
+    })
     context('when constructed custom MQTT clientId', () => {
       let client
       it('should connect', async () => {
@@ -747,12 +772,14 @@ describe('vrpc-client', () => {
     before(async () => {
       client1 = new VrpcClient({
         broker: 'mqtt://broker',
-        domain: 'test.vrpc'
+        domain: 'test.vrpc',
+        identity: 'Should not harm'
       })
       await client1.connect()
       client2 = new VrpcClient({
         broker: 'mqtt://broker',
-        domain: 'test.vrpc'
+        domain: 'test.vrpc',
+        identity: 'Should not harm'
       })
       await client2.connect()
     })

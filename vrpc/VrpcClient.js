@@ -68,7 +68,8 @@ class VrpcClient extends EventEmitter {
    * @param {Number} [options.timeout=6000] Maximum time in ms to wait for a RPC answer
    * @param {Object} [options.log=console] Log object (must support debug, info, warn, and error level)
    * @param {Boolean} [options.bestEffort=false] If true, message will be sent with best effort, i.e. no caching if offline
-   * @param {String} [options.mqttClientId='<generated()>'] Explicitly set the mqtt client id.
+   * @param {String} [options.mqttClientId='<generated()>'] Explicitly sets the mqtt client id
+   * @param {String} [options.identity] Explicitly sets a vrpc client identity
    * @example
    * const client = new VrpcClient({
    *   domain: 'vrpc',
@@ -85,7 +86,8 @@ class VrpcClient extends EventEmitter {
     timeout = 6 * 1000,
     log = 'console',
     bestEffort = false,
-    mqttClientId = null
+    mqttClientId = null,
+    identity = null
   } = {}) {
     super()
     // domain sanity check
@@ -101,6 +103,12 @@ class VrpcClient extends EventEmitter {
         'The agent must NOT contain any of those characters: "+", "/", "#"'
       )
     }
+    // identity sanity check
+    if (identity && identity.match(/[+/#$]/)) {
+      throw new Error(
+        'The identity must NOT contain any of those characters: "+", "/", "#", "$"'
+      )
+    }
     this._token = token
     this._username = username
     this._password = password
@@ -108,6 +116,7 @@ class VrpcClient extends EventEmitter {
     this._domain = domain
     this._broker = broker
     this._timeout = timeout
+    this._identity = identity
     this._qos = this._qos = bestEffort ? 0 : 1
 
     this._instance = nanoid(8)
@@ -326,7 +335,7 @@ class VrpcClient extends EventEmitter {
       f: isIsolated ? '__createIsolated__' : '__createShared__',
       a: [instance, ...args],
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      s: `${this._domain}/${os.hostname()}/${this._instance}`,
+      s: this._vrpcClientId,
       v: VRPC_PROTOCOL_VERSION
     }
     const proxy = await this._getProxy(agent, className, json)
@@ -373,7 +382,7 @@ class VrpcClient extends EventEmitter {
       f: '__delete__',
       a: [instance],
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      s: `${this._domain}/${os.hostname()}/${this._instance}`,
+      s: this._vrpcClientId,
       v: VRPC_PROTOCOL_VERSION
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
@@ -686,7 +695,8 @@ class VrpcClient extends EventEmitter {
   }
 
   _createVrpcClientId () {
-    return `${this._domain}/${os.hostname()}/${this._instance}`
+    const identity = this._identity || this._instance
+    return `${this._domain}/${os.hostname()}/${identity}`
   }
 
   _mqttPublish (topic, message, options) {
