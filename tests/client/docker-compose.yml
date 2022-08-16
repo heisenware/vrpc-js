@@ -24,6 +24,7 @@ services:
     ]
 
   broker:
+    container_name: broker
     image: eclipse-mosquitto:1.6.12
     hostname: broker
     # ports:

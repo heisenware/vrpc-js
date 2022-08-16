@@ -4,7 +4,7 @@
 const { VrpcClient } = require('../../index')
 const assert = require('assert')
 const sinon = require('sinon')
-const { should } = require('chai')
+const Dockerode = require('dockerode')
 
 describe('vrpc-client', () => {
   /*******************************
@@ -81,31 +81,34 @@ describe('vrpc-client', () => {
         await client.end()
       })
     })
-    context('when constructed using good parameters, identity and broker', () => {
-      let client
-      it('should connect', async () => {
-        const connectSpy = sinon.spy()
-        client = new VrpcClient({
-          broker: 'mqtt://broker',
-          domain: 'test.vrpc',
-          identity: 'Test Client'
+    context(
+      'when constructed using good parameters, identity and broker',
+      () => {
+        let client
+        it('should connect', async () => {
+          const connectSpy = sinon.spy()
+          client = new VrpcClient({
+            broker: 'mqtt://broker',
+            domain: 'test.vrpc',
+            identity: 'Test Client'
+          })
+          client.once('connect', connectSpy)
+          await client.connect()
+          assert(connectSpy.calledOnce)
         })
-        client.once('connect', connectSpy)
-        await client.connect()
-        assert(connectSpy.calledOnce)
-      })
-      it('should provide a proper client id', () => {
-        const clientId = client.getClientId()
-        assert.strictEqual(typeof clientId, 'string')
-        const [domain, hostname, identity] = clientId.split('/')
-        assert.equal(domain, 'test.vrpc')
-        assert.equal(hostname, 'client')
-        assert.equal(identity, 'Test Client')
-      })
-      it('should end', async () => {
-        await client.end()
-      })
-    })
+        it('should provide a proper client id', () => {
+          const clientId = client.getClientId()
+          assert.strictEqual(typeof clientId, 'string')
+          const [domain, hostname, identity] = clientId.split('/')
+          assert.equal(domain, 'test.vrpc')
+          assert.equal(hostname, 'client')
+          assert.equal(identity, 'Test Client')
+        })
+        it('should end', async () => {
+          await client.end()
+        })
+      }
+    )
     context('when constructed custom MQTT clientId', () => {
       let client
       it('should connect', async () => {
@@ -763,6 +766,60 @@ describe('vrpc-client', () => {
       })
     })
   })
+  /******************************
+   * broker reconnect resilience
+   ******************************/
+  describe('broker reconnect resilience', () => {
+    let client
+    const docker = new Dockerode()
+    before(async () => {
+      client = new VrpcClient({
+        broker: 'mqtt://broker',
+        domain: 'test.vrpc',
+        bestEffort: true,
+        timeout: 3000
+      })
+      await client.connect()
+    })
+    after(async () => {
+      await client.end()
+    })
+    context('after switching broker off', () => {
+      before(async () => {
+        const container = await docker.getContainer('broker')
+        await container.stop()
+      })
+      it('should timeout on static function calls', async () => {
+        await assert.rejects(
+          async () =>
+            client.callStatic({
+              agent: 'agent1',
+              className: 'Foo',
+              functionName: 'staticIncrement'
+            }),
+          {
+            message:
+              'Function call "Foo::staticIncrement()" on agent "agent1" timed out (> 3000 ms)'
+          }
+        )
+      })
+    })
+    context('after switching broker on again', () => {
+      before(async () => {
+        const container = await docker.getContainer('broker')
+        await container.start()
+        await new Promise(resolve => setTimeout(resolve, 5000))
+      })
+      it('should work for static function calls', async () => {
+        const value = await client.callStatic({
+          agent: 'agent1',
+          className: 'Foo',
+          functionName: 'staticIncrement'
+        })
+        assert.strictEqual(value, 1)
+      })
+    })
+  })
   /******************
    * event handling *
    ******************/
@@ -799,7 +856,7 @@ describe('vrpc-client', () => {
       after(async () => {
         await client1.delete('bar')
       })
-      it('should properly implement "once"', async () =>{
+      it('should properly implement "once"', async () => {
         const valueSpy = sinon.spy()
         await bar.once('value', valueSpy)
         await bar.increment()

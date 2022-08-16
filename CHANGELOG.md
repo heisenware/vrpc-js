@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - missing defaultValue when parsing source code comments
 
+### Added
+
+- reconnection test when broker toggles offline/online
+
 ## [3.1.0] - Jun 15 2022
 
 ### Added
