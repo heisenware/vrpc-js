@@ -2,7 +2,7 @@ class TestClassDoc {
   /**
    * Constructor
    *
-   * @param {Integer} value Initial value
+   * @param {Integer} [value=0] Initial value
    */
   constructor (value = 0) {
     this._value = value

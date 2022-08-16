@@ -350,9 +350,17 @@ class VrpcAdapter {
             ({ tag }) => tag === 'param' || tag === 'arg' || tag === 'argument'
           )
           if (params.length > 0) {
-            params = params.map(({ name, optional, description, type }) => {
-              return { name, optional, description, type }
-            })
+            params = params.map(
+              ({
+                name,
+                optional,
+                description,
+                type,
+                default: defaultValue
+              }) => {
+                return { name, optional, description, type, defaultValue }
+              }
+            )
           } else {
             params = []
           }
@@ -375,7 +383,8 @@ class VrpcAdapter {
                 name: 'instanceName',
                 optional: false,
                 description: 'Name of the instance to be created',
-                type: 'string'
+                type: 'string',
+                defaultValue: undefined
               },
               ...params
             ]
@@ -499,7 +508,8 @@ class VrpcAdapter {
   }
 
   static sanitizeEventListenerReturnValues (ret) {
-    return ret && typeof ret === 'object' &&
+    return ret &&
+      typeof ret === 'object' &&
       ret._events !== undefined &&
       ret._eventsCount !== undefined
       ? true

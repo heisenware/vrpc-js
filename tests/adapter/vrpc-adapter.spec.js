@@ -148,10 +148,31 @@ describe('vrpc-adapter', () => {
         'getValue',
         'setValue'
       ])
+      assert.deepEqual(meta.__createShared__, {
+        description: 'Constructor',
+        params: [
+          {
+            defaultValue: undefined,
+            description: 'Name of the instance to be created',
+            name: 'instanceName',
+            optional: false,
+            type: 'string'
+          },
+          {
+            defaultValue: '0',
+            description: 'Initial value',
+            name: 'value',
+            optional: true,
+            type: 'Integer'
+          }
+        ],
+        ret: null
+      })
       assert.deepEqual(meta.setValue, {
         description: 'Sets a value',
         params: [
           {
+            defaultValue: undefined,
             description: 'The new value',
             name: 'value',
             optional: false,
