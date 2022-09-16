@@ -519,6 +519,10 @@ class VrpcAdapter {
   static _handleDelete (json) {
     try {
       const instance = json.a[0] // first arg is instance to be deleted
+      VrpcAdapter._emitter.emit('beforeDelete', {
+        instance,
+        className: json.c
+      })
       json.r = VrpcAdapter._delete(instance)
       VrpcAdapter._emitter.emit('delete', {
         instance,
@@ -930,6 +934,7 @@ class VrpcAdapter {
  *
  * Emitted on deletion of shared instance
  *
+ * @event VrpcAdapter#beforeDelete
  * @event VrpcAdapter#delete
  * @type {Object}
  * @property {String} className The class name of the deleted instance
