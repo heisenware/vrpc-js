@@ -48,7 +48,7 @@ const { nanoid } = require('nanoid')
  */
 class VrpcAdapter {
   /**
-   * Registers existing code and makes it (remotely) callable
+   * Registers an existing class an makes it callable from remote
    *
    * @param {Object} code Existing class to be registered
    * @param {Object} [options]
@@ -58,12 +58,51 @@ class VrpcAdapter {
    * using the `new` operator
    * @param {Object} [options.schema=null] If provided is used to validate ctor
    * parameters (only works if registered code reflects a single class)
-   *
-   * NOTE: This function currently only supports registration of classes (either
-   * when provided as object or when exported on the provided module path)
    */
-  static register (code, options = {}) {
-    VrpcAdapter._registerClass(code, null, options)
+
+  static registerClass (
+    Klass,
+    { onlyPublic = true, withNew = true, schema = null } = {}
+  ) {
+    // Get all static static functions
+    let staticFunctions = VrpcAdapter._extractStaticFunctions(Klass)
+    if (onlyPublic) {
+      staticFunctions = staticFunctions.filter(f => !f.startsWith('_'))
+    }
+    // Inject constructor and destructor
+    staticFunctions.push('__createIsolated__')
+    staticFunctions.push('__createShared__')
+    staticFunctions.push('__callAll__')
+    staticFunctions.push('__delete__')
+    let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
+    if (onlyPublic) {
+      memberFunctions = memberFunctions.filter(f => {
+        return !f.startsWith('_')
+      })
+    }
+    VrpcAdapter._functionRegistry.set(Klass.name, {
+      Klass,
+      withNew,
+      staticFunctions,
+      memberFunctions,
+      schema,
+      meta: {}
+    })
+  }
+
+  static registerFunction (functionName) {
+    const registry = VrpcAdapter._functionRegistry.get('__global__')
+    const staticFunctions = registry
+      ? [...registry.staticFuncs, functionName]
+      : [functionName]
+    VrpcAdapter._functionRegistry.set('__global__', {
+      staticFunctions,
+      memberFunctions: [],
+      meta: {},
+      Klass: {},
+      withNew: false,
+      schema: null
+    })
   }
 
   /**
@@ -239,36 +278,6 @@ class VrpcAdapter {
   }
 
   // private:
-
-  static _registerClass (
-    Klass,
-    { onlyPublic = true, withNew = true, schema = null } = {}
-  ) {
-    // Get all static static functions
-    let staticFunctions = VrpcAdapter._extractStaticFunctions(Klass)
-    if (onlyPublic) {
-      staticFunctions = staticFunctions.filter(f => !f.startsWith('_'))
-    }
-    // Inject constructor and destructor
-    staticFunctions.push('__createIsolated__')
-    staticFunctions.push('__createShared__')
-    staticFunctions.push('__callAll__')
-    staticFunctions.push('__delete__')
-    let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
-    if (onlyPublic) {
-      memberFunctions = memberFunctions.filter(f => {
-        return !f.startsWith('_')
-      })
-    }
-    VrpcAdapter._functionRegistry.set(Klass.name, {
-      Klass,
-      withNew,
-      staticFunctions,
-      memberFunctions,
-      schema,
-      meta: {}
-    })
-  }
 
   static _call (json) {
     VrpcAdapter._mustTrackClient = false // reset client tracking flag
@@ -731,7 +740,8 @@ class VrpcAdapter {
         fs = [...fs, ...funcs]
       } else {
         const funcs = Object.getOwnPropertyNames(klass_).filter(
-          x => !VrpcAdapter._blackList.has(x) && VrpcAdapter._isFunction(klass_[x])
+          x =>
+            !VrpcAdapter._blackList.has(x) && VrpcAdapter._isFunction(klass_[x])
         )
         fs = [...fs, ...funcs]
       }
