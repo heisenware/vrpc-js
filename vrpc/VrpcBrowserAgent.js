@@ -3,6 +3,7 @@ const mqtt = require('mqtt')
 const crypto = require('crypto')
 const VrpcAdapter = require('./VrpcBrowserAdapter')
 const EventEmitter = require('events')
+const { nanoid } = require('nanoid')
 
 const VRPC_PROTOCOL_VERSION = 3
 
@@ -40,7 +41,7 @@ class VrpcAgent extends EventEmitter {
     password,
     token,
     domain = 'vrpc',
-    agent = VrpcAgent._generateAgentName(),
+    agent = nanoid(8),
     broker = 'mqtts://vrpc.io:8883',
     log = 'console',
     bestEffort = false,
@@ -106,7 +107,7 @@ class VrpcAgent extends EventEmitter {
       password = this._token
     } else if (!this._password) {
       username = `${this._domain}/${this._agent}`
-      password = this._generateToken()
+      password = nanoid()
     }
     this._options = {
       username,
@@ -168,36 +169,6 @@ class VrpcAgent extends EventEmitter {
     } catch (err) {
       this._log.error(err, `Problem during disconnecting agent: ${err.message}`)
     }
-  }
-
-  static _generateAgentName () {
-    const { username } = os.userInfo()
-    const pathId = crypto
-      .createHash('md5')
-      .update('to be done')
-      .digest('hex')
-      .substring(0, 4)
-    return `${username}-${pathId}@${os.hostname()}-${os.platform()}-js`
-  }
-
-  _generateToken () {
-    const uid =
-      this._domain +
-      this._agent +
-      os.userInfo().username +
-      os.arch() +
-      os.homedir() +
-      os.hostname() +
-      os.platform() +
-      os.release() +
-      os.totalmem() +
-      os.type() +
-      JSON.stringify(os.networkInterfaces()) +
-      JSON.stringify(os.cpus().map(({ model }) => model))
-    return crypto
-      .createHash('md5')
-      .update(uid)
-      .digest('hex')
   }
 
   _validateDomain (domain) {
