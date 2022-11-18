@@ -90,10 +90,11 @@ class VrpcAdapter {
     })
   }
 
-  static registerFunction (functionName) {
+  static registerFunction (func) {
+    const functionName = typeof func === 'object' ? func.name : func
     const registry = VrpcAdapter._functionRegistry.get('__global__')
     const staticFunctions = registry
-      ? [...registry.staticFuncs, functionName]
+      ? [...registry.staticFunctions, functionName]
       : [functionName]
     VrpcAdapter._functionRegistry.set('__global__', {
       staticFunctions,
@@ -436,7 +437,17 @@ class VrpcAdapter {
       // rather sticking to those functions registered before...
       // TODO This is even more important now as the agent does a wildcard
       // subscription against all functions
-      if (VrpcAdapter._isFunction(Klass[json.f])) {
+      if (json.c === '__global__') {
+        try {
+          const ret = global[json.f].apply(null, unwrapped)
+          // check if function returns promise
+          if (VrpcAdapter._isPromise(ret)) {
+            VrpcAdapter._handlePromise(json, ret)
+          } else json.r = ret
+        } catch (err) {
+          json.e = err.message
+        }
+      } else if (VrpcAdapter._isFunction(Klass[json.f])) {
         try {
           const ret = Klass[json.f].apply(null, unwrapped)
           // check if function returns promise
