@@ -428,6 +428,21 @@ class VrpcAdapter {
       json.r = true
       return
     }
+
+    // Check whether context is global
+    if (json.c === '__global__') {
+      try {
+        const ret = global[json.f].apply(null, unwrapped)
+        // check if function returns promise
+        if (VrpcAdapter._isPromise(ret)) {
+          VrpcAdapter._handlePromise(json, ret)
+        } else json.r = ret
+      } catch (err) {
+        json.e = err.message
+      }
+      return
+    }
+
     // Check whether context is a registered class
     const entry = VrpcAdapter._functionRegistry.get(json.c)
     if (entry !== undefined) {
@@ -437,17 +452,7 @@ class VrpcAdapter {
       // rather sticking to those functions registered before...
       // TODO This is even more important now as the agent does a wildcard
       // subscription against all functions
-      if (json.c === '__global__') {
-        try {
-          const ret = global[json.f].apply(null, unwrapped)
-          // check if function returns promise
-          if (VrpcAdapter._isPromise(ret)) {
-            VrpcAdapter._handlePromise(json, ret)
-          } else json.r = ret
-        } catch (err) {
-          json.e = err.message
-        }
-      } else if (VrpcAdapter._isFunction(Klass[json.f])) {
+      if (VrpcAdapter._isFunction(Klass[json.f])) {
         try {
           const ret = Klass[json.f].apply(null, unwrapped)
           // check if function returns promise
@@ -457,7 +462,7 @@ class VrpcAdapter {
         } catch (err) {
           json.e = err.message
         }
-      } else throw new Error(`Could not find function: ${json.f}`)
+      } else throw new Error(`Could not find static function: ${json.f}`)
     } else {
       // is not static
       const entry = VrpcAdapter._instances.get(json.c)
@@ -476,7 +481,7 @@ class VrpcAdapter {
         } catch (err) {
           json.e = err.message
         }
-      } else throw new Error(`Could not find function: ${json.f}`)
+      } else throw new Error(`Could not find member function: ${json.f}`)
     }
   }
 
