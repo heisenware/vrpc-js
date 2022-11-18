@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build:addon": "ln -sf binding.gyp.no-auto binding.gyp && node-gyp rebuild && rm binding.gyp",
-    "build:browser": "./node_modules/.bin/webpack",
+    "build:browser": "./node_modules/.bin/webpack --stats-error-details",
     "build:doc": "./node_modules/.bin/jsdoc2md -f vrpc/*.js --param-list-format=list --separators > docs/api.md",
     "test": "npm run test:adapter && npm run test:native && npm run test:agent && npm run test:client && npm run test:production",
     "test:adapter": "./node_modules/.bin/mocha tests/adapter/*.js --exit",
