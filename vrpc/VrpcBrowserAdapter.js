@@ -63,7 +63,7 @@ class VrpcAdapter {
    * when provided as object or when exported on the provided module path)
    */
   static register (code, options = {}) {
-    this._registerClass(code, null, options)
+    VrpcAdapter._registerClass(code, null, options)
   }
 
   /**
@@ -271,7 +271,7 @@ class VrpcAdapter {
   }
 
   static _call (json) {
-    this._mustTrackClient = false // reset client tracking flag
+    VrpcAdapter._mustTrackClient = false // reset client tracking flag
     switch (json.f) {
       case '__createIsolated__':
         VrpcAdapter._handleCreateIsolated(json)
@@ -291,7 +291,7 @@ class VrpcAdapter {
     }
     // if we took a listener on board we must tell our caller such that
     // things can be cleaned up later.
-    return this._mustTrackClient
+    return VrpcAdapter._mustTrackClient
   }
 
   static _handleCreateIsolated (json) {
@@ -373,7 +373,7 @@ class VrpcAdapter {
           calls.push({ id, val: v, err: e })
         }
       }
-      this._handlePromise(json, Promise.all(calls))
+      VrpcAdapter._handlePromise(json, Promise.all(calls))
     } catch (err) {
       json.e = err.message
     }
@@ -432,7 +432,7 @@ class VrpcAdapter {
           const ret = Klass[json.f].apply(null, unwrapped)
           // check if function returns promise
           if (VrpcAdapter._isPromise(ret)) {
-            this._handlePromise(json, ret)
+            VrpcAdapter._handlePromise(json, ret)
           } else json.r = ret
         } catch (err) {
           json.e = err.message
@@ -451,7 +451,7 @@ class VrpcAdapter {
           ret = VrpcAdapter.sanitizeEventListenerReturnValues(ret)
           // check if function returns promise
           if (VrpcAdapter._isPromise(ret)) {
-            this._handlePromise(json, ret)
+            VrpcAdapter._handlePromise(json, ret)
           } else json.r = ret
         } catch (err) {
           json.e = err.message
@@ -525,7 +525,7 @@ class VrpcAdapter {
         if (arg.startsWith('__f__')) {
           // function callback
           unwrapped.push(
-            this._generateCallback({
+            VrpcAdapter._generateCallback({
               clientId,
               isCallAll,
               instanceId: context,
@@ -535,7 +535,7 @@ class VrpcAdapter {
         } else if (arg.startsWith('__e__')) {
           // event registration
           if (func === 'on' || func === 'addListener') {
-            this._mustTrackClient = true
+            VrpcAdapter._mustTrackClient = true
             const listener = VrpcAdapter._registerListener({
               clientId,
               isCallAll,
@@ -563,7 +563,7 @@ class VrpcAdapter {
             }
             unwrapped.push(listener)
           } else {
-            this._mustTrackClient = true
+            VrpcAdapter._mustTrackClient = true
             const listener = VrpcAdapter._registerListener({
               clientId,
               isCallAll,
@@ -726,12 +726,12 @@ class VrpcAdapter {
         const funcs = Object.getOwnPropertyNames(klass_.prototype).filter(
           x =>
             !VrpcAdapter._blackList.has(x) &&
-            this._isFunction(klass_.prototype[x])
+            VrpcAdapter._isFunction(klass_.prototype[x])
         )
         fs = [...fs, ...funcs]
       } else {
         const funcs = Object.getOwnPropertyNames(klass_).filter(
-          x => !VrpcAdapter._blackList.has(x) && this._isFunction(klass_[x])
+          x => !VrpcAdapter._blackList.has(x) && VrpcAdapter._isFunction(klass_[x])
         )
         fs = [...fs, ...funcs]
       }
