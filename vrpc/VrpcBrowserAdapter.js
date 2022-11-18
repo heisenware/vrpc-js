@@ -432,7 +432,7 @@ class VrpcAdapter {
     // Check whether context is global
     if (json.c === '__global__') {
       try {
-        const ret = global[json.f].apply(null, unwrapped)
+        const ret = window[json.f].apply(null, unwrapped)
         // check if function returns promise
         if (VrpcAdapter._isPromise(ret)) {
           VrpcAdapter._handlePromise(json, ret)
