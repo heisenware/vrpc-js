@@ -42,6 +42,9 @@ const Ajv = require('ajv')
 const EventEmitter = require('events')
 const { nanoid } = require('nanoid')
 
+const VRPC_GLOBAL = '__global__'
+const VRPC_WINDOW_NS = '__vrpc__'
+
 /**
  * Generates an adapter layer for existing code and enables further VRPC-based
  * communication.
@@ -50,7 +53,7 @@ class VrpcAdapter {
   /**
    * Registers an existing class an makes it callable from remote
    *
-   * @param {Object} code Existing class to be registered
+   * @param {Object} Klass Existing class to be registered
    * @param {Object} [options]
    * @param {Boolean} [options.onlyPublic=true] If true, only registers
    * functions that do not begin with an underscore
@@ -59,7 +62,6 @@ class VrpcAdapter {
    * @param {Object} [options.schema=null] If provided is used to validate ctor
    * parameters (only works if registered code reflects a single class)
    */
-
   static registerClass (
     Klass,
     { onlyPublic = true, withNew = true, schema = null } = {}
@@ -90,13 +92,25 @@ class VrpcAdapter {
     })
   }
 
+ /**
+   * Registers an existing function and makes it callable from remote
+   *
+   * @param {Object} func Existing function to be registered
+   */
   static registerFunction (func) {
-    const functionName = typeof func === 'object' ? func.name : func
-    const registry = VrpcAdapter._functionRegistry.get('__global__')
+    if (typeof func !== 'object') {
+      throw new Error('Provided argument must be a function object')
+    }
+    // add function to global window object
+    if (!window[VRPC_WINDOW_NS]) {
+      window[VRPC_WINDOW_NS] = {}
+    }
+    window[VRPC_WINDOW_NS][func.name] = func
+    const registry = VrpcAdapter._functionRegistry.get(VRPC_GLOBAL)
     const staticFunctions = registry
       ? [...registry.staticFunctions, functionName]
       : [functionName]
-    VrpcAdapter._functionRegistry.set('__global__', {
+    VrpcAdapter._functionRegistry.set(VRPC_GLOBAL, {
       staticFunctions,
       memberFunctions: [],
       meta: {},
@@ -430,9 +444,9 @@ class VrpcAdapter {
     }
 
     // Check whether context is global
-    if (json.c === '__global__') {
+    if (json.c === VRPC_GLOBAL) {
       try {
-        const ret = window[json.f].apply(null, unwrapped)
+        const ret = window[VRPC_WINDOW_NS][json.f].apply(null, unwrapped)
         // check if function returns promise
         if (VrpcAdapter._isPromise(ret)) {
           VrpcAdapter._handlePromise(json, ret)
