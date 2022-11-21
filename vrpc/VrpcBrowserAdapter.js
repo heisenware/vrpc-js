@@ -43,7 +43,7 @@ const EventEmitter = require('events')
 const { nanoid } = require('nanoid')
 
 const VRPC_GLOBAL = '__global__'
-const VRPC_WINDOW_NS = '__vrpc__'
+const VRPC_WINDOW_NS = 'vrpc'
 
 /**
  * Generates an adapter layer for existing code and enables further VRPC-based
@@ -98,14 +98,16 @@ class VrpcAdapter {
    * @param {Object} func Existing function to be registered
    */
   static registerFunction (func) {
+    console.log('registering function', func.name)
     if (typeof func !== 'object') {
       throw new Error('Provided argument must be a function object')
     }
+    const functionName = func.name
     // add function to global window object
     if (!window[VRPC_WINDOW_NS]) {
       window[VRPC_WINDOW_NS] = {}
     }
-    window[VRPC_WINDOW_NS][func.name] = func
+    window[VRPC_WINDOW_NS][functionName] = func
     const registry = VrpcAdapter._functionRegistry.get(VRPC_GLOBAL)
     const staticFunctions = registry
       ? [...registry.staticFunctions, functionName]
