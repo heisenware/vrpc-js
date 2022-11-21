@@ -95,19 +95,19 @@ class VrpcAdapter {
  /**
    * Registers an existing function and makes it callable from remote
    *
-   * @param {Function} func Existing function to be registered
+   * @param {Function} functionObject Existing function to be registered
+   * @param {String} functionName Name of the function to be registered
    */
-  static registerFunction (func) {
-    if (typeof func !== 'function') {
+  static registerFunction (functionObject, functionName) {
+    if (typeof functionObject !== 'function') {
       throw new Error('Provided argument must be a function object')
     }
-    console.log('registering function', func.name)
-    const functionName = func.name
+    console.log('registering function', functionName)
     // add function to global window object
     if (!window[VRPC_WINDOW_NS]) {
       window[VRPC_WINDOW_NS] = {}
     }
-    window[VRPC_WINDOW_NS][functionName] = func
+    window[VRPC_WINDOW_NS][functionName] = functionObject
     const registry = VrpcAdapter._functionRegistry.get(VRPC_GLOBAL)
     const staticFunctions = registry
       ? [...registry.staticFunctions, functionName]
