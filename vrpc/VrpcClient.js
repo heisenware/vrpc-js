@@ -234,13 +234,8 @@ class VrpcClient extends EventEmitter {
         const removed = oldInstances.filter(x => !newInstances.includes(x))
         const added = newInstances.filter(x => !oldInstances.includes(x))
         this._agents[agent].classes[klass] = json
-        const {
-          className,
-          instances,
-          memberFunctions,
-          staticFunctions,
-          meta
-        } = json
+        const { className, instances, memberFunctions, staticFunctions, meta } =
+          json
         if (removed.length !== 0) {
           this.emit('instanceGone', removed, { domain, agent, className })
         }
@@ -710,10 +705,12 @@ class VrpcClient extends EventEmitter {
             `Could not publish MQTT message because: ${err.message}`
           )
           if (err.message === 'client disconnecting') {
-            // Workaround for an already reported bug in MQTT.js (#1284)
+            // This most certainly relates to a bug in MQTT.js (#1284)
+            this._log.error(`Failed to publish, because: ${err.message}`)
+            this.emit('error', err)
             this._log.info('Forcing reconnect now...')
             this._client.disconnecting = false
-            this._client.end(true, {}, () => this._client.reconnect())
+            this._client.reconnect()
           }
         }
       }
@@ -730,10 +727,12 @@ class VrpcClient extends EventEmitter {
             `Could not subscribe to topic(s): '${topic}', because: ${err.message}`
           )
           if (err.message === 'client disconnecting') {
-            // Workaround for an already reported bug in MQTT.js (#1284)
+            // This most certainly relates to a bug in MQTT.js (#1284)
+            this._log.error(`Failed to subscribe, because: ${err.message}`)
+            this.emit('error', err)
             this._log.info('Forcing reconnect now...')
             this._client.disconnecting = false
-            this._client.end(true, {}, () => this._client.reconnect())
+            this._client.reconnect()
           }
         } else {
           const topicArray = Array.isArray(topic) ? topic : [topic]
@@ -880,8 +879,9 @@ class VrpcClient extends EventEmitter {
               c: instance,
               f: functionName,
               a: [eventName],
-              i: `${this._instance}-${this._invokeId++ %
-                Number.MAX_SAFE_INTEGER}`,
+              i: `${this._instance}-${
+                this._invokeId++ % Number.MAX_SAFE_INTEGER
+              }`,
               s: this._vrpcClientId,
               v: VRPC_PROTOCOL_VERSION
             }
@@ -913,8 +913,9 @@ class VrpcClient extends EventEmitter {
             c: instance,
             f: functionName,
             a: wrapped,
-            i: `${this._instance}-${this._invokeId++ %
-              Number.MAX_SAFE_INTEGER}`,
+            i: `${this._instance}-${
+              this._invokeId++ % Number.MAX_SAFE_INTEGER
+            }`,
             s: this._vrpcClientId,
             v: VRPC_PROTOCOL_VERSION
           }
@@ -947,8 +948,9 @@ class VrpcClient extends EventEmitter {
             c: instance,
             f: functionName,
             a: wrapped.slice(1), // first argument was remote function name
-            i: `${this._instance}-${this._invokeId++ %
-              Number.MAX_SAFE_INTEGER}`,
+            i: `${this._instance}-${
+              this._invokeId++ % Number.MAX_SAFE_INTEGER
+            }`,
             s: this._vrpcClientId,
             v: VRPC_PROTOCOL_VERSION
           }
@@ -1003,15 +1005,17 @@ class VrpcClient extends EventEmitter {
 
   async _waitForInstance (instance, options = {}) {
     return new Promise((resolve, reject) => {
-      const handler = timer => (instances, { agent, className }) => {
-        if (instances.includes(instance)) {
-          if (options.agent && agent !== options.agent) return
-          if (options.className && className !== options.className) return
-          clearTimeout(timer)
-          this.removeListener('instanceNew', handler)
-          resolve({ agent, className, instance })
+      const handler =
+        timer =>
+        (instances, { agent, className }) => {
+          if (instances.includes(instance)) {
+            if (options.agent && agent !== options.agent) return
+            if (options.className && className !== options.className) return
+            clearTimeout(timer)
+            this.removeListener('instanceNew', handler)
+            resolve({ agent, className, instance })
+          }
         }
-      }
       const timer = setTimeout(() => {
         this.removeListener('instanceNew', handler(timer))
         const msg = `Could not find instance: ${instance} (> ${this._timeout} ms)`
@@ -1068,8 +1072,9 @@ class VrpcClient extends EventEmitter {
         } else {
           // Regular function callback (can be static or member function)
           const remoteId = proxyId || `${agent}-${className}`
-          const id = `__f__${remoteId}-${functionName}-${i}-${this._invokeId++ %
-            Number.MAX_SAFE_INTEGER}`
+          const id = `__f__${remoteId}-${functionName}-${i}-${
+            this._invokeId++ % Number.MAX_SAFE_INTEGER
+          }`
           wrapped.push(id)
           this._eventEmitter.once(id, ({ a }) => x.apply(null, a))
           continue

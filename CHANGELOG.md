@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - new VrpcAdapter event being triggered just before deletion
 
+### Changed
+
+- when subscribing or publishing fails because the client is "disconnecting" an
+  additional error event is emitted and the client is only reconnected not ended
+  and then reconnected
+
 ## [3.1.1] - Aug 17 2022
 
 ### Fixed
