@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - when subscribing or publishing fails because the client is "disconnecting" an
   additional error event is emitted and the client is only reconnected not ended
   and then reconnected
+- breaking circular JSON structures using json-stringify-safe
+
+### Fixed
+
+- invalid log message triggered when JSON return values are circular
 
 ## [3.1.1] - Aug 17 2022
 

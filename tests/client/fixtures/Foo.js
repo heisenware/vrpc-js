@@ -52,6 +52,13 @@ class Foo extends EventEmitter {
   onValue (callback) {
     this.on('value', callback)
   }
+
+  circularJson () {
+    const circularObj = {}
+    circularObj.circularRef = circularObj
+    circularObj.list = [circularObj, circularObj]
+    return circularObj
+  }
 }
 
 module.exports = Foo

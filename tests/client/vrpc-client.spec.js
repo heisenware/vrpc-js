@@ -199,6 +199,7 @@ describe('vrpc-client', () => {
             'resolvePromise',
             'rejectPromise',
             'onValue',
+            'circularJson',
             'setMaxListeners',
             'getMaxListeners',
             'emit',
@@ -416,6 +417,7 @@ describe('vrpc-client', () => {
             'resolvePromise',
             'rejectPromise',
             'onValue',
+            'circularJson',
             'setMaxListeners',
             'getMaxListeners',
             'emit',
@@ -620,6 +622,13 @@ describe('vrpc-client', () => {
         assert(callbackSpy.calledOnce)
         assert.strictEqual(callbackSpy.args[0][0], null)
         assert.strictEqual(callbackSpy.args[0][1], 3)
+      })
+      it('should withstand circular JSON structures as return value', async () => {
+        const value = await agent1Foo1.circularJson()
+        assert.deepStrictEqual(value, {
+          circularRef: '[Circular ~.r]',
+          list: ['[Circular ~.r]', '[Circular ~.r]']
+        })
       })
       it('should allow batch-calling synchronous functions on a single agent', async () => {
         const value = await client.callAll({

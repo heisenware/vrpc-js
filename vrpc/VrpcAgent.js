@@ -3,8 +3,9 @@ const path = require('path')
 const mqtt = require('mqtt')
 const crypto = require('crypto')
 const { ArgumentParser } = require('argparse')
-const VrpcAdapter = require('./VrpcAdapter')
 const EventEmitter = require('events')
+const jsonStringifySafe = require('json-stringify-safe')
+const VrpcAdapter = require('./VrpcAdapter')
 
 const VRPC_PROTOCOL_VERSION = 3
 
@@ -67,13 +68,11 @@ class VrpcAgent extends EventEmitter {
       default: password
     })
     parser.add_argument('--bestEffort', {
-      help:
-        'Calls function on best-effort. Improves performance but may fail under unstable network connections.',
+      help: 'Calls function on best-effort. Improves performance but may fail under unstable network connections.',
       action: 'store_true'
     })
     parser.add_argument('-V', '-v', '--userVersion', {
-      help:
-        'User defined agent version. May be checked on the remote side for compatibility checks.',
+      help: 'User defined agent version. May be checked on the remote side for compatibility checks.',
       required: false,
       default: version,
       dest: 'version'
@@ -269,10 +268,7 @@ class VrpcAgent extends EventEmitter {
       os.type() +
       JSON.stringify(os.networkInterfaces()) +
       JSON.stringify(os.cpus().map(({ model }) => model))
-    return crypto
-      .createHash('md5')
-      .update(uid)
-      .digest('hex')
+    return crypto.createHash('md5').update(uid).digest('hex')
   }
 
   _validateDomain (domain) {
@@ -427,9 +423,9 @@ class VrpcAgent extends EventEmitter {
     let str
     const { c, f } = json
     try {
-      str = JSON.stringify(json)
+      str = jsonStringifySafe(json)
     } catch (err) {
-      this._log.debug(
+      console.error(
         `Failed serialization of return value for: ${c}::${f}, because: ${err.message}`
       )
       json.r = '__vrpc::not-serializable__'
