@@ -70,6 +70,7 @@ class VrpcClient extends EventEmitter {
    * @param {Boolean} [options.bestEffort=false] If true, message will be sent with best effort, i.e. no caching if offline
    * @param {String} [options.mqttClientId='<generated()>'] Explicitly sets the mqtt client id
    * @param {String} [options.identity] Explicitly sets a vrpc client identity
+   * @param {String} [options.keepalive] Sets the MQTT keepalive interval (in seconds)
    * @example
    * const client = new VrpcClient({
    *   domain: 'vrpc',
@@ -87,7 +88,8 @@ class VrpcClient extends EventEmitter {
     log = 'console',
     bestEffort = false,
     mqttClientId = null,
-    identity = null
+    identity = null,
+    keepalive = 30
   } = {}) {
     super()
     // domain sanity check
@@ -117,6 +119,7 @@ class VrpcClient extends EventEmitter {
     this._broker = broker
     this._timeout = timeout
     this._identity = identity
+    this._keepalive = keepalive
     this._qos = this._qos = bestEffort ? 0 : 1
 
     this._instance = nanoid(8)
@@ -170,7 +173,7 @@ class VrpcClient extends EventEmitter {
       username,
       password,
       clean: true,
-      keepalive: 30,
+      keepalive: this._keepalive,
       clientId: this._mqttClientId,
       rejectUnauthorized: false,
       connectTimeout: this._timeout,
