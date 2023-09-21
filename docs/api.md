@@ -496,6 +496,7 @@ NOTE: Each instance creates its own physical connection to the broker.
     - [.mqttClientId] <code>String</code> <code> = &#x27;&lt;generated()&gt;&#x27;</code> - Explicitly sets the mqtt client id
     - [.identity] <code>String</code> - Explicitly sets a vrpc client identity
     - [.keepalive] <code>String</code> - Sets the MQTT keepalive interval (in seconds)
+    - [.requiresSchema] <code>Boolean</code> <code> = false</code> - If true, any available schema information is shipped
 
 **Example**  
 ```js

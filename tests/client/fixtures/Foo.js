@@ -1,11 +1,20 @@
 const EventEmitter = require('events')
 
 class Foo extends EventEmitter {
+  /**
+   * Constructs a foo class
+   * @param {Integer} [value=0] The initial value
+   */
   constructor (value = 0) {
     super()
     this._value = value
   }
 
+  /**
+   * Standalone functions that increments the provided number by 1
+   * @param {Number} [value=0] The number to be incremented
+   * @returns The incremented number
+   */
   static staticIncrement (value = 0) {
     return value + 1
   }

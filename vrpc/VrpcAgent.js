@@ -452,6 +452,7 @@ class VrpcAgent extends EventEmitter {
     const classes = this._getClasses()
     classes.forEach(className => {
       this._publishClassInfoMessage(className)
+      this._publishClassInfoConciseMessage(className)
     })
     // Register all pre-existing instances
     for (const [
@@ -473,7 +474,7 @@ class VrpcAgent extends EventEmitter {
 
   _publishClassInfoMessage (className) {
     const json = {
-      className: className,
+      className,
       instances: this._getInstances(className),
       memberFunctions: this._getMemberFunctions(className),
       staticFunctions: this._getStaticFunctions(className),
@@ -483,6 +484,25 @@ class VrpcAgent extends EventEmitter {
     try {
       this._mqttPublish(
         `${this._baseTopic}/${className}/__classInfo__`,
+        JSON.stringify(json),
+        { retain: true }
+      )
+    } catch (err) {
+      this._log.error(err, `Problem during publishing schema: ${err.message}`)
+    }
+  }
+
+  _publishClassInfoConciseMessage (className) {
+    const json = {
+      className,
+      instances: this._getInstances(className),
+      memberFunctions: this._getMemberFunctions(className),
+      staticFunctions: this._getStaticFunctions(className),
+      v: VRPC_PROTOCOL_VERSION
+    }
+    try {
+      this._mqttPublish(
+        `${this._baseTopic}/${className}/__classInfoConcise__`,
         JSON.stringify(json),
         { retain: true }
       )
@@ -559,6 +579,7 @@ class VrpcAgent extends EventEmitter {
           if (!this._hasSharedInstance(instanceId)) {
             this._subscribeToMethodsOfNewInstance(className, instanceId)
             this._publishClassInfoMessage(className)
+            this._publishClassInfoConciseMessage(className)
           }
           this._registerSharedInstance(instanceId, json.s)
           break
@@ -566,7 +587,10 @@ class VrpcAgent extends EventEmitter {
         case '__delete__': {
           this._unsubscribeMethodsOfDeletedInstance(className, instance)
           const wasShared = this._unregisterInstance(json.a[0], json.s)
-          if (wasShared) this._publishClassInfoMessage(className)
+          if (wasShared) {
+            this._publishClassInfoMessage(className)
+            this._publishClassInfoConciseMessage(className)
+          }
           break
         }
       }

@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   and then reconnected
 - breaking circular JSON structures using json-stringify-safe
 - changed bestEffort default to true, both on clients and agents
+- deleted `meta` property from `__classInfo__` message
+- meta information is not shipped by default anymore, a new flag
+  `requiresSchema` must instead be set to true, for that to work:
+
+  - second topic `__classInfoConcise__`  was introduced with `meta` tag removed
+  - agents provide retained messages on both topics
+  - clients subscribe to one or the other depending on the `requiresSchema`
+    setting
 
 ### Fixed
 

@@ -71,6 +71,7 @@ class VrpcClient extends EventEmitter {
    * @param {String} [options.mqttClientId='<generated()>'] Explicitly sets the mqtt client id
    * @param {String} [options.identity] Explicitly sets a vrpc client identity
    * @param {String} [options.keepalive] Sets the MQTT keepalive interval (in seconds)
+   * @param {Boolean} [options.requiresSchema=false] If true, any available schema information is shipped
    * @example
    * const client = new VrpcClient({
    *   domain: 'vrpc',
@@ -89,7 +90,8 @@ class VrpcClient extends EventEmitter {
     bestEffort = true,
     mqttClientId = null,
     identity = null,
-    keepalive = 30
+    keepalive = 30,
+    requiresSchema = false
   } = {}) {
     super()
     // domain sanity check
@@ -121,6 +123,7 @@ class VrpcClient extends EventEmitter {
     this._identity = identity
     this._keepalive = keepalive
     this._qos = this._qos = bestEffort ? 0 : 1
+    this._requiresSchema = requiresSchema
 
     this._instance = nanoid(8)
     this._mqttClientId = mqttClientId || this._createMqttClientId()
@@ -204,7 +207,11 @@ class VrpcClient extends EventEmitter {
       // Agent info
       this._mqttSubscribe(`${this._domain}/${agent}/__agentInfo__`)
       // Class info
-      this._mqttSubscribe(`${this._domain}/${agent}/+/__classInfo__`)
+      if (this._requiresSchema) {
+        this._mqttSubscribe(`${this._domain}/${agent}/+/__classInfo__`)
+      } else {
+        this._mqttSubscribe(`${this._domain}/${agent}/+/__classInfoConcise__`)
+      }
       // RPC responses
       this._mqttSubscribe(this._vrpcClientId)
       this.emit('connect')
@@ -227,8 +234,11 @@ class VrpcClient extends EventEmitter {
         this._agents[agent].version = version
         this.emit('agent', { domain, agent, status, hostname, version })
         // ClassInfo message
-      } else if (instance === '__classInfo__') {
-        // Json properties: { klass, instances, memberFunctions, staticFunctions }
+      } else if (
+        instance === '__classInfo__' ||
+        instance === '__classInfoConcise__'
+      ) {
+        // Json properties: { className, instances, memberFunctions, staticFunctions }
         const json = JSON.parse(message.toString())
         this._createIfNotExist(agent)
         const oldClassInfo = this._agents[agent].classes[klass]
@@ -252,7 +262,7 @@ class VrpcClient extends EventEmitter {
           instances,
           memberFunctions,
           staticFunctions,
-          meta
+          meta: meta || {}
         })
         // RPC message
       } else {
