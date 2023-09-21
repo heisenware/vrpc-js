@@ -98,7 +98,7 @@ class VrpcAgent extends EventEmitter {
    * @param {String} [obj.agent='<user>-<pathId>@<hostname>-<platform>-js'] This agent's name
    * @param {String} [obj.broker='mqtts://vrpc.io:8883'] Broker url in form: `<scheme>://<host>:<port>`
    * @param {Object} [obj.log=console] Log object (must support debug, info, warn, and error level)
-   * @param {String} [obj.bestEffort=false] If true, message will be sent with best effort, i.e. no caching if offline
+   * @param {String} [obj.bestEffort=true] If true, message will be sent with best effort, i.e. no caching if offline
    * @param {String} [obj.version=''] The (user-defined) version of this agent
    * @param {String} [obj.mqttClientId='<generated()>'] Explicitly set the mqtt client id.
    *
@@ -116,7 +116,7 @@ class VrpcAgent extends EventEmitter {
     agent = VrpcAgent._generateAgentName(),
     broker = 'mqtts://vrpc.io:8883',
     log = 'console',
-    bestEffort = false,
+    bestEffort = true,
     version = '',
     mqttClientId = null
   } = {}) {

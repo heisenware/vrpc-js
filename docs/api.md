@@ -268,7 +268,7 @@ Constructs an agent instance
     - [.agent] <code>String</code> <code> = &#x27;&lt;user&gt;-&lt;pathId&gt;@&lt;hostname&gt;-&lt;platform&gt;-js&#x27;</code> - This agent's name
     - [.broker] <code>String</code> <code> = &#x27;mqtts://vrpc.io:8883&#x27;</code> - Broker url in form: `<scheme>://<host>:<port>`
     - [.log] <code>Object</code> <code> = console</code> - Log object (must support debug, info, warn, and error level)
-    - [.bestEffort] <code>String</code> <code> = false</code> - If true, message will be sent with best effort, i.e. no caching if offline
+    - [.bestEffort] <code>String</code> <code> = true</code> - If true, message will be sent with best effort, i.e. no caching if offline
     - [.version] <code>String</code> <code> = &#x27;&#x27;</code> - The (user-defined) version of this agent
     - [.mqttClientId] <code>String</code> <code> = &#x27;&lt;generated()&gt;&#x27;</code> - Explicitly set the mqtt client id.
 
@@ -492,7 +492,7 @@ NOTE: Each instance creates its own physical connection to the broker.
     - [.broker] <code>String</code> <code> = &quot;mqtts://vrpc.io:8883&quot;</code> - Broker url in form: `<scheme>://<host>:<port>`
     - [.timeout] <code>Number</code> <code> = 6000</code> - Maximum time in ms to wait for a RPC answer
     - [.log] <code>Object</code> <code> = console</code> - Log object (must support debug, info, warn, and error level)
-    - [.bestEffort] <code>Boolean</code> <code> = false</code> - If true, message will be sent with best effort, i.e. no caching if offline
+    - [.bestEffort] <code>Boolean</code> <code> = true</code> - If true, message will be sent with best effort, i.e. no caching if offline
     - [.mqttClientId] <code>String</code> <code> = &#x27;&lt;generated()&gt;&#x27;</code> - Explicitly sets the mqtt client id
     - [.identity] <code>String</code> - Explicitly sets a vrpc client identity
     - [.keepalive] <code>String</code> - Sets the MQTT keepalive interval (in seconds)

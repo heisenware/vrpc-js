@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   additional error event is emitted and the client is only reconnected not ended
   and then reconnected
 - breaking circular JSON structures using json-stringify-safe
+- changed bestEffort default to true, both on clients and agents
 
 ### Fixed
 

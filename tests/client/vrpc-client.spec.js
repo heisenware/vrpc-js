@@ -1028,7 +1028,8 @@ describe('vrpc-client', () => {
     const vrpcClient = new VrpcClient({
       domain: 'test.vrpc',
       agent: 'js',
-      token: 'notreallyneeded'
+      token: 'notreallyneeded',
+      bestEffort: false
     })
 
     // Install a mock mqtt client object
