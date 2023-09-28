@@ -2,7 +2,7 @@ version: "3.1"
 services:
 
   client:
-    image: node:12.16.1-alpine
+    image: node:16.15.1-alpine
     hostname: client
     container_name: ${TEST_CONT}
     volumes:
@@ -31,7 +31,7 @@ services:
     #   - 1883:1883/tcp
 
   agent1:
-    image: node:12.16.1-alpine
+    image: node:16.15.1-alpine
     hostname: agent1
     volumes:
       - ../../:/app
@@ -47,7 +47,7 @@ services:
     ]
 
   agent2:
-    image: node:12.16.1-alpine
+    image: node:16.15.1-alpine
     hostname: agent2
     volumes:
       - ../../:/app
@@ -63,7 +63,7 @@ services:
     ]
 
   agent3:
-    image: node:12.16.1-alpine
+    image: node:16.15.1-alpine
     hostname: agent3
     volumes:
       - ../../:/app

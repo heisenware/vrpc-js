@@ -224,7 +224,9 @@ describe('vrpc-client', () => {
             'staticCallback',
             'once',
             'on',
+            'getEventListeners',
             'EventEmitter',
+            'setMaxListeners',
             'init',
             'listenerCount',
             '__createIsolated__',
@@ -442,7 +444,9 @@ describe('vrpc-client', () => {
             'staticCallback',
             'once',
             'on',
+            'getEventListeners',
             'EventEmitter',
+            'setMaxListeners',
             'init',
             'listenerCount',
             '__createIsolated__',
@@ -614,6 +618,17 @@ describe('vrpc-client', () => {
       it('should work for asynchronous functions', async () => {
         const value = await agent1Foo1.resolvePromise(100)
         assert.strictEqual(value, 3)
+      })
+      it('should properly catch errors with message and cause', async () => {
+        await assert.rejects(
+          async () => {
+            await agent1Foo1.rejectPromise(100)
+          },
+          err =>
+            err.message ===
+              '[vrpc agent1-agent1Foo1-rejectPromise]: Test Error: 3' &&
+            err.cause === 'we need to test everything'
+        )
       })
       it('should work for functions with callback arguments', async () => {
         const callbackSpy = sinon.spy()

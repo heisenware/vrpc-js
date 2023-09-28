@@ -997,16 +997,23 @@ class VrpcClient extends EventEmitter {
       this._eventEmitter.once(i, data => {
         clearTimeout(timer)
         if (data.e) {
-          reject(new Error(`[vrpc ${agent}-${c}-${f}]: ${data.e}`))
+          const { message, cause } = VrpcClient._prepareError(data.e)
+          reject(new Error(`[vrpc ${agent}-${c}-${f}]: ${message}`, { cause }))
         } else {
           const ret = data.r
           // Handle functions returning a promise
           if (typeof ret === 'string' && ret.substring(0, 5) === '__p__') {
             this._eventEmitter.once(ret, promiseData => {
-              // TODO improve error message here, like above
-              if (promiseData.e)
-                reject(new Error(`[vrpc ${agent}-${c}-${f}]: ${promiseData.e}`))
-              else resolve(promiseData.r)
+              if (promiseData.e) {
+                const { message, cause } = VrpcClient._prepareError(
+                  promiseData.e
+                )
+                reject(
+                  new Error(`[vrpc ${agent}-${c}-${f}]: ${message}`, { cause })
+                )
+              } else {
+                resolve(promiseData.r)
+              }
             })
           } else {
             resolve(ret)
@@ -1014,6 +1021,13 @@ class VrpcClient extends EventEmitter {
         }
       })
     })
+  }
+
+  static _prepareError (rpcError) {
+    if (typeof rpcError === 'object') {
+      return { message: rpcError.message, cause: rpcError.cause }
+    }
+    return { message: rpcError, cause: undefined }
   }
 
   async _waitForInstance (instance, options = {}) {

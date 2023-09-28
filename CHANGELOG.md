@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - new VrpcAdapter event being triggered just before deletion
 - possibility to configure the keepalive interval
+- possibility to skip receiving meta data (which is the new default)
+- support for the node 16 "cause" property on error objects
 
 ### Changed
 
@@ -19,7 +21,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   and then reconnected
 - breaking circular JSON structures using json-stringify-safe
 - changed bestEffort default to true, both on clients and agents
-- deleted `meta` property from `__classInfo__` message
 - meta information is not shipped by default anymore, a new flag
   `requiresSchema` must instead be set to true, for that to work:
 

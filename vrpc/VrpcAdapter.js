@@ -194,7 +194,10 @@ class VrpcAdapter {
     const obj = isIsolated
       ? VrpcAdapter._handleCreateIsolated(json)
       : VrpcAdapter._handleCreateShared(json)
-    if (json.e) throw new Error(json.e)
+    if (json.e) {
+      const { message, cause } = json.e
+      throw new Error(message, { cause })
+    }
     return obj
   }
 
@@ -369,10 +372,7 @@ class VrpcAdapter {
           )
           if (ret.length === 1) {
             const { source, type } = ret[0]
-            const description = source
-              .split(' ')
-              .splice(2)
-              .join(' ')
+            const description = source.split(' ').splice(2).join(' ')
             ret = { description, type }
           } else {
             ret = null
@@ -441,7 +441,8 @@ class VrpcAdapter {
       })
       json.r = instanceId
     } catch (err) {
-      json.e = err.message
+      const { message, cause } = err
+      json.e = { message, cause }
     }
     return instance
   }
@@ -465,7 +466,8 @@ class VrpcAdapter {
         instance: instanceId
       })
     } catch (err) {
-      json.e = err.message
+      const { message, cause } = err
+      json.e = { message, cause }
     }
     return instance
   }
@@ -503,7 +505,8 @@ class VrpcAdapter {
       }
       this._handlePromise(json, Promise.all(calls))
     } catch (err) {
-      json.e = err.message
+      const { message, cause } = err
+      json.e = { message, cause }
     }
   }
 
@@ -529,7 +532,8 @@ class VrpcAdapter {
         className: json.c
       })
     } catch (err) {
-      json.e = err.message
+      const { message, cause } = err
+      json.e = { message, cause }
     }
   }
 
@@ -563,7 +567,8 @@ class VrpcAdapter {
             this._handlePromise(json, ret)
           } else json.r = ret
         } catch (err) {
-          json.e = err.message
+          const { message, cause } = err
+          json.e = { message, cause }
         }
       } else throw new Error(`Could not find function: ${json.f}`)
     } else {
@@ -582,7 +587,8 @@ class VrpcAdapter {
             this._handlePromise(json, ret)
           } else json.r = ret
         } catch (err) {
-          json.e = err.message
+          const { message, cause } = err
+          json.e = { message, cause }
         }
       } else throw new Error(`Could not find function: ${json.f}`)
     }
@@ -672,9 +678,7 @@ class VrpcAdapter {
               event: args[0]
             })
             if (
-              VrpcAdapter.getInstance(context)
-                .listeners(arg)
-                .includes(listener)
+              VrpcAdapter.getInstance(context).listeners(arg).includes(listener)
             ) {
               return null // skip call as listener is already registered
             }
@@ -803,17 +807,21 @@ class VrpcAdapter {
       json.r = id
       promise
         .then(r => VrpcAdapter._callback({ ...json, r, i: id }))
-        .catch(err => VrpcAdapter._callback({ ...json, e: err.message, i: id }))
+        .catch(err =>
+          VrpcAdapter._callback({
+            ...json,
+            e: { message: err.message, cause: err.cause },
+            i: id
+          })
+        )
     } catch (err) {
-      json.data.e = err.message
+      const { message, cause } = err
+      json.data.e = { message, cause }
     }
   }
 
   static _generateId (object) {
-    return crypto
-      .createHash('md5')
-      .update(JSON.stringify(object))
-      .digest('hex')
+    return crypto.createHash('md5').update(JSON.stringify(object)).digest('hex')
   }
 
   static _getClassEntry (className) {

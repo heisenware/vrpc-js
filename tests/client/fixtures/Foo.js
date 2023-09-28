@@ -53,7 +53,14 @@ class Foo extends EventEmitter {
 
   async rejectPromise (ms) {
     await new Promise((resolve, reject) => {
-      setTimeout(() => reject(new Error(`Test Error: ${this._value}`), ms))
+      setTimeout(() =>
+        reject(
+          new Error(`Test Error: ${this._value}`, {
+            cause: 'we need to test everything'
+          }),
+          ms
+        )
+      )
     })
   }
 
