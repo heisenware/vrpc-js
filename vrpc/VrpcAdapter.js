@@ -503,7 +503,12 @@ class VrpcAdapter {
           calls.push({ id, val: v, err: e })
         }
       }
-      this._handlePromise(json, Promise.all(calls))
+      this._handlePromise(
+        json,
+        Promise.allSettled(calls).then(result =>
+          result.filter(x => x.status === 'fulfilled').map(x => x.value)
+        )
+      )
     } catch (err) {
       const { message, cause } = err
       json.e = { message, cause }
