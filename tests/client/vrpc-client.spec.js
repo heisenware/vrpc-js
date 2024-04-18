@@ -47,7 +47,7 @@ describe('vrpc-client', () => {
         domain: 'test.vrpc'
       })
       await assert.rejects(async () => client.connect(), {
-        message: 'Connection trial timed out (> 6000 ms)'
+        message: 'Connection trial timed out (> 12000 ms)'
       })
     })
     it('should not connect when constructed using bad broker under different timeout', async () => {

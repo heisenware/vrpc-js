@@ -230,7 +230,7 @@ describe('Another instance of the VrpcClient class', () => {
           await vrpc.getInstance('bad', { className: 'TestClass' })
           assert.fail()
         } catch (err) {
-          assert.equal(err.message, 'Could not find instance: bad (> 6000 ms)')
+          assert.equal(err.message, 'Could not find instance: bad (> 12000 ms)')
         }
       })
       it('should not be possible to attach to non-existing instance without timeout', async () => {
@@ -269,7 +269,7 @@ describe('Another instance of the VrpcClient class', () => {
           } catch (err) {
             assert.equal(
               err.message,
-              'Could not find instance: test1 (> 6000 ms)'
+              'Could not find instance: test1 (> 12000 ms)'
             )
           }
         })

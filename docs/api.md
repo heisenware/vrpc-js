@@ -490,7 +490,7 @@ NOTE: Each instance creates its own physical connection to the broker.
     - .domain <code>String</code> - Sets the domain
     - [.agent] <code>String</code> <code> = &quot;*&quot;</code> - Sets default agent
     - [.broker] <code>String</code> <code> = &quot;mqtts://vrpc.io:8883&quot;</code> - Broker url in form: `<scheme>://<host>:<port>`
-    - [.timeout] <code>Number</code> <code> = 6000</code> - Maximum time in ms to wait for a RPC answer
+    - [.timeout] <code>Number</code> <code> = 12000</code> - Maximum time in ms to wait for a RPC answer
     - [.log] <code>Object</code> <code> = console</code> - Log object (must support debug, info, warn, and error level)
     - [.bestEffort] <code>Boolean</code> <code> = true</code> - If true, message will be sent with best effort, i.e. no caching if offline
     - [.mqttClientId] <code>String</code> <code> = &#x27;&lt;generated()&gt;&#x27;</code> - Explicitly sets the mqtt client id

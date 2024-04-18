@@ -65,7 +65,7 @@ class VrpcClient extends EventEmitter {
    * @param {String} options.domain Sets the domain
    * @param {String} [options.agent="*"] Sets default agent
    * @param {String} [options.broker="mqtts://vrpc.io:8883"] Broker url in form: `<scheme>://<host>:<port>`
-   * @param {Number} [options.timeout=6000] Maximum time in ms to wait for a RPC answer
+   * @param {Number} [options.timeout=12000] Maximum time in ms to wait for a RPC answer
    * @param {Object} [options.log=console] Log object (must support debug, info, warn, and error level)
    * @param {Boolean} [options.bestEffort=true] If true, message will be sent with best effort, i.e. no caching if offline
    * @param {String} [options.mqttClientId='<generated()>'] Explicitly sets the mqtt client id
@@ -85,7 +85,7 @@ class VrpcClient extends EventEmitter {
     domain,
     agent = '*',
     broker = 'mqtts://vrpc.io:8883',
-    timeout = 6 * 1000,
+    timeout = 12 * 1000,
     log = 'console',
     bestEffort = true,
     mqttClientId = null,
