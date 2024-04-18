@@ -111,10 +111,8 @@ class VrpcAdapter {
       this._registerClass(Klass, absJsdocPath, options)
     } else {
       const { jsdocPath } = options
-      const sJsdocPath =
-        jsdocPath && jsdocPath.endsWith('.js') ? jsdocPath : `${jsdocPath}.js`
       if (jsdocPath) {
-        const absJsdocPath = path.resolve(caller(), '../', sJsdocPath)
+        const absJsdocPath = path.resolve(caller(), '../', jsdocPath)
         this._registerClass(code, absJsdocPath, { ...options, jsdoc: true })
       } else {
         this._registerClass(code, null, options)
