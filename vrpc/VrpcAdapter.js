@@ -111,8 +111,10 @@ class VrpcAdapter {
       this._registerClass(Klass, absJsdocPath, options)
     } else {
       const { jsdocPath } = options
+      const sJsdocPath =
+        jsdocPath && jsdocPath.endsWith('.js') ? jsdocPath : `${jsdocPath}.js`
       if (jsdocPath) {
-        const absJsdocPath = path.resolve(caller(), '../', jsdocPath)
+        const absJsdocPath = path.resolve(caller(), '../', sJsdocPath)
         this._registerClass(code, absJsdocPath, { ...options, jsdoc: true })
       } else {
         this._registerClass(code, null, options)
@@ -626,9 +628,10 @@ class VrpcAdapter {
     Object.entries(VrpcAdapter._listeners).forEach(([ik, iv]) => {
       Object.entries(iv).forEach(([ek, ev]) => {
         const { clients, listener, event } = ev
-        if (clients.has(clientId)) {
-          clients.delete(clientId)
-          if (clients.size === 0) {
+        const index = clients.indexOf(clientId)
+        if (index !== -1) {
+          clients.splice(index, 1)
+          if (clients.length === 0) {
             const instance = VrpcAdapter.getInstance(ik)
             if (instance && instance.removeListener) {
               instance.removeListener(event, listener)
@@ -680,9 +683,7 @@ class VrpcAdapter {
               eventId: arg,
               event: args[0]
             })
-            if (
-              VrpcAdapter.getInstance(context).listeners(arg).includes(listener)
-            ) {
+            if (!listener) {
               return null // skip call as listener is already registered
             }
             unwrapped.push(listener)
@@ -738,7 +739,7 @@ class VrpcAdapter {
       VrpcAdapter._listeners[instanceId] = {
         [eventId]: {
           event,
-          clients: new Set([clientId]),
+          clients: [clientId],
           listener: VrpcAdapter._generateListener({
             eventId,
             instanceId,
@@ -746,20 +747,22 @@ class VrpcAdapter {
           })
         }
       }
-    } else if (!VrpcAdapter._listeners[instanceId][eventId]) {
+      return VrpcAdapter._listeners[instanceId][eventId].listener
+    }
+    if (!VrpcAdapter._listeners[instanceId][eventId]) {
       VrpcAdapter._listeners[instanceId][eventId] = {
         event,
-        clients: new Set([clientId]),
+        clients: [clientId],
         listener: VrpcAdapter._generateListener({
           eventId,
           instanceId,
           isCallAll
         })
       }
-    } else {
-      VrpcAdapter._listeners[instanceId][eventId].clients.add(clientId)
+      return VrpcAdapter._listeners[instanceId][eventId].listener
     }
-    return VrpcAdapter._listeners[instanceId][eventId].listener
+    VrpcAdapter._listeners[instanceId][eventId].clients.push(clientId)
+    return null
   }
 
   static _generateListener ({ eventId, instanceId, isCallAll }) {
@@ -775,8 +778,9 @@ class VrpcAdapter {
       VrpcAdapter._listeners[instanceId][eventId]
     ) {
       const { listener, clients } = VrpcAdapter._listeners[instanceId][eventId]
-      clients.delete(clientId)
-      if (clients.size === 0) {
+      const index = clients.indexOf(clientId)
+      if (index !== -1) clients.splice(index, 1)
+      if (clients.length === 0) {
         delete VrpcAdapter._listeners[instanceId][eventId]
         if (Object.keys(VrpcAdapter._listeners[instanceId]).length === 0) {
           delete VrpcAdapter._listeners[instanceId]
@@ -790,9 +794,9 @@ class VrpcAdapter {
     const eventIds = VrpcAdapter._listeners[instanceId]
     if (!eventIds) return
     Object.entries(eventIds).forEach(([ek, ev]) => {
-      if (ev.event === event && ev.clients.has(clientId)) {
-        ev.clients.delete(clientId)
-        if (ev.clients.size === 0) {
+      if (ev.event === event && ev.clients.includes(clientId)) {
+        ev.clients = ev.clients.filter(x => x !== clientId)
+        if (ev.clients.length === 0) {
           VrpcAdapter.getInstance(instanceId).removeListener(
             ev.event,
             ev.listener

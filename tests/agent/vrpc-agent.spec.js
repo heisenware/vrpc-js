@@ -5,7 +5,11 @@ const { VrpcAgent, VrpcClient, VrpcAdapter } = require('../../index')
 const assert = require('assert')
 const sinon = require('sinon')
 
-class Foo {}
+class Foo {
+  ping () {
+    return 'pong'
+  }
+}
 
 VrpcAdapter.register(Foo)
 
@@ -16,27 +20,32 @@ describe('vrpc-agent', () => {
   describe('construction and connection', () => {
     it('should not construct using bad parameters', async () => {
       assert.throws(
-        () => new VrpcAgent({ broker: 'mqtt://doesNotWork:1883', domain: null }),
+        () =>
+          new VrpcAgent({ broker: 'mqtt://doesNotWork:1883', domain: null }),
         {
           message: 'The domain must be specified'
         }
       )
       assert.throws(
-        () => new VrpcAgent({
-          broker: 'mqtt://doesNotWork:1883',
-          domain: '*'
-        }),
+        () =>
+          new VrpcAgent({
+            broker: 'mqtt://doesNotWork:1883',
+            domain: '*'
+          }),
         {
-          message: 'The domain must NOT contain any of those characters: "+", "/", "#", "*"'
+          message:
+            'The domain must NOT contain any of those characters: "+", "/", "#", "*"'
         }
       )
       assert.throws(
-        () => new VrpcAgent({
-          broker: 'mqtt://doesNotWork:1883',
-          domain: 'a/b'
-        }),
+        () =>
+          new VrpcAgent({
+            broker: 'mqtt://doesNotWork:1883',
+            domain: 'a/b'
+          }),
         {
-          message: 'The domain must NOT contain any of those characters: "+", "/", "#", "*"'
+          message:
+            'The domain must NOT contain any of those characters: "+", "/", "#", "*"'
         }
       )
     })
@@ -69,7 +78,10 @@ describe('vrpc-agent', () => {
       agent.on('reconnect', reconnectSpy)
       agent.on('reconnect', () => agent.end())
       await agent.serve()
-      assert.strictEqual(errorSpy.args[0][0].message, 'Connection refused: Not authorized')
+      assert.strictEqual(
+        errorSpy.args[0][0].message,
+        'Connection refused: Not authorized'
+      )
       assert(reconnectSpy.calledOnce)
     })
     context('when constructed using good parameters and broker', () => {
@@ -245,6 +257,47 @@ describe('vrpc-agent', () => {
       await client2.end()
       assert(clientGoneSpy.called)
       assert(clientGoneSpy.calledWith(client2.getClientId()))
+    })
+  })
+  /***************************
+   * local instance creation *
+   ***************************/
+  describe('creating instances locally', () => {
+    const instanceNewSpy = sinon.spy()
+    let agent
+    let client
+    before(async () => {
+      agent = new VrpcAgent({
+        broker: 'mqtt://broker:1883',
+        domain: 'test.vrpc',
+        agent: 'agent3',
+        username: 'Erwin',
+        password: '12345'
+      })
+      await agent.serve()
+      client = new VrpcClient({
+        broker: 'mqtt://broker:1883',
+        domain: 'test.vrpc',
+        username: 'Erwin',
+        password: '12345'
+      })
+      await client.connect()
+    })
+    after(async () => {
+      client.end()
+      agent.end()
+    })
+    it('should be possible to create an instance using the agent', async () => {
+      client.on('instanceNew', instanceNewSpy)
+      agent.create({
+        agent: 'agent3',
+        className: 'Foo',
+        instance: 'locallyCreatedFoo'
+      })
+      const proxy = await client.getInstance('locallyCreatedFoo')
+      const value = await proxy.ping()
+      assert.equal(value, 'pong')
+      assert(instanceNewSpy.called)
     })
   })
 })

@@ -240,6 +240,7 @@ Agent capable of making existing code available to remote control by clients.
     * _instance_
         * [.serve()](#VrpcAgent+serve) ⇒ <code>Promise</code>
         * [.end([obj], [unregister])](#VrpcAgent+end) ⇒ <code>Promise</code>
+        * [.create(options)](#VrpcAgent+create) ⇒ <code>Object</code>
         * ["connect"](#VrpcAgent+event_connect)
         * ["reconnect"](#VrpcAgent+event_reconnect)
         * ["close"](#VrpcAgent+event_close)
@@ -313,6 +314,29 @@ Stops the agent
 
 - [obj] <code>Object</code>
 - [unregister] <code>Boolean</code> <code> = false</code> - If true, fully un-registers agent from broker
+
+
+* * *
+
+<a name="VrpcAgent+create"></a>
+
+### vrpcAgent.create(options) ⇒ <code>Object</code>
+Creates a new instance locally
+
+NOTE: The instance must previously be registered by the local VrpcAdapter
+
+**Kind**: instance method of [<code>VrpcAgent</code>](#VrpcAgent)  
+**Returns**: <code>Object</code> - The real instance (not a proxy!)  
+**Params**
+
+- options <code>Object</code>
+    - .className <code>String</code> - Name of the class which should be
+instantiated
+    - [.instance] <code>String</code> - Name of the created instance. If not
+provided an id will be generated
+    - [.args] <code>Array</code> - Positional arguments for the constructor call
+    - [.isIsolated] <code>bool</code> <code> = false</code> - If true the created instance will
+be visible only to the client who created it
 
 
 * * *

@@ -243,6 +243,36 @@ class VrpcAgent extends EventEmitter {
     }
   }
 
+  /**
+   * Creates a new instance locally
+   *
+   * NOTE: The instance must previously be registered by the local VrpcAdapter
+   *
+   * @param {Object} options
+   * @param {String} options.className Name of the class which should be
+   * instantiated
+   * @param {String} [options.instance] Name of the created instance. If not
+   * provided an id will be generated
+   * @param {Array} [options.args] Positional arguments for the constructor call
+   * @param {bool} [options.isIsolated=false] If true the created instance will
+   * be visible only to the client who created it
+   * @returns {Object} The real instance (not a proxy!)
+   */
+  create ({
+    className,
+    instance = nanoid(8),
+    args = [],
+    isIsolated = false
+  }) {
+    const obj = VrpcAdapter.create({ className, instance, args, isIsolated })
+    if (!this._hasSharedInstance(instance)) {
+      this._subscribeToMethodsOfNewInstance(className, instance)
+      this._publishClassInfoMessage(className)
+      this._publishClassInfoConciseMessage(className)
+    }
+    return obj
+  }
+
   static _generateAgentName () {
     const { username } = os.userInfo()
     const pathId = crypto

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - possibility to configure the keepalive interval
 - possibility to skip receiving meta data (which is the new default)
 - support for the node 16 "cause" property on error objects
+- create function for VrpcAgent that allows local instance creation
 
 ### Changed
 
@@ -32,6 +33,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - invalid log message triggered when JSON return values are circular
+- multiple emitter registration under the same clientId
+- issue when loading files that are not ending with ".js"
 
 ## [3.1.1] - Aug 17 2022
 
