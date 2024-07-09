@@ -3,7 +3,7 @@ const Foo = require('./Foo')
 const Bar = require('./Bar')
 const { VrpcAdapter, VrpcAgent } = require('../../../index')
 
-VrpcAdapter.register(Foo, { jsdocPath: './Foo' })
+VrpcAdapter.register(Foo, { jsdocPath: './Foo.js' })
 VrpcAdapter.register(Bar)
 
 async function main () {
