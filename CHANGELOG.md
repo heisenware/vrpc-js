@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - agents provide retained messages on both topics
   - clients subscribe to one or the other depending on the `requiresSchema`
     setting
+- using `docker compose` instead of `docker-compose` in the test suite
 
 ### Fixed
 
@@ -295,7 +296,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Reference documentation for Node.js based components [Node.js]
 - Feature to `callAll` instances of the same class across agents [Node.js]
-- Initial setup for a new docker-compose based specification testing [Node.js]
+- Initial setup for a new docker compose based specification testing [Node.js]
 - Improved protection against malformed domain and agent names [Node.js]
 - Improved log message (more verbose) in case proxy creation timed out [Node.js]
 
