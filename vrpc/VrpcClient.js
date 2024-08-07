@@ -254,7 +254,9 @@ class VrpcClient extends EventEmitter {
           json
         if (removed.length !== 0) {
           this.emit('instanceGone', removed, { domain, agent, className })
-          this._clearCachedSubscriptions({ lostInstance: removed })
+          removed.forEach(lostInstance =>
+            this._clearCachedSubscriptions({ lostInstance })
+          )
         }
         if (added.length !== 0) {
           this.emit('instanceNew', added, { domain, agent, className })
