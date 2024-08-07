@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+- now unsubscribing from events on instances that aren't available anymore
 - invalid log message triggered when JSON return values are circular
 - multiple emitter registration under the same clientId
 - issue when loading files that are not ending with ".js"

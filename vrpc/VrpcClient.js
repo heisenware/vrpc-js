@@ -232,6 +232,9 @@ class VrpcClient extends EventEmitter {
         this._agents[agent].status = status
         this._agents[agent].hostname = hostname
         this._agents[agent].version = version
+        if (status === 'offline') {
+          this._clearCachedSubscriptions({ lostAgent: agent })
+        }
         this.emit('agent', { domain, agent, status, hostname, version })
         // ClassInfo message
       } else if (
@@ -251,6 +254,7 @@ class VrpcClient extends EventEmitter {
           json
         if (removed.length !== 0) {
           this.emit('instanceGone', removed, { domain, agent, className })
+          this._clearCachedSubscriptions({ lostInstance: removed })
         }
         if (added.length !== 0) {
           this.emit('instanceNew', added, { domain, agent, className })
@@ -1177,6 +1181,29 @@ class VrpcClient extends EventEmitter {
       this._log.warn(`Can not unsubscribe from non-existing event: ${event}`)
     }
     return id
+  }
+
+  _clearCachedSubscriptions ({ lostAgent, lostInstance }) {
+    const obsoleteTopics = Object.keys(this._cachedSubscriptions).filter(
+      topic => {
+        const [, agent, , instanceEvent] = topic.split('/')
+        const [instance] = instanceEvent.split(':')
+        if (agent === lostAgent || instance === lostInstance) {
+          return true
+        }
+        return false
+      }
+    )
+    obsoleteTopics.forEach(topic => {
+      const id = `__e__${topic}`
+      this._log.info(`Clearing subscriptions for obsolete topic: ${topic}`)
+      const subscriptions = this._cachedSubscriptions[topic]
+      subscriptions.forEach(({ handler }) => {
+        this._eventEmitter.removeListener(id, handler)
+      })
+      this._mqttUnsubscribe(topic)
+      delete this._cachedSubscriptions[topic]
+    })
   }
 
   _stripSignature (method) {
