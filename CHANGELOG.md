@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - invalid log message triggered when JSON return values are circular
 - multiple emitter registration under the same clientId
 - issue when loading files that are not ending with ".js"
+- issue when calling a remote function with null as part of the arguments
 
 ## [3.1.1] - Aug 17 2022
 

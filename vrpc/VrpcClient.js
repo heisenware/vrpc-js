@@ -1225,7 +1225,7 @@ class VrpcClient extends EventEmitter {
 
   _isEmitter (variable) {
     return (
-      typeof variable === 'object' &&
+      variable && typeof variable === 'object' &&
       variable.hasOwnProperty('emitter') &&
       variable.hasOwnProperty('event') &&
       typeof variable.emitter === 'object' &&
