@@ -264,7 +264,6 @@ class VrpcAgent extends EventEmitter {
       this._subscribeToMethodsOfNewInstance(className, instance)
       this._publishClassInfoMessage(className)
       this._publishClassInfoConciseMessage(className)
-      this._registerSharedInstance(instance, null)
     }
     return obj
   }
