@@ -258,17 +258,13 @@ class VrpcAgent extends EventEmitter {
    * be visible only to the client who created it
    * @returns {Object} The real instance (not a proxy!)
    */
-  create ({
-    className,
-    instance = nanoid(8),
-    args = [],
-    isIsolated = false
-  }) {
+  create ({ className, instance = nanoid(8), args = [], isIsolated = false }) {
     const obj = VrpcAdapter.create({ className, instance, args, isIsolated })
     if (!this._hasSharedInstance(instance)) {
       this._subscribeToMethodsOfNewInstance(className, instance)
       this._publishClassInfoMessage(className)
       this._publishClassInfoConciseMessage(className)
+      this._registerSharedInstance(instance, null)
     }
     return obj
   }
@@ -716,10 +712,10 @@ class VrpcAgent extends EventEmitter {
       }
     })
     if (!found) {
-      this._log.warn(
-        `Failed un-registering not registered instance: ${instanceId}`
+      this._log.info(
+        `Unregistering non-tracked (possibly by agent created) instance: ${instanceId}`
       )
-      return false
+      return true
     }
     return true
   }
