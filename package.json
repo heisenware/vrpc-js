@@ -1,6 +1,6 @@
 {
   "name": "vrpc",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "description": "Variadic Remote Procedure Calls",
   "main": "index.js",
   "directories": {
@@ -12,12 +12,13 @@
     "build:addon": "ln -sf binding.gyp.no-auto binding.gyp && node-gyp rebuild && rm binding.gyp",
     "build:browser": "./node_modules/.bin/webpack --stats-error-details",
     "build:doc": "./node_modules/.bin/jsdoc2md -f vrpc/VrpcAdapter.js vrpc/VrpcAgent.js vrpc/VrpcClient.js vrpc/VrpcNative.js --param-list-format=list --separators > docs/api.md",
-    "test": "npm run test:adapter && npm run test:native && npm run test:agent && npm run test:client && npm run test:production",
+    "test": "npm run test:adapter && npm run test:native && npm run test:agent && npm run test:client && npm run test:production && npm run test:persistor",
     "test:adapter": "./node_modules/.bin/mocha tests/adapter/*.js --exit",
     "test:native": "./node_modules/.bin/mocha tests/native/*.js --exit",
     "test:agent": "tests/agent/test.sh",
     "test:client": "tests/client/test.sh",
     "test:performance": "tests/performance/test.sh",
+    "test:persistor": "./node_modules/.bin/mocha tests/persistor/*.js --exit",
     "test:production": "./node_modules/.bin/mocha tests/production/lifeCycleTest.js --timeout 30000 --exit && tests/production/test.sh"
   },
   "bin": {
@@ -46,9 +47,11 @@
   },
   "homepage": "https://vrpc.io",
   "devDependencies": {
+    "@heisenware/storage": "^1.2.2",
     "chai": "^4.2.0",
     "crypto-browserify": "^3.12.0",
     "dockerode": "^3.2.0",
+    "fs-extra": "^11.3.1",
     "jsdoc-to-markdown": "^7.0.1",
     "mocha": "^9.1.3",
     "os-browserify": "^0.3.0",
@@ -73,5 +76,13 @@
     "mqtt": "^4.2.6",
     "nanoid": "^3.1.23",
     "process": "^0.11.10"
+  },
+  "peerDependencies": {
+    "@heisenware/storage": "^1.2.2"
+  },
+  "peerDependenciesMeta": {
+    "@heisenware/storage": {
+      "optional": true
+    }
   }
 }
