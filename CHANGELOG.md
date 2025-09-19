@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.3.2] - Sep 19 2025
+
+### Changed
+
+- require call is moved back to dynamic loading and error message
+
+### Fixed
+
+- an issue with taking up a custom logger into `VrpcPersistor`
+
 ## [3.3.1] - Sep 05 2025
 
 ### Changed
