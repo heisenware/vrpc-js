@@ -38,7 +38,6 @@ SOFTWARE.
 */
 
 const VrpcAdapter = require('./VrpcAdapter')
-const Storage = require('@heisenware/storage')
 
 /**
  * Provides a persistence layer for VRPC instances.
@@ -55,19 +54,21 @@ class VrpcPersistor {
    *
    * @param {object} options Configuration options for the persistor.
    * @param {VrpcAgent} options.agentInstance The VRPC agent whose instances should be persisted.
-   * @param {object} [options.log] Optional logger object (e.g., console) with info, warn, and error methods.
    * @param {string} [options.dir] Optional directory for storage. Defaults to a path derived from the agent's name.
+   * @param {object} [options.log] Optional logger object (e.g. console) with info, warn, and error methods.
    */
-  constructor ({ agentInstance, log, dir }) {
-    this._agentInstance = agentInstance
+  constructor ({ agentInstance, dir, log = console }) {
+    let Storage
+    try {
+      Storage = require('@heisenware/storage')
+    } catch (err) {
+      throw new Error(
+        "The '@heisenware/storage' package is required to use VrpcPersistor. Please install it (`npm i @heisenware/storage`) and add it to your project's dependencies."
+      )
+    }
 
-    // Define a no-operation function for the default logger.
-    const noop = () => {}
-    // Create a default logger that does nothing.
-    const defaultLogger = { info: noop, warn: noop, error: noop }
-    // Merge the user-provided logger with the default.
-    // This makes the log property optional and prevents crashes if methods are missing.
-    this._log = Object.assign({}, defaultLogger, log)
+    this._agentInstance = agentInstance
+    this._log = log
 
     this._dir =
       dir ||
