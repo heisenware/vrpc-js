@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - Oct 02 2025
+
+### Changed
+
+- network calls for existing event listeners are not anymore skipped,
+  a corresponding test got adapted
+
 ## [3.3.2] - Sep 19 2025
 
 ### Changed
@@ -54,10 +61,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - meta information is not shipped by default anymore, a new flag
   `requiresSchema` must instead be set to true, for that to work:
 
-  - second topic `__classInfoConcise__`  was introduced with `meta` tag removed
+  - second topic `__classInfoConcise__` was introduced with `meta` tag removed
   - agents provide retained messages on both topics
   - clients subscribe to one or the other depending on the `requiresSchema`
     setting
+
 - using `docker compose` instead of `docker-compose` in the test suite
 
 ### Fixed

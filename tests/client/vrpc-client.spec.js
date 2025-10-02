@@ -775,7 +775,7 @@ describe('vrpc-client', () => {
         // skipped here
         assert.deepStrictEqual(
           ret.map(({ val }) => val),
-          [true, true]
+          [true, true, true, true]
         )
         await agent1Foo1.increment()
         await new Promise(resolve => setTimeout(resolve, 100))

@@ -1081,8 +1081,6 @@ class VrpcClient extends EventEmitter {
             event,
             callback
           })
-          // indicate that no network call is required
-          if (id === null) return null
           wrapped.push(id)
           continue
         } else if (
@@ -1098,8 +1096,6 @@ class VrpcClient extends EventEmitter {
             event,
             callback
           })
-          // indicate that no network call is required
-          if (id === null) return null
           wrapped.push(id)
           continue
         } else {
@@ -1123,8 +1119,6 @@ class VrpcClient extends EventEmitter {
           event,
           callback: (...args) => emitter.emit(event, ...args)
         })
-        // indicate that no network call is required
-        if (id === null) return null
         wrapped.push(id)
         continue
       }
@@ -1153,8 +1147,7 @@ class VrpcClient extends EventEmitter {
     }
     // otherwise just add the new callback-handler pair
     this._cachedSubscriptions[topic].push({ callback, handler })
-    // indicate that no network call is required
-    return null
+    return id
   }
 
   _offRemoteEvent ({ agent, className, instance, event, callback }) {
@@ -1177,8 +1170,7 @@ class VrpcClient extends EventEmitter {
         delete this._cachedSubscriptions[topic]
         return id
       }
-      // indicate that no network call is required
-      return null
+      return id
     } else {
       this._log.warn(`Can not unsubscribe from non-existing event: ${event}`)
     }
@@ -1225,7 +1217,8 @@ class VrpcClient extends EventEmitter {
 
   _isEmitter (variable) {
     return (
-      variable && typeof variable === 'object' &&
+      variable &&
+      typeof variable === 'object' &&
       variable.hasOwnProperty('emitter') &&
       variable.hasOwnProperty('event') &&
       typeof variable.emitter === 'object' &&
