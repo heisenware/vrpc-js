@@ -1275,7 +1275,6 @@ class VrpcClient extends EventEmitter {
       }
       const [{ handler }] = this._cachedSubscriptions[topic].splice(index, 1)
       if (this._cachedSubscriptions[topic].length === 0) {
-        console.log('No subscription for ', topic)
         this._eventEmitter.removeListener(id, handler)
         this._mqttUnsubscribe(topic)
         delete this._cachedSubscriptions[topic]
