@@ -15,10 +15,10 @@
     "test": "npm run test:adapter && npm run test:native && npm run test:agent && npm run test:client && npm run test:production && npm run test:persistor",
     "test:adapter": "./node_modules/.bin/mocha tests/adapter/*.js --exit",
     "test:native": "./node_modules/.bin/mocha tests/native/*.js --exit",
-    "test:agent": "tests/agent/test.sh",
+    "test:agent": "tests/agent/test.sh" ,
     "test:client": "tests/client/test.sh",
     "test:performance": "tests/performance/test.sh",
-    "test:persistor": "./node_modules/.bin/mocha tests/persistor/*.js --exit",
+    "test:persistor": "./node_modules/.bin/mocha tests/persistor/*.js --timeout 30000 --exit",
     "test:production": "./node_modules/.bin/mocha tests/production/lifeCycleTest.js --timeout 30000 --exit && tests/production/test.sh"
   },
   "bin": {

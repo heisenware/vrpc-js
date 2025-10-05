@@ -3,6 +3,7 @@
 /* global describe, it */
 
 const { assert } = require('chai')
+const sinon = require('sinon')
 const EventEmitter = require('events')
 const { VrpcClient } = require('../../../index')
 
@@ -18,8 +19,7 @@ describe('An instance of the VrpcClient class', () => {
   let vrpc
   it('should be construct-able given an optional domain', async () => {
     vrpc = new VrpcClient({
-      domain: 'test.vrpc',
-      timeout: 1500
+      domain: 'test.vrpc'
     })
     await vrpc.connect()
     assert.ok(vrpc)
@@ -45,7 +45,7 @@ describe('An instance of the VrpcClient class', () => {
       } catch (err) {
         assert.equal(
           err.message,
-          'Proxy creation for class "DoesNotExist" on agent "js" and domain "test.vrpc" timed out (> 1500 ms)'
+          'Connection to class "DoesNotExist" on agent "js" and domain "test.vrpc" timed out (> 12000 ms)'
         )
       }
     })
@@ -116,7 +116,10 @@ describe('An instance of the VrpcClient class', () => {
           await testClass.removeEntry('test')
           assert.isTrue(false)
         } catch (err) {
-          assert.equal(err.message, '[vrpc js-testClass-removeEntry]: Can not remove non-existing entry')
+          assert.equal(
+            err.message,
+            '[vrpc js-testClass-removeEntry]: Can not remove non-existing entry'
+          )
         }
       })
       it('should properly forward promises', async () => {
@@ -132,8 +135,22 @@ describe('An instance of the VrpcClient class', () => {
           await testClass.willThrowLater()
           assert.isTrue(false)
         } catch (err) {
-          assert.equal(err.message, '[vrpc js-testClass-willThrowLater]: Some test error')
+          assert.equal(
+            err.message,
+            '[vrpc js-testClass-willThrowLater]: Some test error'
+          )
         }
+      })
+      it('should handle event registration properly', async () => {
+        const listener1 = sinon.spy()
+        const listener2 = sinon.spy()
+        await testClass.vrpcOn('onPing', listener1)
+        await testClass.vrpcOn('onPing', listener1)
+        await testClass.vrpcOn('onPing', listener2)
+        await testClass.ping()
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        assert(listener1.calledOnce)
+        assert(listener2.calledOnce)
       })
       it('should be able to call a static function', async () => {
         assert.equal(
@@ -179,7 +196,7 @@ describe('An instance of the VrpcClient class', () => {
         } catch (err) {
           assert.equal(
             err.message,
-            'Function call "TestClass::doesNotExist()" on agent "js" timed out (> 1500 ms)'
+            'Function call "TestClass::doesNotExist()" on agent "js" timed out (> 12000 ms)'
           )
         }
       })

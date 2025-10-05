@@ -20,7 +20,7 @@ services:
       "--colors",
       "--exit",
       "--timeout",
-      "10000"
+      "30000"
     ]
 
   broker:

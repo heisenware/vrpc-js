@@ -1,10 +1,12 @@
+const EventEmitter = require('events')
+
 /**
  * A class intended for testing VRPC's functionality.
  *
  * @class TestClass
  * @param {Object} registry
  */
- class TestClass {
+class TestClass {
   /**
    * Constructor allowing to provide an existing registry
    *
@@ -13,6 +15,7 @@
   constructor (registry = {}) {
     this._registry = registry
     this._callbacks = new Map()
+    this._emitter = new EventEmitter()
   }
 
   getRegistry () {
@@ -86,6 +89,17 @@
     await new Promise((resolve, reject) => {
       setTimeout(() => reject(new Error('Some test error'), 100))
     })
+  }
+
+  onPing (listener) {
+    const listeners = this._emitter.listeners('ping')
+    if (!listeners.includes(listener)) {
+      this._emitter.on('ping', listener)
+    }
+  }
+
+  ping () {
+    this._emitter.emit('ping', Date.now())
   }
 
   static crazy (who = undefined) {

@@ -54,7 +54,7 @@ parser.add_argument(
   {
     help: 'The broker to use',
     type: 'string',
-    default: 'mqtts://vrpc.io:8883'
+    default: 'mqtts://broker.hivemq.com:8883'
   }
 )
 parser.add_argument(

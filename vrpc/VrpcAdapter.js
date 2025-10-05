@@ -760,7 +760,9 @@ class VrpcAdapter {
       return VrpcAdapter._listeners[instanceId][eventId].listener
     }
     VrpcAdapter._listeners[instanceId][eventId].clients.push(clientId)
-    return null
+    // if "event" is defined we are calling against a plain EventEmitter and
+    // have to skip this call as we have registered internally
+    return VrpcAdapter._listeners[instanceId][eventId].listener
   }
 
   static _generateListener ({ eventId, instanceId, isCallAll }) {
@@ -783,8 +785,8 @@ class VrpcAdapter {
         if (Object.keys(VrpcAdapter._listeners[instanceId]).length === 0) {
           delete VrpcAdapter._listeners[instanceId]
         }
-        return listener
       }
+      return listener
     }
   }
 
@@ -794,11 +796,8 @@ class VrpcAdapter {
     Object.entries(eventIds).forEach(([ek, ev]) => {
       if (ev.event === event && ev.clients.includes(clientId)) {
         ev.clients = ev.clients.filter(x => x !== clientId)
+        VrpcAdapter.getInstance(instanceId).removeAllListeners(ev.event)
         if (ev.clients.length === 0) {
-          VrpcAdapter.getInstance(instanceId).removeListener(
-            ev.event,
-            ev.listener
-          )
           delete VrpcAdapter._listeners[instanceId][ek]
         }
       }

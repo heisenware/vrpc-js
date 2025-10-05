@@ -300,7 +300,7 @@ describe('vrpc-client', () => {
           }),
         {
           message:
-            'Proxy creation for class "Foo" on agent "doesNotExist" and domain "test.vrpc" timed out (> 5000 ms)'
+            'Connection to class "Foo" on agent "doesNotExist" and domain "test.vrpc" timed out (> 5000 ms)'
         }
       )
     })
@@ -314,7 +314,7 @@ describe('vrpc-client', () => {
           }),
         {
           message:
-            'Proxy creation for class "DoesNotExist" on agent "agent1" and domain "test.vrpc" timed out (> 5000 ms)'
+            'Connection to class "DoesNotExist" on agent "agent1" and domain "test.vrpc" timed out (> 5000 ms)'
         }
       )
     })
@@ -822,8 +822,7 @@ describe('vrpc-client', () => {
               functionName: 'staticIncrement'
             }),
           {
-            message:
-              'Function call "Foo::staticIncrement()" on agent "agent1" timed out (> 3000 ms)'
+            message: 'Client is not connected'
           }
         )
       })

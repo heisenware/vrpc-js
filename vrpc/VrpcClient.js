@@ -64,7 +64,7 @@ class VrpcClient extends EventEmitter {
    * @param {String} [options.token] Access token
    * @param {String} options.domain Sets the domain
    * @param {String} [options.agent="*"] Sets default agent
-   * @param {String} [options.broker="mqtts://vrpc.io:8883"] Broker url in form: `<scheme>://<host>:<port>`
+   * @param {String} [options.broker="mqtts://broker.hivemq.com:8883"] Broker url in form: `<scheme>://<host>:<port>`
    * @param {Number} [options.timeout=12000] Maximum time in ms to wait for a RPC answer
    * @param {Object} [options.log=console] Log object (must support debug, info, warn, and error level)
    * @param {Boolean} [options.bestEffort=true] If true, message will be sent with best effort, i.e. no caching if offline
@@ -84,7 +84,7 @@ class VrpcClient extends EventEmitter {
     username,
     domain,
     agent = '*',
-    broker = 'mqtts://vrpc.io:8883',
+    broker = 'mqtts://broker.hivemq.com:8883',
     timeout = 12 * 1000,
     log = 'console',
     bestEffort = true,
@@ -135,6 +135,7 @@ class VrpcClient extends EventEmitter {
     this._client = null
     this._cachedSubscriptions = {}
     this._proxies = {}
+    this._callbackIds = new WeakMap()
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -189,6 +190,19 @@ class VrpcClient extends EventEmitter {
     if (password === undefined) delete options.password
     this._client = mqtt.connect(this._broker, options)
 
+    // Persistent lifecycle handlers
+    this._client.on('offline', () => {
+      this._log.warn('MQTT client went offline.')
+      // Clear the cache to ensure a fresh state upon reconnection
+      this._agents = {}
+      this.emit('offline')
+    })
+
+    this._client.on('reconnect', () => {
+      this._log.info('MQTT client is attempting to reconnect...')
+      this.emit('reconnect')
+    })
+
     this._client.on('error', err => {
       this.emit('error', err)
     })
@@ -214,75 +228,105 @@ class VrpcClient extends EventEmitter {
       }
       // RPC responses
       this._mqttSubscribe(this._vrpcClientId)
+
+      // Re-subscribe to all cached event topics
+      this._log.info('Restoring event subscriptions after reconnect...')
+      for (const topic of Object.keys(this._cachedSubscriptions)) {
+        this._mqttSubscribe(topic)
+      }
+
       this.emit('connect')
     })
 
     this._client.on('message', (topic, message) => {
       if (message.length === 0) return
-      const tokens = topic.split('/')
-      const [domain, agent, klass, instance] = tokens
-      if (domain !== this._domain) {
-        this._log.warn(`Received message from foreign domain: ${domain}`)
-        return
-      }
-      // AgentInfo message
-      if (klass === '__agentInfo__') {
-        const { status, hostname, version } = JSON.parse(message.toString())
-        this._createIfNotExist(agent)
-        this._agents[agent].status = status
-        this._agents[agent].hostname = hostname
-        this._agents[agent].version = version
-        if (status === 'offline') {
-          this._clearCachedSubscriptions({ lostAgent: agent })
+      try {
+        const tokens = topic.split('/')
+        const [domain, agent, klass, instance] = tokens
+        if (domain !== this._domain) {
+          this._log.warn(`Received message from foreign domain: ${domain}`)
+          return
         }
-        this.emit('agent', { domain, agent, status, hostname, version })
-        // ClassInfo message
-      } else if (
-        instance === '__classInfo__' ||
-        instance === '__classInfoConcise__'
-      ) {
-        // Json properties: { className, instances, memberFunctions, staticFunctions }
-        const json = JSON.parse(message.toString())
-        this._createIfNotExist(agent)
-        const oldClassInfo = this._agents[agent].classes[klass]
-        const newInstances = json.instances || []
-        const oldInstances = oldClassInfo ? oldClassInfo.instances : []
-        const removed = oldInstances.filter(x => !newInstances.includes(x))
-        const added = newInstances.filter(x => !oldInstances.includes(x))
-        this._agents[agent].classes[klass] = json
-        const { className, instances, memberFunctions, staticFunctions, meta } =
-          json
-        if (removed.length !== 0) {
-          this.emit('instanceGone', removed, { domain, agent, className })
-          removed.forEach(lostInstance =>
-            this._clearCachedSubscriptions({ lostInstance })
-          )
+        // AgentInfo message
+        if (klass === '__agentInfo__') {
+          const { status, hostname, version } = JSON.parse(message.toString())
+          this._createIfNotExist(agent)
+          this._agents[agent].status = status
+          this._agents[agent].hostname = hostname
+          this._agents[agent].version = version
+          if (status === 'offline') {
+            this._clearCachedSubscriptions({ lostAgent: agent })
+          }
+          this.emit('agent', { domain, agent, status, hostname, version })
+          // ClassInfo message
+        } else if (
+          instance === '__classInfo__' ||
+          instance === '__classInfoConcise__'
+        ) {
+          // Json properties: { className, instances, memberFunctions, staticFunctions }
+          const json = JSON.parse(message.toString())
+          this._createIfNotExist(agent)
+          const oldClassInfo = this._agents[agent].classes[klass]
+          const newInstances = json.instances || []
+          const oldInstances = oldClassInfo ? oldClassInfo.instances : []
+          const removed = oldInstances.filter(x => !newInstances.includes(x))
+          const added = newInstances.filter(x => !oldInstances.includes(x))
+          this._agents[agent].classes[klass] = json
+          const {
+            className,
+            instances,
+            memberFunctions,
+            staticFunctions,
+            meta
+          } = json
+          if (removed.length !== 0) {
+            this.emit('instanceGone', removed, { domain, agent, className })
+            removed.forEach(lostInstance =>
+              this._clearCachedSubscriptions({ lostInstance })
+            )
+          }
+          if (added.length !== 0) {
+            this.emit('instanceNew', added, { domain, agent, className })
+          }
+          this.emit('class', {
+            domain,
+            agent,
+            className,
+            instances,
+            memberFunctions,
+            staticFunctions,
+            meta: meta || {}
+          })
+          // RPC message
+        } else {
+          const { i, a, e, r } = JSON.parse(message.toString())
+          this._eventEmitter.emit(i, { a, e, r })
         }
-        if (added.length !== 0) {
-          this.emit('instanceNew', added, { domain, agent, className })
-        }
-        this.emit('class', {
-          domain,
-          agent,
-          className,
-          instances,
-          memberFunctions,
-          staticFunctions,
-          meta: meta || {}
-        })
-        // RPC message
-      } else {
-        const { i, a, e, r } = JSON.parse(message.toString())
-        this._eventEmitter.emit(i, { a, e, r })
+      } catch (err) {
+        this._log.error(
+          `Could not parse MQTT message on topic "${topic}": ${err.message}`
+        )
       }
     })
+
     return new Promise((resolve, reject) => {
-      this._client.once('offline', () => {
-        this._client.end()
-        reject(new Error(`Connection trial timed out (> ${this._timeout} ms)`))
+      const timeout = setTimeout(() => {
+        // This will run only if the 'connect' event isn't fired in time.
+        // We explicitly end the client to stop it from retrying in the background.
+        this._client.end(true, () => {
+          reject(
+            new Error(`Connection trial timed out (> ${this._timeout} ms)`)
+          )
+        })
+      }, this._timeout)
+
+      this._client.once('connect', () => {
+        // If we connect successfully, clear the timeout and resolve the promise.
+        clearTimeout(timeout)
+        resolve()
       })
-      this._client.once('connect', resolve)
     })
+    // --------------------------------------------------------------------------------
   }
 
   /**
@@ -343,6 +387,9 @@ class VrpcClient extends EventEmitter {
     cacheProxy = false,
     isIsolated = false
   } = {}) {
+    if (!this._isConnected()) {
+      throw new Error('Client is not connected')
+    }
     if (agent === '*') throw new Error('Agent must be specified')
     const json = {
       c: className,
@@ -372,6 +419,9 @@ class VrpcClient extends EventEmitter {
    * @returns {Promise<Proxy>} Proxy object reflecting the remotely existing instance
    */
   async getInstance (instance, options = {}) {
+    if (!this._isConnected()) {
+      throw new Error('Client is not connected')
+    }
     if (this._proxies[instance]) return this._proxies[instance]
     const { agent, className } = await this._getInstanceData(instance, options)
     return this._createProxy(agent, className, instance)
@@ -390,6 +440,9 @@ class VrpcClient extends EventEmitter {
    * @returns {Promise<Boolean>} true if successful, false otherwise
    */
   async delete (instance, options = {}) {
+    if (!this._isConnected()) {
+      throw new Error('Client is not connected')
+    }
     const { agent, className } = await this._getInstanceData(instance, options)
     const json = {
       c: className,
@@ -402,7 +455,25 @@ class VrpcClient extends EventEmitter {
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
     this._mqttPublish(topic, JSON.stringify(json))
     if (this._proxies[instance]) delete this._proxies[instance]
-    return this._handleAgentAnswer(json, agent)
+    const result = await this._handleAgentAnswer(json, agent)
+    // Now that deletion is confirmed, proactively update all local caches
+    if (result) {
+      // 1. Remove from the proxy cache
+      if (this._proxies[instance]) {
+        delete this._proxies[instance]
+      }
+      // 2. Remove from the main agent/instance cache
+      if (this._agents[agent] && this._agents[agent].classes) {
+        const classInfo = this._agents[agent].classes[className]
+        if (classInfo && classInfo.instances) {
+          const index = classInfo.instances.indexOf(instance)
+          if (index > -1) {
+            classInfo.instances.splice(index, 1)
+          }
+        }
+      }
+    }
+    return result
   }
 
   /**
@@ -421,6 +492,9 @@ class VrpcClient extends EventEmitter {
     args = [],
     agent = this._agent
   } = {}) {
+    if (!this._isConnected()) {
+      throw new Error('Client is not connected')
+    }
     const wrapped = this._wrapArguments({
       agent,
       className,
@@ -468,6 +542,9 @@ class VrpcClient extends EventEmitter {
     args = [],
     agent = this._agent
   } = {}) {
+    if (!this._isConnected()) {
+      throw new Error('Client is not connected')
+    }
     const json = {
       c: className,
       f: functionName,
@@ -644,10 +721,10 @@ class VrpcClient extends EventEmitter {
   async reconnectWithToken (token, { agent = this._agent } = {}) {
     this._token = token
     this._agent = agent
-    this._client.end(() => this.connect())
-    return new Promise(resolve => {
-      this._client.once('connect', resolve)
-    })
+    if (this._client) {
+      await new Promise(resolve => this._client.end(false, {}, resolve))
+    }
+    return this.connect()
   }
 
   /**
@@ -678,11 +755,30 @@ class VrpcClient extends EventEmitter {
    * @returns {Promise} Resolves when ended
    */
   async end () {
+    if (!this._client) return
     this._mqttPublish(
       `${this._vrpcClientId}/__clientInfo__`,
       JSON.stringify({ status: 'offline', v: VRPC_PROTOCOL_VERSION })
     )
-    return new Promise(resolve => this._client.end(false, {}, resolve))
+    this._eventEmitter.removeAllListeners()
+    this.removeAllListeners()
+    const client = this._client
+    this._client = null // Prevent race conditions during shutdown
+    return new Promise(resolve => client.end(false, {}, resolve))
+  }
+
+  // Private functions
+
+  _isConnected () {
+    return this._client && this._client.connected
+  }
+
+  _getCallbackId (callback, { readOnly = false } = {}) {
+    if (!this._callbackIds.has(callback)) {
+      if (readOnly) return null
+      this._callbackIds.set(callback, nanoid(8))
+    }
+    return this._callbackIds.get(callback)
   }
 
   _generateUserName () {
@@ -845,7 +941,7 @@ class VrpcClient extends EventEmitter {
         this.removeListener('class', checkClass)
         reject(
           new Error(
-            `Proxy creation for class "${className}" on agent "${agent}" and domain "${this._domain}" timed out (> ${this._timeout} ms)`
+            `Connection to class "${className}" on agent "${agent}" and domain "${this._domain}" timed out (> ${this._timeout} ms)`
           )
         )
       }, this._timeout)
@@ -1129,16 +1225,24 @@ class VrpcClient extends EventEmitter {
   }
 
   _onRemoteEvent ({ agent, className, instance, event, callback }) {
+    const callbackId = this._getCallbackId(callback)
+    const eventCallback = `${event}-${callbackId}`
+
     // the topic on which any remote event will be published to
     const topic = instance
-      ? `${this._domain}/${agent}/${className}/${instance}:${event}`
-      : `${this._domain}/${agent}/${className}/${event}`
+      ? `${this._domain}/${agent}/${className}/${instance}:${eventCallback}`
+      : `${this._domain}/${agent}/${className}/${eventCallback}`
+
     // prepare a special id for the agent to know that events should be
-    // published to the provided topic after the prefix
+    // published to the provided topic after the prefix and before the suffix
+
     const id = `__e__${topic}`
+
     // call our proxy callback when remote events were received
     const handler = ({ a }) => callback.apply(null, a)
-    this._eventEmitter.on(id, handler)
+    if (this._eventEmitter.listenerCount(id) === 0) {
+      this._eventEmitter.on(id, handler)
+    }
     if (!this._cachedSubscriptions[topic]) {
       // when not yet subscribed to this topic do it now
       this._mqttSubscribe(topic)
@@ -1151,10 +1255,16 @@ class VrpcClient extends EventEmitter {
   }
 
   _offRemoteEvent ({ agent, className, instance, event, callback }) {
+    const callbackId = this._getCallbackId(callback, {
+      readOnly: true
+    })
+    const eventCallback = `${event}-${callbackId}`
     const topic = instance
-      ? `${this._domain}/${agent}/${className}/${instance}:${event}`
-      : `${this._domain}/${agent}/${className}/${event}`
+      ? `${this._domain}/${agent}/${className}/${instance}:${eventCallback}`
+      : `${this._domain}/${agent}/${className}/${eventCallback}`
+
     const id = `__e__${topic}`
+
     if (this._cachedSubscriptions[topic]) {
       const index = this._cachedSubscriptions[topic].findIndex(
         x => x.callback === callback
@@ -1164,8 +1274,9 @@ class VrpcClient extends EventEmitter {
         return null
       }
       const [{ handler }] = this._cachedSubscriptions[topic].splice(index, 1)
-      this._eventEmitter.removeListener(id, handler)
       if (this._cachedSubscriptions[topic].length === 0) {
+        console.log('No subscription for ', topic)
+        this._eventEmitter.removeListener(id, handler)
         this._mqttUnsubscribe(topic)
         delete this._cachedSubscriptions[topic]
         return id
@@ -1241,14 +1352,14 @@ class VrpcClient extends EventEmitter {
     // when no agent is specified, but an explicit class default exists give
     // such instances priority in being found
     if (!options.agent && this._agent !== '*') {
-      const { classes, status } = this._agents[this._agent]
+      const { classes, status } = this._agents[this._agent] || {}
       if (!classes || status === 'offline') {
         for (const className in classes) {
           if (options.className && className !== options.className) continue
           const { instances } = classes[className]
           if (!instances) continue
           if (instances.includes(instance)) {
-            return { agent, className, instance }
+            return { agent: this._agent, className, instance }
           }
         }
       }

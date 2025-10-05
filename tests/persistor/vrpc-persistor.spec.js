@@ -26,7 +26,7 @@ describe('VrpcPersistor', () => {
   let testDir
   const domain = 'test.vrpc'
   const agentName = `agent-${Date.now()}` // Use unique agent to avoid test collisions
-  const broker = 'mqtt://vrpc.io'
+  const broker = 'mqtts://broker.hivemq.com'
   const sleep = (ms = 200) => new Promise(resolve => setTimeout(resolve, ms))
 
   before(() => {

@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - Oct 05 2025
+
+### Fixed
+
+- A race condition in the `delete()` method that could cause tests to fail. The
+  method's promise could resolve before the local instance cache was updated.
+  The fix ensures the local cache is proactively and synchronously updated upon
+  successful deletion.
+- A race condition in the test suite where the client would disconnect before
+  receiving the agent's offline message, causing a timeout.
+
+### Changed
+
+- **Improved Connection Robustness:** The initial connection logic was hardened
+  to use a single, overall timeout. This allows the underlying MQTT client to
+  attempt reconnections after transient network failures without prematurely
+  rejecting the connection promise.
+- **Improved Reconnection State Handling:** The client is now significantly more
+  resilient to network interruptions.
+  - It properly restores all event-related MQTT subscriptions after a reconnect,
+    preventing silent failures of event listeners.
+  - The local cache of agents and instances is now cleared when the client goes
+    offline, ensuring a fresh and consistent state is rebuilt upon reconnection.
+- **Improved Shutdown Reliability:** The `end()` method now provides a more
+  comprehensive and immediate cleanup of all internal listeners and pending RPC
+  timeouts, preventing potential memory leaks and dangling asynchronous
+  operations.
+- **Improved API Contract:** Public-facing methods like `create()`,
+  `getInstance()`, etc., now check if the client is connected and will fail-fast
+  with a clear error, rather than timing out on an RPC call.
+- The `reconnectWithToken()` method was refactored to be fully asynchronous,
+  eliminating a potential race condition during the shutdown and restart of the
+  client.
+- **Improved Event handling:** Event registrations always hit the remote agent
+  and behave exactly like it is expected on Node.js. Most importantly, the
+  agent's listener object reference is preserved when identical listeners are
+  registered on the client side.
+
+### Added
+
+- Defensive checks in the message handler to ensure data integrity (e.g.,
+  verifying that `instances` is an array) before processing, making the client
+  more resilient to malformed data from agents.
+
 ## [3.4.0] - Oct 02 2025
 
 ### Changed

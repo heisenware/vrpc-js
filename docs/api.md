@@ -270,7 +270,7 @@ Constructs an agent instance
     - [.token] <code>String</code> - Access token
     - [.domain] <code>String</code> <code> = &#x27;vrpc&#x27;</code> - The domain under which the agent-provided code is reachable
     - [.agent] <code>String</code> <code> = &#x27;&lt;user&gt;-&lt;pathId&gt;@&lt;hostname&gt;-&lt;platform&gt;-js&#x27;</code> - This agent's name
-    - [.broker] <code>String</code> <code> = &#x27;mqtts://vrpc.io:8883&#x27;</code> - Broker url in form: `<scheme>://<host>:<port>`
+    - [.broker] <code>String</code> <code> = &#x27;mqtts://broker.hivemq.com:8883&#x27;</code> - Broker url in form: `<scheme>://<host>:<port>`
     - [.log] <code>Object</code> <code> = console</code> - Log object (must support debug, info, warn, and error level)
     - [.bestEffort] <code>String</code> <code> = true</code> - If true, message will be sent with best effort, i.e. no caching if offline
     - [.version] <code>String</code> <code> = &#x27;&#x27;</code> - The (user-defined) version of this agent
@@ -516,7 +516,7 @@ NOTE: Each instance creates its own physical connection to the broker.
     - [.token] <code>String</code> - Access token
     - .domain <code>String</code> - Sets the domain
     - [.agent] <code>String</code> <code> = &quot;*&quot;</code> - Sets default agent
-    - [.broker] <code>String</code> <code> = &quot;mqtts://vrpc.io:8883&quot;</code> - Broker url in form: `<scheme>://<host>:<port>`
+    - [.broker] <code>String</code> <code> = &quot;mqtts://broker.hivemq.com:8883&quot;</code> - Broker url in form: `<scheme>://<host>:<port>`
     - [.timeout] <code>Number</code> <code> = 12000</code> - Maximum time in ms to wait for a RPC answer
     - [.log] <code>Object</code> <code> = console</code> - Log object (must support debug, info, warn, and error level)
     - [.bestEffort] <code>Boolean</code> <code> = true</code> - If true, message will be sent with best effort, i.e. no caching if offline

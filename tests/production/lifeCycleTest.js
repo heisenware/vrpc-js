@@ -3,7 +3,6 @@
 /* global describe, before, after, it */
 
 const { assert } = require('chai')
-const process = require('process')
 const EventEmitter = require('events')
 const { VrpcAdapter, VrpcAgent, VrpcClient } = require('../../index')
 
@@ -59,14 +58,14 @@ describe('Agent Life-Cycle', () => {
       agent = new VrpcAgent({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        broker: 'mqtts://vrpc.io:8883',
+        broker: 'mqtts://broker.hivemq.com:8883',
         version: '1.0.0-test'
       })
       await agent.serve()
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        broker: 'mqtts://vrpc.io:8883'
+        broker: 'mqtts://broker.hivemq.com:8883'
       })
       await remote.connect()
     })
@@ -103,14 +102,14 @@ describe('Agent Life-Cycle', () => {
         remote.on('agent', testFunc)
       })
       await agent.end({ unregister: true })
-      await remote.end()
       await promise
+      await remote.end()
     })
     it('a new VrpcClient should not see the agent online', async () => {
       const remoteInner = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        broker: 'mqtts://vrpc.io:8883'
+        broker: 'mqtts://broker.hivemq.com:8883'
       })
       await remoteInner.connect()
       const promise = new Promise((resolve, reject) => {
@@ -139,7 +138,7 @@ describe('Instance life-cycle', () => {
     agent = new VrpcAgent({
       domain: 'test.vrpc',
       agent: 'nodeJsTestAgent',
-      broker: 'mqtts://vrpc.io:8883'
+      broker: 'mqtts://broker.hivemq.com:8883'
     })
     await agent.serve()
   })
@@ -152,7 +151,8 @@ describe('Instance life-cycle', () => {
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        broker: 'mqtts://vrpc.io:8883'
+        broker: 'mqtts://broker.hivemq.com:8883',
+        timeout: 20 * 1000
       })
       await remote.connect()
     })
@@ -215,7 +215,7 @@ describe('Instance life-cycle', () => {
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        broker: 'mqtts://vrpc.io:8883'
+        broker: 'mqtts://broker.hivemq.com:8883'
       })
       remote.on('class', ({ className, instances }) => {
         inst1[className] = instances
@@ -271,7 +271,7 @@ describe('Event Callbacks', () => {
     agent = new VrpcAgent({
       domain: 'test.vrpc',
       agent: 'nodeJsTestAgent',
-      broker: 'mqtts://vrpc.io:8883'
+      broker: 'mqtts://broker.hivemq.com:8883'
     })
     await agent.serve()
   })
@@ -284,7 +284,7 @@ describe('Event Callbacks', () => {
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        broker: 'mqtts://vrpc.io:8883'
+        broker: 'mqtts://broker.hivemq.com:8883'
       })
       await remote.connect()
     })
@@ -365,7 +365,7 @@ describe('Event Callbacks', () => {
       remote = new VrpcClient({
         domain: 'test.vrpc',
         agent: 'nodeJsTestAgent',
-        broker: 'mqtts://vrpc.io:8883'
+        broker: 'mqtts://broker.hivemq.com:8883'
       })
       await remote.connect()
     })

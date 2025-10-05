@@ -1,6 +1,7 @@
 const os = require('os')
 const path = require('path')
 const mqtt = require('mqtt')
+const { nanoid } = require('nanoid')
 const crypto = require('crypto')
 const { ArgumentParser } = require('argparse')
 const EventEmitter = require('events')
@@ -57,7 +58,7 @@ class VrpcAgent extends EventEmitter {
     })
     parser.add_argument('-b', '--broker', {
       help: 'Broker url',
-      default: broker || 'mqtts://vrpc.io:8883'
+      default: broker || 'mqtts://broker.hivemq.com:8883'
     })
     parser.add_argument('-u', '--username', {
       help: 'Username',
@@ -96,7 +97,7 @@ class VrpcAgent extends EventEmitter {
    * @param {String} [obj.token] Access token
    * @param {String} [obj.domain='vrpc'] The domain under which the agent-provided code is reachable
    * @param {String} [obj.agent='<user>-<pathId>@<hostname>-<platform>-js'] This agent's name
-   * @param {String} [obj.broker='mqtts://vrpc.io:8883'] Broker url in form: `<scheme>://<host>:<port>`
+   * @param {String} [obj.broker='mqtts://broker.hivemq.com:8883'] Broker url in form: `<scheme>://<host>:<port>`
    * @param {Object} [obj.log=console] Log object (must support debug, info, warn, and error level)
    * @param {String} [obj.bestEffort=true] If true, message will be sent with best effort, i.e. no caching if offline
    * @param {String} [obj.version=''] The (user-defined) version of this agent
@@ -114,7 +115,7 @@ class VrpcAgent extends EventEmitter {
     token,
     domain = 'vrpc',
     agent = VrpcAgent._generateAgentName(),
-    broker = 'mqtts://vrpc.io:8883',
+    broker = 'mqtts://broker.hivemq.com:8883',
     log = 'console',
     bestEffort = true,
     version = '',
