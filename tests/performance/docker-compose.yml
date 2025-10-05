@@ -1,8 +1,7 @@
-version: "3.1"
 services:
 
   client:
-    image: node:16.15.1-alpine
+    image: node:16-alpine
     hostname: client
     networks:
       - vrpc
@@ -34,7 +33,7 @@ services:
     command: ["start_vernemq", "--name", "vernemq_test"]
 
   agent1:
-    image: node:16.15.1-alpine
+    image: node:16-alpine
     hostname: agent1
     networks:
       - vrpc
