@@ -10,7 +10,9 @@ module.exports = {
       crypto: require.resolve('crypto-browserify'),
       url: require.resolve('url/'),
       stream: require.resolve('stream-browserify'),
-      buffer: require.resolve('buffer')
+      buffer: require.resolve('buffer/'),
+      process: require.resolve('process/browser'),
+      vm: false
     }
   },
   output: {
@@ -20,12 +22,8 @@ module.exports = {
     filename: 'vrpc.js'
   },
   plugins: [
-    // Work around for Buffer is undefined:
-    // https://github.com/webpack/changelog-v5/issues/10
     new webpack.ProvidePlugin({
-      Buffer: ['buffer', 'Buffer']
-    }),
-    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
       process: 'process/browser'
     })
   ]
