@@ -5,6 +5,7 @@ const { VrpcClient } = require('../../index')
 const assert = require('assert')
 const sinon = require('sinon')
 const Dockerode = require('dockerode')
+const EventEmitter = require('events')
 
 describe('vrpc-client', () => {
   /*******************************
@@ -199,6 +200,7 @@ describe('vrpc-client', () => {
             'resolvePromise',
             'rejectPromise',
             'onValue',
+            'onCheckCallbackIdentity',
             'circularJson',
             'setMaxListeners',
             'getMaxListeners',
@@ -419,6 +421,7 @@ describe('vrpc-client', () => {
             'resolvePromise',
             'rejectPromise',
             'onValue',
+            'onCheckCallbackIdentity',
             'circularJson',
             'setMaxListeners',
             'getMaxListeners',
@@ -615,6 +618,42 @@ describe('vrpc-client', () => {
         assert(valueSpy1.callCount, 2)
         assert(valueSpy2.callCount, 2)
       })
+      it('should work when an EventEmitter is used to receive callbacks', async () => {
+        const fooSpy = sinon.spy()
+        const booSpy = sinon.spy()
+        const emitter = new EventEmitter()
+        const otherEmitter = new EventEmitter()
+        emitter.on('foo', fooSpy)
+        emitter.on('boo', booSpy)
+        await agent1Foo1.onCheckCallbackIdentity({ emitter, event: 'foo' })
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(fooSpy.callCount, 1)
+        assert(fooSpy.calledWith('new'))
+
+        // different emitter, same event
+        await agent1Foo1.onCheckCallbackIdentity({
+          emitter: otherEmitter,
+          event: 'foo'
+        })
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(fooSpy.callCount, 2)
+        assert(fooSpy.calledWith('new'))
+
+        // same emitter, different event
+        await agent1Foo1.onCheckCallbackIdentity({ emitter, event: 'boo' })
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(fooSpy.callCount, 2)
+        assert(booSpy.callCount, 1)
+        assert(booSpy.calledWith('new'))
+
+        // same emitter, same event
+        await agent1Foo1.onCheckCallbackIdentity({ emitter, event: 'foo' })
+        await new Promise(resolve => setTimeout(resolve, 100))
+        assert(fooSpy.callCount, 3)
+        assert(booSpy.callCount, 1)
+        assert(fooSpy.calledWith('existing'))
+      })
+
       it('should work for asynchronous functions', async () => {
         const value = await agent1Foo1.resolvePromise(100)
         assert.strictEqual(value, 3)

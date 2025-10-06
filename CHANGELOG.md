@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Broken browser package is now working again
+- Callbacks are now identical by object reference when the same emitter and same
+  event is used
 
 ### Changed
 

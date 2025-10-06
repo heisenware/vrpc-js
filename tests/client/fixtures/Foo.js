@@ -8,6 +8,7 @@ class Foo extends EventEmitter {
   constructor (value = 0) {
     super()
     this._value = value
+    this._callbackMap = new WeakSet()
   }
 
   /**
@@ -67,6 +68,15 @@ class Foo extends EventEmitter {
   // this does not really make sense for node, but could well be an API in C++
   onValue (callback) {
     this.on('value', callback)
+  }
+
+  onCheckCallbackIdentity (callback) {
+    if (this._callbackMap.has(callback)) {
+      callback('existing')
+    } else {
+      this._callbackMap.add(callback)
+      callback('new')
+    }
   }
 
   circularJson () {

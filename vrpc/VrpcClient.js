@@ -135,6 +135,7 @@ class VrpcClient extends EventEmitter {
     this._cachedSubscriptions = {}
     this._proxies = {}
     this._callbackIds = new WeakMap()
+    this._emitterListener = new WeakMap()
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -1222,12 +1223,24 @@ class VrpcClient extends EventEmitter {
       // special case of an EventEmitter provided as argument
       if (this._isEmitter(x)) {
         const { emitter, event } = x
+        let callback = (...args) => emitter.emit(event, ...args)
+        if (this._emitterListener.has(emitter)) {
+          const eventMap = this._emitterListener.get(emitter)
+          if (eventMap.has(event)) {
+            callback = eventMap.get(event)
+          } else {
+            eventMap.set(event, callback)
+          }
+        } else {
+          this._emitterListener.set(emitter, new Map([[event, callback]]))
+        }
+
         const id = this._onRemoteEvent({
           agent,
           className,
           instance,
           event,
-          callback: (...args) => emitter.emit(event, ...args)
+          callback
         })
         wrapped.push(id)
         continue

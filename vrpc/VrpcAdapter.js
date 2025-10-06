@@ -547,11 +547,6 @@ class VrpcAdapter {
       return
     }
     const unwrapped = VrpcAdapter._unwrapArguments(json)
-    if (!unwrapped) {
-      // this call must be skipped (event emitter stuff)
-      json.r = true
-      return
-    }
     // Check whether context is a registered class
     const entry = VrpcAdapter._functionRegistry.get(json.c)
     if (entry !== undefined) {
@@ -680,9 +675,6 @@ class VrpcAdapter {
               eventId: arg,
               event: args[0]
             })
-            if (!listener) {
-              return null // skip call as listener is already registered
-            }
             unwrapped.push(listener)
             // event un-registration
           } else if (func === 'off' || func === 'removeListener') {
@@ -691,9 +683,6 @@ class VrpcAdapter {
               instanceId: context,
               eventId: arg
             })
-            if (!listener) {
-              return null // skip call as others are still interested
-            }
             unwrapped.push(listener)
           } else {
             this._mustTrackClient = true
@@ -759,8 +748,6 @@ class VrpcAdapter {
       return VrpcAdapter._listeners[instanceId][eventId].listener
     }
     VrpcAdapter._listeners[instanceId][eventId].clients.push(clientId)
-    // if "event" is defined we are calling against a plain EventEmitter and
-    // have to skip this call as we have registered internally
     return VrpcAdapter._listeners[instanceId][eventId].listener
   }
 
