@@ -39,7 +39,8 @@ SOFTWARE.
 
 const os = require('os')
 const { nanoid } = require('nanoid')
-const mqtt = require('mqtt')
+const mqttModule = require('mqtt')
+const mqtt = mqttModule.default || mqttModule
 const EventEmitter = require('events')
 
 const VRPC_PROTOCOL_VERSION = 3
