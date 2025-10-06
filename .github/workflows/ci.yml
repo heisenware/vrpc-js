@@ -6,4 +6,8 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - run: npm install
-      - run: npm run test
+      - run: npm run test:adapter
+      - run: npm run test:agent
+      - run: npm run test:client
+      - run: npm run test:persistor
+      - run: npm run test:production
