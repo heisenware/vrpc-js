@@ -37,7 +37,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-const crypto = require('crypto')
 const Ajv = require('ajv')
 const EventEmitter = require('events')
 const { nanoid } = require('nanoid')
@@ -725,10 +724,6 @@ class VrpcAdapter {
     } catch (err) {
       json.data.e = err.message
     }
-  }
-
-  static _generateId (object) {
-    return crypto.createHash('md5').update(JSON.stringify(object)).digest('hex')
   }
 
   static _getClassEntry (className) {

@@ -38,7 +38,6 @@ SOFTWARE.
 */
 
 const os = require('os')
-const crypto = require('crypto')
 const { nanoid } = require('nanoid')
 const mqtt = require('mqtt')
 const EventEmitter = require('events')
@@ -769,6 +768,25 @@ class VrpcClient extends EventEmitter {
 
   // Private functions
 
+  static _createHash (str, length = 20) {
+    // Extended DJB2 hash with two accumulators
+    let hash1 = 5381
+    let hash2 = 52711 // different seed
+
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      hash1 = (hash1 * 33) ^ char
+      hash2 = (hash2 * 33) ^ char
+    }
+
+    // Combine into longer hex string
+    const token =
+      (hash1 >>> 0).toString(16).padStart(8, '0') +
+      (hash2 >>> 0).toString(16).padStart(8, '0')
+
+    return token.slice(0, length)
+  }
+
   _isConnected () {
     return this._client && this._client.connected
   }
@@ -796,12 +814,8 @@ class VrpcClient extends EventEmitter {
       os.totalmem() +
       os.type()
     // console.log('ClientInfo:', clientInfo)
-    const md5 = crypto
-      .createHash('md5')
-      .update(clientInfo)
-      .digest('hex')
-      .substring(0, 12)
-    return `vc3${this._instance}${md5}` // 3 + 8 + 12 = 23 (max clientId)
+    const hash = VrpcClient._createHash(clientInfo, 12)
+    return `vc3${this._instance}${hash}` // 3 + 8 + 12 = 23 (max clientId)
   }
 
   _createVrpcClientId () {

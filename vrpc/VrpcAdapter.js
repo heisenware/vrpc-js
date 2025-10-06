@@ -37,7 +37,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-const crypto = require('crypto')
 const path = require('path')
 const fs = require('fs')
 const Ajv = require('ajv')
@@ -822,10 +821,6 @@ class VrpcAdapter {
       const { message, cause } = err
       json.data.e = { message, cause }
     }
-  }
-
-  static _generateId (object) {
-    return crypto.createHash('md5').update(JSON.stringify(object)).digest('hex')
   }
 
   static _getClassEntry (className) {

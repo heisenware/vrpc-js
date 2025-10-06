@@ -2,7 +2,6 @@ const os = require('os')
 const path = require('path')
 const mqtt = require('mqtt')
 const { nanoid } = require('nanoid')
-const crypto = require('crypto')
 const { ArgumentParser } = require('argparse')
 const EventEmitter = require('events')
 const jsonStringifySafe = require('json-stringify-safe')
@@ -133,12 +132,7 @@ class VrpcAgent extends EventEmitter {
     this._qos = bestEffort ? 0 : 1
     this._version = version
     this._mqttClientId =
-      mqttClientId ||
-      `va3${crypto
-        .createHash('md5')
-        .update(this._domain + this._agent)
-        .digest('hex')
-        .substring(0, 20)}`
+      mqttClientId || `va3${VrpcAgent._createHash(this._domain + this._agent)}`
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -269,13 +263,28 @@ class VrpcAgent extends EventEmitter {
     return obj
   }
 
+  static _createHash (str, length = 20) {
+    // Extended DJB2 hash with two accumulators
+    let hash1 = 5381
+    let hash2 = 52711 // different seed
+
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      hash1 = (hash1 * 33) ^ char
+      hash2 = (hash2 * 33) ^ char
+    }
+
+    // Combine into longer hex string
+    const token =
+      (hash1 >>> 0).toString(16).padStart(8, '0') +
+      (hash2 >>> 0).toString(16).padStart(8, '0')
+
+    return token.slice(0, length)
+  }
+
   static _generateAgentName () {
     const { username } = os.userInfo()
-    const pathId = crypto
-      .createHash('md5')
-      .update(path.resolve())
-      .digest('hex')
-      .substring(0, 4)
+    const pathId = VrpcAgent._createHash(path.resolve, 4)
     return `${username}-${pathId}@${os.hostname()}-${os.platform()}-js`
   }
 
@@ -294,7 +303,7 @@ class VrpcAgent extends EventEmitter {
       os.type() +
       JSON.stringify(os.networkInterfaces()) +
       JSON.stringify(os.cpus().map(({ model }) => model))
-    return crypto.createHash('md5').update(uid).digest('hex')
+    return VrpcAgent._createHash(uid)
   }
 
   _validateDomain (domain) {

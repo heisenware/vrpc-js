@@ -1,6 +1,5 @@
 const os = require('os')
 const mqtt = require('mqtt')
-const crypto = require('crypto')
 const VrpcAdapter = require('./VrpcBrowserAdapter')
 const EventEmitter = require('events')
 const { nanoid } = require('nanoid')
@@ -13,7 +12,6 @@ const VRPC_PROTOCOL_VERSION = 3
  * @extends EventEmitter
  */
 class VrpcAgent extends EventEmitter {
-
   /**
    * Constructs an agent instance
    *
@@ -61,11 +59,7 @@ class VrpcAgent extends EventEmitter {
     this._version = version
     this._mqttClientId =
       mqttClientId ||
-      `va3${crypto
-        .createHash('md5')
-        .update(this._domain + this._agent)
-        .digest('hex')
-        .substring(0, 20)}`
+      `va3${VrpcAgent._createHash(this._domain + this._agent)}`
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -169,6 +163,25 @@ class VrpcAgent extends EventEmitter {
     } catch (err) {
       this._log.error(err, `Problem during disconnecting agent: ${err.message}`)
     }
+  }
+
+  static _createHash (str, length = 20) {
+    // Extended DJB2 hash with two accumulators
+    let hash1 = 5381
+    let hash2 = 52711 // different seed
+
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      hash1 = (hash1 * 33) ^ char
+      hash2 = (hash2 * 33) ^ char
+    }
+
+    // Combine into longer hex string
+    const token =
+      (hash1 >>> 0).toString(16).padStart(8, '0') +
+      (hash2 >>> 0).toString(16).padStart(8, '0')
+
+    return token.slice(0, length)
   }
 
   _validateDomain (domain) {
@@ -373,7 +386,7 @@ class VrpcAgent extends EventEmitter {
 
   _publishClassInfoMessage (className) {
     const json = {
-      className: className,
+      className,
       instances: this._getInstances(className),
       memberFunctions: this._getMemberFunctions(className),
       staticFunctions: this._getStaticFunctions(className),
