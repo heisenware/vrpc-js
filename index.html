@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRPC Browser Test</title>
+</head>
+<body>
+    <h1>VRPC Full-Stack Test Page</h1>
+    <p>Check the browser's developer console (F12) for output.</p>
+
+    <script src="./browser/vrpc.js"></script>
+
+    <script>
+        // The webpack build exposes a global 'vrpc' object
+        console.log('Library loaded:', vrpc);
+
+        // Destructure the VrpcClient class from the global object
+        const { VrpcClient } = vrpc;
+
+        // --- IMPORTANT ---
+        // The broker URL must use the WebSocket protocol (wss:// or ws://)
+        // because browsers do not support raw TCP connections.
+        const client = new VrpcClient({
+            domain: 'vrpc',
+            broker: 'wss://broker.hivemq.com:8884/mqtt', // Use wss:// and port 8884 for HiveMQ
+            timeout: 8000
+        });
+
+        // Add event listeners to see what's happening
+        client.on('connect', () => {
+            console.log('✅ Connected to MQTT broker!');
+        });
+
+        client.on('agent', (info) => {
+            console.log('AGENT EVENT:', info);
+        });
+
+        client.on('error', (err) => {
+            console.error('❌ Client error:', err.message);
+        });
+
+        // Create an async function to run the test logic
+        async function runTest() {
+            try {
+                console.log('Attempting to connect...');
+                await client.connect();
+
+                // Once connected, you can use the client's methods
+                const agents = client.getAvailableAgents();
+                console.log('Available agents:', agents);
+
+                // Example: Try to get a non-existent instance to test error handling
+                try {
+                    await client.getInstance('nonExistentInstance', { noWait: true });
+                } catch (err) {
+                    console.warn('As expected, could not find instance:', err.message);
+                }
+
+            } catch (err) {
+                console.error('Failed to connect:', err.message);
+            }
+        }
+
+        // Run the test
+        runTest();
+    </script>
+</body>
+</html>
