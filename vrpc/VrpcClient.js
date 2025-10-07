@@ -188,6 +188,11 @@ class VrpcClient extends EventEmitter {
     }
     if (username === undefined) delete options.username
     if (password === undefined) delete options.password
+
+    this.on('error', err => {
+      this._log.debug(`Encountered MQTT error: ${err.message}`)
+    })
+
     this._client = mqtt.connect(this._broker, options)
 
     // Persistent lifecycle handlers
@@ -209,10 +214,6 @@ class VrpcClient extends EventEmitter {
 
     this._client.stream.on('error', err => {
       this.emit('error', err)
-    })
-
-    this.on('error', err => {
-      this._log.debug(`Encountered MQTT error: ${err.message}`)
     })
 
     this._client.on('connect', () => {

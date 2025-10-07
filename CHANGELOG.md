@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [3.5.1] - unreleased
+## [3.5.2] - Oct 07 2025
+
+### Fixed
+
+- Potentially escaping error message in connect() function able to kill the process
+- Test script clean up
+
+## [3.5.1] - Oct 06 2025
 
 ### Fixed
 
