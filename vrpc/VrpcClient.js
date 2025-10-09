@@ -216,27 +216,37 @@ class VrpcClient extends EventEmitter {
       this.emit('error', err)
     })
 
-    this._client.on('connect', () => {
-      // This will give us an overview of all remotely available classes
-      const agent = this._agent === '*' ? '+' : this._agent
-      // Agent info
-      this._mqttSubscribe(`${this._domain}/${agent}/__agentInfo__`)
-      // Class info
-      if (this._requiresSchema) {
-        this._mqttSubscribe(`${this._domain}/${agent}/+/__classInfo__`)
-      } else {
-        this._mqttSubscribe(`${this._domain}/${agent}/+/__classInfoConcise__`)
-      }
-      // RPC responses
-      this._mqttSubscribe(this._vrpcClientId)
-
-      // Re-subscribe to all cached event topics
-      this._log.info('Restoring event subscriptions after reconnect...')
-      for (const topic of Object.keys(this._cachedSubscriptions)) {
-        this._mqttSubscribe(topic)
-      }
-
+    this._client.on('connect', async () => {
+      // forward the good news
       this.emit('connect')
+      try {
+        // This will give us an overview of all remotely available classes
+        const agent = this._agent === '*' ? '+' : this._agent
+        // Agent info
+        await this._mqttSubscribe(`${this._domain}/${agent}/__agentInfo__`)
+        // Class info
+        if (this._requiresSchema) {
+          await this._mqttSubscribe(`${this._domain}/${agent}/+/__classInfo__`)
+        } else {
+          await this._mqttSubscribe(
+            `${this._domain}/${agent}/+/__classInfoConcise__`
+          )
+        }
+        // RPC responses
+        await this._mqttSubscribe(this._vrpcClientId)
+
+        // Re-subscribe to all cached event topics
+        this._log.info('Restoring event subscriptions after reconnect...')
+        const promises = []
+        for (const topic of Object.keys(this._cachedSubscriptions)) {
+          promises.push(this._mqttSubscribe(topic))
+        }
+        await Promise.allSettled(promises)
+      } catch (err) {
+        this._log.error(
+          `Encountered issue while setting up subscriptions after connect: ${err.message}`
+        )
+      }
     })
 
     this._client.on('message', (topic, message) => {
@@ -327,7 +337,6 @@ class VrpcClient extends EventEmitter {
         resolve()
       })
     })
-    // --------------------------------------------------------------------------------
   }
 
   /**
@@ -496,7 +505,7 @@ class VrpcClient extends EventEmitter {
     if (!this._isConnected()) {
       throw new Error('Client is not connected')
     }
-    const wrapped = this._wrapArguments({
+    const wrapped = await this._wrapArguments({
       agent,
       className,
       functionName,
@@ -559,7 +568,7 @@ class VrpcClient extends EventEmitter {
       const agents = this.getAvailableAgents()
       for (const agent of agents) {
         const topic = `${this._domain}/${agent}/${className}/__static__/__callAll__`
-        const wrapped = this._wrapArguments({
+        const wrapped = await this._wrapArguments({
           agent,
           className,
           functionName,
@@ -575,7 +584,7 @@ class VrpcClient extends EventEmitter {
       return result
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__callAll__`
-    const wrapped = this._wrapArguments({
+    const wrapped = await this._wrapArguments({
       agent,
       className,
       functionName,
@@ -848,68 +857,77 @@ class VrpcClient extends EventEmitter {
     )
   }
 
-  _mqttSubscribe (topic, options) {
-    this._client.subscribe(
-      topic,
-      { qos: this._qos, ...options },
-      (err, granted) => {
-        if (err) {
-          this._log.warn(
-            `Could not subscribe to topic(s): '${topic}', because: ${err.message}`
-          )
-          if (err.message === 'client disconnecting') {
-            // This most certainly relates to a bug in MQTT.js (#1284)
-            this._log.error(`Failed to subscribe, because: ${err.message}`)
-            this.emit('error', err)
-            this._log.info('Forcing reconnect now...')
-            this._client.disconnecting = false
-            this._client.reconnect()
-          }
-        } else {
-          const topicArray = Array.isArray(topic) ? topic : [topic]
-          const erroneousGranted = granted
-            .filter(x => x.qos === 128)
-            .map(x => x.topic)
-          if (erroneousGranted.length > 0) {
-            err = new Error(
-              `Could not subscribe all ${topicArray.length} topic(s) but got error qos=128 on following ${erroneousGranted.length} topic(s): ${erroneousGranted}`
+  async _mqttSubscribe (topic, options) {
+    return new Promise((resolve, reject) => {
+      this._client.subscribe(
+        topic,
+        { qos: this._qos, ...options },
+        (err, granted) => {
+          if (err) {
+            this._log.warn(
+              `Could not subscribe to topic(s): '${topic}', because: ${err.message}`
             )
-            err.code = 'SUBSCRIBE_FAILED'
-            err.subscribeOptions = options
-            this._log.error(err)
-            this.emit('error', err)
-          }
-          const reducedQos = granted.filter(x => x.qos < this._qos)
-          if (reducedQos.length > 0) {
-            err = new Error(
-              `Could not subscribe all ${
-                topicArray.length
-              } topic(s) at desired qos=${
-                this._qos
-              } but got reduced qos on following ${
-                reducedQos.length
-              } topic(s): ${JSON.stringify(reducedQos)}`
-            )
-            err.code = 'SUBSCRIBE_REDUCED_QOS'
-            err.subscribeOptions = options
-            this._log.warn(err)
-            this.emit('error', err)
-          }
-          if (granted.length === 0) {
-            this._log.debug(`Already subscribed to: ${topic}`)
+            if (err.message === 'client disconnecting') {
+              // This most certainly relates to a bug in MQTT.js (#1284)
+              const msg = `Failed to subscribe, because: ${err.message}`
+              this._log.error(msg)
+              this.emit('error', err)
+              this._log.info('Forcing reconnect now...')
+              this._client.disconnecting = false
+              this._client.reconnect()
+              reject(new Error(msg))
+            }
+          } else {
+            const topicArray = Array.isArray(topic) ? topic : [topic]
+            const erroneousGranted = granted
+              .filter(x => x.qos === 128)
+              .map(x => x.topic)
+            if (erroneousGranted.length > 0) {
+              err = new Error(
+                `Could not subscribe all ${topicArray.length} topic(s) but got error qos=128 on following ${erroneousGranted.length} topic(s): ${erroneousGranted}`
+              )
+              err.code = 'SUBSCRIBE_FAILED'
+              err.subscribeOptions = options
+              this._log.error(err.message)
+              this.emit('error', err)
+            }
+            const reducedQos = granted.filter(x => x.qos < this._qos)
+            if (reducedQos.length > 0) {
+              err = new Error(
+                `Could not subscribe all ${
+                  topicArray.length
+                } topic(s) at desired qos=${
+                  this._qos
+                } but got reduced qos on following ${
+                  reducedQos.length
+                } topic(s): ${JSON.stringify(reducedQos)}`
+              )
+              err.code = 'SUBSCRIBE_REDUCED_QOS'
+              err.subscribeOptions = options
+              this._log.warn(err.message)
+              this.emit('error', err)
+            }
+            if (granted.length === 0) {
+              this._log.debug(`Already subscribed to: ${topic}`)
+            }
+            resolve()
           }
         }
-      }
-    )
+      )
+    })
   }
 
-  _mqttUnsubscribe (topic, options) {
-    this._client.unsubscribe(topic, options, err => {
-      if (err) {
-        this._log.warn(
-          `Could not unsubscribe from topic: ${topic} because: ${err.message}`
-        )
-      }
+  async _mqttUnsubscribe (topic, options) {
+    return new Promise((resolve, reject) => {
+      this._client.unsubscribe(topic, options, err => {
+        if (err) {
+          this._log.warn(
+            `Could not unsubscribe from topic: ${topic} because: ${err.message}`
+          )
+        }
+        // we resolve in any case to let the upstream logic flow
+        resolve()
+      })
     })
   }
 
@@ -1002,7 +1020,7 @@ class VrpcClient extends EventEmitter {
           const id = `__e__${topic}`
           if (this._cachedSubscriptions[topic]) {
             this._eventEmitter.removeAllListeners(id)
-            this._mqttUnsubscribe(topic)
+            await this._mqttUnsubscribe(topic)
             delete this._cachedSubscriptions[topic]
           }
           try {
@@ -1030,7 +1048,7 @@ class VrpcClient extends EventEmitter {
         return
       }
       proxy[functionName] = async (...args) => {
-        const wrapped = this._wrapArguments({
+        const wrapped = await this._wrapArguments({
           agent,
           className,
           instance,
@@ -1065,7 +1083,7 @@ class VrpcClient extends EventEmitter {
     if (!uniqueFuncs.has('vrpcOn') && !uniqueFuncs.has('vrpcOff')) {
       proxy.vrpcOn = async (functionName, ...args) => {
         if (!uniqueFuncs.has(functionName)) throw new Error('Bad magic')
-        const wrapped = this._wrapArguments({
+        const wrapped = await this._wrapArguments({
           agent,
           className,
           instance,
@@ -1170,7 +1188,14 @@ class VrpcClient extends EventEmitter {
     })
   }
 
-  _wrapArguments ({ agent, className, instance, proxyId, functionName, args }) {
+  async _wrapArguments ({
+    agent,
+    className,
+    instance,
+    proxyId,
+    functionName,
+    args
+  }) {
     const wrapped = []
     for (const [i, x] of args.entries()) {
       // Check whether provided argument is a function
@@ -1186,7 +1211,7 @@ class VrpcClient extends EventEmitter {
           // 2) callback is second argument
           // 3) first argument was string
           const event = args[0]
-          const id = this._onRemoteEvent({
+          const id = await this._onRemoteEvent({
             agent,
             className,
             instance,
@@ -1201,7 +1226,7 @@ class VrpcClient extends EventEmitter {
           typeof args[0] === 'string'
         ) {
           const event = args[0]
-          const id = this._offRemoteEvent({
+          const id = await this._offRemoteEvent({
             agent,
             className,
             instance,
@@ -1236,7 +1261,7 @@ class VrpcClient extends EventEmitter {
           this._emitterListener.set(emitter, new Map([[event, callback]]))
         }
 
-        const id = this._onRemoteEvent({
+        const id = await this._onRemoteEvent({
           agent,
           className,
           instance,
@@ -1252,7 +1277,7 @@ class VrpcClient extends EventEmitter {
     return wrapped
   }
 
-  _onRemoteEvent ({ agent, className, instance, event, callback }) {
+  async _onRemoteEvent ({ agent, className, instance, event, callback }) {
     const callbackId = this._getCallbackId(callback)
     const eventCallback = `${event}-${callbackId}`
 
@@ -1273,7 +1298,7 @@ class VrpcClient extends EventEmitter {
     }
     if (!this._cachedSubscriptions[topic]) {
       // when not yet subscribed to this topic do it now
-      this._mqttSubscribe(topic)
+      await this._mqttSubscribe(topic)
       this._cachedSubscriptions[topic] = [{ callback, handler }]
       return id
     }
@@ -1282,7 +1307,7 @@ class VrpcClient extends EventEmitter {
     return id
   }
 
-  _offRemoteEvent ({ agent, className, instance, event, callback }) {
+  async _offRemoteEvent ({ agent, className, instance, event, callback }) {
     const callbackId = this._getCallbackId(callback, {
       readOnly: true
     })
@@ -1304,7 +1329,7 @@ class VrpcClient extends EventEmitter {
       const [{ handler }] = this._cachedSubscriptions[topic].splice(index, 1)
       if (this._cachedSubscriptions[topic].length === 0) {
         this._eventEmitter.removeListener(id, handler)
-        this._mqttUnsubscribe(topic)
+        await this._mqttUnsubscribe(topic)
         delete this._cachedSubscriptions[topic]
         return id
       }
@@ -1333,6 +1358,7 @@ class VrpcClient extends EventEmitter {
       subscriptions.forEach(({ handler }) => {
         this._eventEmitter.removeListener(id, handler)
       })
+      // this async function will never reject
       this._mqttUnsubscribe(topic)
       delete this._cachedSubscriptions[topic]
     })
