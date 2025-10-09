@@ -136,6 +136,8 @@ class VrpcClient extends EventEmitter {
     this._proxies = {}
     this._callbackIds = new WeakMap()
     this._emitterListener = new WeakMap()
+    this._pendingSubscriptions = new Map()
+    this._pendingUnsubscriptions = new Map()
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
@@ -200,6 +202,7 @@ class VrpcClient extends EventEmitter {
       this._log.warn('MQTT client went offline.')
       // Clear the cache to ensure a fresh state upon reconnection
       this._agents = {}
+      this._proxies = {}
       this.emit('offline')
     })
 
@@ -236,7 +239,7 @@ class VrpcClient extends EventEmitter {
         await this._mqttSubscribe(this._vrpcClientId)
 
         // Re-subscribe to all cached event topics
-        this._log.info('Restoring event subscriptions after reconnect...')
+        this._log.debug('Restoring event subscriptions after reconnect...')
         const promises = []
         for (const topic of Object.keys(this._cachedSubscriptions)) {
           promises.push(this._mqttSubscribe(topic))
@@ -465,25 +468,7 @@ class VrpcClient extends EventEmitter {
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
     this._mqttPublish(topic, JSON.stringify(json))
     if (this._proxies[instance]) delete this._proxies[instance]
-    const result = await this._handleAgentAnswer(json, agent)
-    // Now that deletion is confirmed, proactively update all local caches
-    if (result) {
-      // 1. Remove from the proxy cache
-      if (this._proxies[instance]) {
-        delete this._proxies[instance]
-      }
-      // 2. Remove from the main agent/instance cache
-      if (this._agents[agent] && this._agents[agent].classes) {
-        const classInfo = this._agents[agent].classes[className]
-        if (classInfo && classInfo.instances) {
-          const index = classInfo.instances.indexOf(instance)
-          if (index > -1) {
-            classInfo.instances.splice(index, 1)
-          }
-        }
-      }
-    }
-    return result
+    return this._handleAgentAnswer(json, agent)
   }
 
   /**
@@ -1287,9 +1272,14 @@ class VrpcClient extends EventEmitter {
       : `${this._domain}/${agent}/${className}/${eventCallback}`
 
     // prepare a special id for the agent to know that events should be
-    // published to the provided topic after the prefix and before the suffix
+    // published to the provided topic after the prefix
 
     const id = `__e__${topic}`
+
+    // If a subscription for this topic is already in progress, wait for it to finish.
+    if (this._pendingSubscriptions.has(topic)) {
+      await this._pendingSubscriptions.get(topic)
+    }
 
     // call our proxy callback when remote events were received
     const handler = ({ a }) => callback.apply(null, a)
@@ -1298,12 +1288,19 @@ class VrpcClient extends EventEmitter {
     }
     if (!this._cachedSubscriptions[topic]) {
       // when not yet subscribed to this topic do it now
-      await this._mqttSubscribe(topic)
-      this._cachedSubscriptions[topic] = [{ callback, handler }]
-      return id
+      const subscribePromise = this._mqttSubscribe(topic)
+      this._pendingSubscriptions.set(topic, subscribePromise) // set lock
+
+      try {
+        await subscribePromise
+        this._cachedSubscriptions[topic] = [{ callback, handler }]
+      } finally {
+        this._pendingSubscriptions.delete(topic) // release lock
+      }
+    } else {
+      // otherwise just add the new callback-handler pair
+      this._cachedSubscriptions[topic].push({ callback, handler })
     }
-    // otherwise just add the new callback-handler pair
-    this._cachedSubscriptions[topic].push({ callback, handler })
     return id
   }
 
@@ -1311,12 +1308,19 @@ class VrpcClient extends EventEmitter {
     const callbackId = this._getCallbackId(callback, {
       readOnly: true
     })
+    // If the callback was never registered, we can't do anything.
+    if (!callbackId) return null
+
     const eventCallback = `${event}-${callbackId}`
     const topic = instance
       ? `${this._domain}/${agent}/${className}/${instance}:${eventCallback}`
       : `${this._domain}/${agent}/${className}/${eventCallback}`
 
     const id = `__e__${topic}`
+
+    if (this._pendingUnsubscriptions.has(topic)) {
+      await this._pendingUnsubscriptions.get(topic)
+    }
 
     if (this._cachedSubscriptions[topic]) {
       const index = this._cachedSubscriptions[topic].findIndex(
@@ -1328,16 +1332,21 @@ class VrpcClient extends EventEmitter {
       }
       const [{ handler }] = this._cachedSubscriptions[topic].splice(index, 1)
       if (this._cachedSubscriptions[topic].length === 0) {
-        this._eventEmitter.removeListener(id, handler)
-        await this._mqttUnsubscribe(topic)
         delete this._cachedSubscriptions[topic]
-        return id
+        const unsubscribePromise = this._mqttUnsubscribe(topic)
+        this._pendingUnsubscriptions.set(topic, unsubscribePromise) // set lock
+
+        try {
+          await unsubscribePromise
+          this._eventEmitter.removeListener(id, handler)
+        } finally {
+          this._pendingUnsubscriptions.delete(topic) // release lock
+        }
+      } else {
+        this._log.warn(`Can not unsubscribe from non-existing event: ${event}`)
       }
       return id
-    } else {
-      this._log.warn(`Can not unsubscribe from non-existing event: ${event}`)
     }
-    return id
   }
 
   _clearCachedSubscriptions ({ lostAgent, lostInstance }) {
@@ -1353,7 +1362,7 @@ class VrpcClient extends EventEmitter {
     )
     obsoleteTopics.forEach(topic => {
       const id = `__e__${topic}`
-      this._log.info(`Clearing subscriptions for obsolete topic: ${topic}`)
+      this._log.debug(`Clearing subscriptions for obsolete topic: ${topic}`)
       const subscriptions = this._cachedSubscriptions[topic]
       subscriptions.forEach(({ handler }) => {
         this._eventEmitter.removeListener(id, handler)
