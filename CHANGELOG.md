@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [3.5.3] - unreleased
+## [3.5.3] - Oct 10 2025
 
 ## Fixed
 
-- Several potentials of code races, especially when subscribing events
+- Removed several potentials for code races in the VrpcClient, especially when
+  subscribing events
 
 ## [3.5.2] - Oct 07 2025
 
