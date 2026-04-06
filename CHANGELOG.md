@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - Apr 06 2026
+
+### Added
+
+- **Smart Event Detection**: Introduced a heuristic to automatically detect continuous remote event emitters. Functions starting with `on`, `notify`, `monitor`, or `signal` (and their removers `off`, `remove`, `unmonitor`, `unsignal`) that receive a callback are now automatically routed through the VRPC event system, removing the strict necessity to use `vrpcOn`/`vrpcOff`.
+
+### Changed
+
+- **Massive Performance Improvement (N-Subscription Problem)**: Drastically reduced MQTT overhead for event listeners. Instead of creating a dynamic MQTT subscription for every single frontend event listener, the `VrpcClient` now uses a single, dedicated wildcard subscription (`__e__/#`) for all remote events.
+- **Offline Resilience**: Teardown and reconnect phases are now significantly faster as disconnecting agents no longer trigger hundreds of recursive background un-subscriptions.
+
+### Fixed
+
+- A silent memory leak and incorrect reference counting issue that occurred when the exact same callback function was registered multiple times to the same event.
+- Ensured local event listeners are properly and completely wiped from the internal `EventEmitter` when a proxy invokes `removeAllListeners`.
+
 ## [3.5.3] - Oct 10 2025
 
 ## Fixed

@@ -238,6 +238,9 @@ class VrpcClient extends EventEmitter {
         // RPC responses
         await this._mqttSubscribe(this._vrpcClientId)
 
+        // Single wildcard subscription for ALL continuous remote events
+        await this._mqttSubscribe(`${this._vrpcClientId}/__e__/#`)
+
         // Re-subscribe to all cached event topics
         this._log.debug('Restoring event subscriptions after reconnect...')
         const promises = []
@@ -1001,13 +1004,32 @@ class VrpcClient extends EventEmitter {
           if (!eventName) {
             throw new Error('VRPC does not support removing all listeners')
           }
-          const topic = `${this._domain}/${agent}/${className}/${instance}:${eventName}`
-          const id = `__e__${topic}`
-          if (this._cachedSubscriptions[topic]) {
-            this._eventEmitter.removeAllListeners(id)
-            await this._mqttUnsubscribe(topic)
+
+          const obsoleteTopics = Object.keys(this._cachedSubscriptions).filter(
+            topic => {
+              const tokens = topic.split('/')
+              if (tokens[3] === '__e__') {
+                const topicInstance = tokens[6]
+                const topicEvent = tokens[7]
+                return topicInstance === instance && topicEvent === eventName
+              }
+              // Legacy fallback
+              const expectedOld = `${this._domain}/${agent}/${className}/${instance}:${eventName}`
+              return topic.startsWith(expectedOld)
+            }
+          )
+
+          obsoleteTopics.forEach(topic => {
+            const id = `__e__${topic}`
+            const subscriptions = this._cachedSubscriptions[topic]
+            subscriptions.forEach(({ handler }) => {
+              this._eventEmitter.removeListener(id, handler)
+            })
+            if (!topic.includes('__e__')) {
+              this._mqttUnsubscribe(topic).catch(() => {})
+            }
             delete this._cachedSubscriptions[topic]
-          }
+          })
           try {
             const json = {
               c: instance,
@@ -1182,20 +1204,22 @@ class VrpcClient extends EventEmitter {
     args
   }) {
     const wrapped = []
+
+    // Heuristic for continuous event emitters and their removal
+    const isContinuousEmitter = /^(on|notify|monitor|signal)/.test(functionName)
+    const isContinuousRemover = /^(off|remove|unmonitor|unsignal)/.test(
+      functionName
+    )
+
     for (const [i, x] of args.entries()) {
-      // Check whether provided argument is a function
       if (this._isFunction(x)) {
         const callback = x
         if (
           functionName === 'vrpcOn' ||
-          (functionName === 'on' && i === 1 && typeof args[0] === 'string')
+          (functionName === 'on' && i === 1 && typeof args[0] === 'string') ||
+          isContinuousEmitter
         ) {
-          // special case of an (remote-)event emitter registration
-          // we test three conditions:
-          // 1) functionName must be "on"
-          // 2) callback is second argument
-          // 3) first argument was string
-          const event = args[0]
+          const event = typeof args[0] === 'string' ? args[0] : functionName
           const id = await this._onRemoteEvent({
             agent,
             className,
@@ -1206,19 +1230,13 @@ class VrpcClient extends EventEmitter {
           wrapped.push(id)
           continue
         } else if (
-          (functionName === 'off' || functionName === 'removeListener') &&
-          i === 1 &&
-          typeof args[0] === 'string'
+          ((functionName === 'off' || functionName === 'removeListener') &&
+            i === 1 &&
+            typeof args[0] === 'string') ||
+          isContinuousRemover
         ) {
-          const event = args[0]
-          const id = await this._offRemoteEvent({
-            agent,
-            className,
-            instance,
-            event,
-            callback
-          })
-          wrapped.push(id)
+          const id = await this._offRemoteEvent({ callback })
+          wrapped.push(id || null)
           continue
         } else {
           // Regular function callback (can be static or member function)
@@ -1231,6 +1249,7 @@ class VrpcClient extends EventEmitter {
           continue
         }
       }
+
       // special case of an EventEmitter provided as argument
       if (this._isEmitter(x)) {
         const { emitter, event } = x
@@ -1264,100 +1283,80 @@ class VrpcClient extends EventEmitter {
 
   async _onRemoteEvent ({ agent, className, instance, event, callback }) {
     const callbackId = this._getCallbackId(callback)
-    const eventCallback = `${event}-${callbackId}`
 
-    // the topic on which any remote event will be published to
-    const topic = instance
-      ? `${this._domain}/${agent}/${className}/${instance}:${eventCallback}`
-      : `${this._domain}/${agent}/${className}/${eventCallback}`
-
-    // prepare a special id for the agent to know that events should be
-    // published to the provided topic after the prefix
-
+    // Route directly to the client's single event inbox wildcard.
+    const topic = `${this._vrpcClientId}/__e__/${agent}/${className}/${
+      instance || '__static__'
+    }/${event}/${callbackId}`
     const id = `__e__${topic}`
 
-    // If a subscription for this topic is already in progress, wait for it to finish.
-    if (this._pendingSubscriptions.has(topic)) {
-      await this._pendingSubscriptions.get(topic)
-    }
-
-    // call our proxy callback when remote events were received
     const handler = ({ a }) => callback.apply(null, a)
+
+    // Only bind to the actual emitter on the first registration
     if (this._eventEmitter.listenerCount(id) === 0) {
       this._eventEmitter.on(id, handler)
     }
-    if (!this._cachedSubscriptions[topic]) {
-      // when not yet subscribed to this topic do it now
-      const subscribePromise = this._mqttSubscribe(topic)
-      this._pendingSubscriptions.set(topic, subscribePromise) // set lock
 
-      try {
-        await subscribePromise
-        this._cachedSubscriptions[topic] = [{ callback, handler }]
-      } finally {
-        this._pendingSubscriptions.delete(topic) // release lock
-      }
+    if (!this._cachedSubscriptions[topic]) {
+      this._cachedSubscriptions[topic] = [{ callback, handler }]
     } else {
-      // otherwise just add the new callback-handler pair
+      // We MUST push duplicates to act as a reference counter!
       this._cachedSubscriptions[topic].push({ callback, handler })
     }
+
     return id
   }
 
-  async _offRemoteEvent ({ agent, className, instance, event, callback }) {
-    const callbackId = this._getCallbackId(callback, {
-      readOnly: true
-    })
-    // If the callback was never registered, we can't do anything.
+  async _offRemoteEvent ({ callback }) {
+    const callbackId = this._getCallbackId(callback, { readOnly: true })
     if (!callbackId) return null
 
-    const eventCallback = `${event}-${callbackId}`
-    const topic = instance
-      ? `${this._domain}/${agent}/${className}/${instance}:${eventCallback}`
-      : `${this._domain}/${agent}/${className}/${eventCallback}`
+    let foundId = null
+    const topics = Object.keys(this._cachedSubscriptions).filter(
+      t => t.endsWith(`/${callbackId}`) || t.endsWith(`-${callbackId}`)
+    )
 
-    const id = `__e__${topic}`
-
-    if (this._pendingUnsubscriptions.has(topic)) {
-      await this._pendingUnsubscriptions.get(topic)
-    }
-
-    if (this._cachedSubscriptions[topic]) {
+    topics.forEach(topic => {
+      const id = `__e__${topic}`
       const index = this._cachedSubscriptions[topic].findIndex(
         x => x.callback === callback
       )
-      if (index === -1) {
-        this._log.warn(`Failed removing event listener ${id}`)
-        return null
-      }
-      const [{ handler }] = this._cachedSubscriptions[topic].splice(index, 1)
-      if (this._cachedSubscriptions[topic].length === 0) {
-        delete this._cachedSubscriptions[topic]
-        const unsubscribePromise = this._mqttUnsubscribe(topic)
-        this._pendingUnsubscriptions.set(topic, unsubscribePromise) // set lock
 
-        try {
-          await unsubscribePromise
-          this._eventEmitter.removeListener(id, handler)
-        } finally {
-          this._pendingUnsubscriptions.delete(topic) // release lock
+      if (index !== -1) {
+        // Decrease the "reference count" by removing one instance
+        this._cachedSubscriptions[topic].splice(index, 1)
+
+        // Only remove from the local event emitter if NO references remain
+        if (this._cachedSubscriptions[topic].length === 0) {
+          delete this._cachedSubscriptions[topic]
+
+          // Legacy cleanup just in case
+          if (!topic.includes('__e__')) {
+            this._mqttUnsubscribe(topic).catch(() => {})
+          }
+
+          // Cleanly wipe all listeners for this specific id
+          this._eventEmitter.removeAllListeners(id)
         }
-      } else {
-        this._log.warn(`Can not unsubscribe from non-existing event: ${event}`)
+        foundId = id
       }
-      return id
-    }
+    })
+    return foundId
   }
 
   _clearCachedSubscriptions ({ lostAgent, lostInstance }) {
     const obsoleteTopics = Object.keys(this._cachedSubscriptions).filter(
       topic => {
-        const [, agent, , instanceEvent] = topic.split('/')
-        const [instance] = instanceEvent.split(':')
-        if (agent === lostAgent || instance === lostInstance) {
-          return true
+        const tokens = topic.split('/')
+        if (tokens[3] === '__e__') {
+          const topicAgent = tokens[4]
+          const topicInstance = tokens[6]
+          return topicAgent === lostAgent || topicInstance === lostInstance
         }
-        return false
+        // Legacy fallback
+        const [, agent, , instanceEvent] = topic.split('/')
+        const [instance] = (instanceEvent || '').split(':')
+        return agent === lostAgent || instance === lostInstance
       }
     )
     obsoleteTopics.forEach(topic => {
