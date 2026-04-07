@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - Apr 07 2026
+
+### Changed
+
+- **Optimized Event Topic Generation**: Refactored remote event topics to use a flat, sanitized hash instead of deeply nested strings. This prevents potential MQTT subscription failures caused by unsanitized user inputs (e.g., custom event names containing MQTT wildcards).
+- **Authentication System Compatibility**: Event topics are now explicitly formatted to be exactly 4 segments long (`<clientId>/<hash>`). This avoids collisions with external authentication/policy engines that rely on a 5-segment length to identify RPC messages.
+- **Simplified MQTT Subscriptions**: Consolidated client subscriptions. A single wildcard subscription (`<clientId>/#`) now elegantly handles both RPC responses and all event callbacks, reducing network overhead during the connection phase.
+- **Improved Internal Event Tracking**: Removed legacy fallback logic for event topic cleanups. The internal `_cachedSubscriptions` map now strictly stores structured metadata objects, eliminating complex and fragile string parsing.
+
 ## [3.6.0] - Apr 06 2026
 
 ### Added

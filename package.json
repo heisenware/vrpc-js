@@ -1,6 +1,6 @@
 {
   "name": "vrpc",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "description": "Variadic Remote Procedure Calls",
   "main": "index.js",
   "directories": {
@@ -45,7 +45,7 @@
   "bugs": {
     "url": "https://github.com/heisenware/vrpc/issues"
   },
-  "homepage": "https://vrpc.io",
+  "homepage": "https://docs.heisenware.com/developers/vrpc",
   "devDependencies": {
     "@heisenware/storage": "^1.2.2",
     "chai": "^4.3.10",
