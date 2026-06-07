@@ -10,6 +10,7 @@ import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs'
 const snippets = {
   javascript: {
     label: 'Node.js',
+    logo: '/assets/logos/nodejs.png', // NEW: Logo path added
     command: 'npm i vrpc',
     file: 'agent.js',
     code: `const { VrpcAgent, VrpcAdapter } = require('vrpc')
@@ -39,6 +40,7 @@ main().catch(console.error)`
   },
   python: {
     label: 'Python',
+    logo: '/assets/logos/python.png', // NEW: Logo path added
     command: 'pip install vrpc',
     file: 'agent.py',
     code: `import asyncio
@@ -68,6 +70,7 @@ if __name__ == "__main__":
   },
   cpp: {
     label: 'C++',
+    logo: '/assets/logos/cpp.png', // NEW: Logo path added
     command: 'cmake . && make',
     file: 'agent.cpp',
     code: `#include <vrpc/agent.hpp>
@@ -110,6 +113,7 @@ int main() {
   },
   arduino: {
     label: 'Arduino (ESP32)',
+    logo: '/assets/logos/arduino.png', // NEW: Logo path added
     command: 'Upload via Arduino IDE / PlatformIO',
     file: 'Agent.ino',
     code: `#include <WiFi.h>
@@ -245,12 +249,20 @@ export default function Home () {
 
           <div className='code-block-wrapper'>
             <div className='code-tabs'>
-              {Object.entries(snippets).map(([key, { label }]) => (
+              {/* UPDATED: Map over snippets and include the logo */}
+              {Object.entries(snippets).map(([key, { label, logo }]) => (
                 <button
                   key={key}
                   className={`tab-btn ${activeTab === key ? 'active' : ''}`}
                   onClick={() => setActiveTab(key)}
                 >
+                  {logo && (
+                    <img
+                      src={logo}
+                      alt={`${label} logo`}
+                      className='tab-logo'
+                    />
+                  )}
                   {label}
                 </button>
               ))}
@@ -281,7 +293,7 @@ export default function Home () {
                   background: '#1e1e1e',
                   padding: '1rem',
                   margin: 0,
-                  fontSize: '0.75rem',
+                  fontSize: '0.85rem',
                   lineHeight: '1.4',
                   borderRadius: '0 0 8px 8px'
                 }}

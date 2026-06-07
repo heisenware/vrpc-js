@@ -152,64 +152,108 @@
   font-size: 1rem;
 }
 
-/* CODE BLOCK TABS */
+/* ========================================================
+   HOME PAGE TABS ("Floating Pill" style)
+   ======================================================== */
+
 .code-block-wrapper {
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  overflow: hidden;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
 }
+
 .code-tabs {
-  display: flex;
-  background: var(--surface-elevated);
-  border-bottom: 1px solid var(--border-color);
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.03); /* Frosted glass */
+  padding: 6px;
+  border-radius: 100px; /* Perfect pill shape */
+  margin-bottom: 24px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  border-bottom: none;
 }
+
 .tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   background: transparent;
   color: var(--text-muted);
-  border: none;
-  padding: 12px 20px;
-  font-size: 0.85rem;
+  padding: 10px 24px;
+  font-size: 0.9rem;
   font-family: var(--sans);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  border: none;
+  border-radius: 100px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
   outline: none;
-  border-bottom: 2px solid transparent;
 }
+
 .tab-btn:hover {
-  color: var(--text-main);
-  background: rgba(255, 255, 255, 0.02);
+  color: #ffffff;
 }
+
 .tab-btn.active {
-  color: var(--accent-ci-light);
-  border-bottom: 2px solid var(--accent-ci-light);
-  background: var(--surface-color);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
+
+.tab-logo {
+  height: 18px;
+  width: auto;
+  opacity: 0.4;
+  filter: grayscale(100%);
+  transition: all 0.3s ease;
+}
+
+.tab-btn.active .tab-logo {
+  opacity: 1;
+  filter: grayscale(0%);
+}
+
+/* ========================================================
+   HOME PAGE CODE BLOCK (Seamless)
+   ======================================================== */
+
 .install-command {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 14px 20px;
-  background: var(--surface-color);
+  background: #0a0a0a; /* Slightly lighter than the code block */
   color: var(--text-muted);
   font-family: var(--mono);
   font-size: 0.85rem;
-  border-bottom: 1px solid var(--border-color);
+  border-radius: 12px 12px 0 0; /* Rounds the top corners */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  border-bottom: none;
 }
+
 .code-block {
   position: relative;
+  background: #030303; /* Pure deep black */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 20px 40px rgba(0, 0, 0, 0.6); /* Ambient shadow */
+  border-radius: 0 0 12px 12px; /* Rounds the bottom corners */
+  overflow: hidden;
 }
+
 .code-block pre {
   margin: 0 !important;
   font-family: var(--mono) !important;
+  padding: 1.5rem !important; /* Increase padding for breathing room */
+  background: transparent !important;
 }
+
 .copy-btn {
   position: absolute;
   top: 16px;
   right: 16px;
   background: var(--surface-elevated);
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   color: var(--text-muted);
   padding: 8px;
   border-radius: 6px;
@@ -217,9 +261,9 @@
   transition: all 0.2s ease;
   z-index: 10;
 }
+
 .copy-btn:hover {
   color: var(--text-main);
-  border-color: var(--border-hover);
   background: #1a1a1a;
 }
 

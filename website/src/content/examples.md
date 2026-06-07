@@ -21,9 +21,7 @@ JS_CPP_ADVANCED
 
 <tab data-name="C++" data-logo="/assets/logos/cpp.png">
 
-## Native C++ Binding (`03-native-simple`)
-
-_The C++ examples are currently being ported to the new V3 architecture. Stay tuned!_
+CPP_AGENT_SIMPLE
 
 </tab>
 
