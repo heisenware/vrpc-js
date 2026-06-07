@@ -3,6 +3,7 @@ import React from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { VrpcProvider } from './vrpc'
 import Home from './pages/Home'
+import DocsLayout from './pages/DocsLayout'
 import './App.css'
 
 function App () {
@@ -27,6 +28,7 @@ function App () {
           <main className='content'>
             <Routes>
               <Route path='/' element={<Home />} />
+              <Route path='/docs/*' element={<DocsLayout />} />
             </Routes>
           </main>
         </div>

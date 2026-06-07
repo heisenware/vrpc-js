@@ -16,6 +16,7 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.17.0",
     "react-syntax-highlighter": "^16.1.1",
+    "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "vrpc": "^3.7.0",
     "vrpc-react": "^0.1.0"
