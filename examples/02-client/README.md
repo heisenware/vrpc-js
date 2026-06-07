@@ -1,16 +1,16 @@
-# Example - "Remote conversation at the bar"
+# "At the bar" - The client
 
-In the `C++ Agent` and `Node.js Agent` example we prepared some code that
-represents a bar. This code includes language features like classes, static
-functions, asynchronous functions, callbacks, and exceptions.
+Right above we prepared some code that represents a bar. This code includes
+language features like classes, static functions, asynchronous functions,
+callbacks, and exceptions.
 
 Let's see how VRPC handles all these cases and how it feels to use the bar
 remotely...
 
-> **NOTE**
->
+## Prerequisites
+
 > In order to follow this example from scratch, make sure you ran through the
-> *NodeAgent* example and have the agent online.
+> _NodeAgent_ example and have the agent online.
 >
 > Once done, start with a new
 > directory (e.g. `vrpc-node-client-example`), cd into it and run:
@@ -20,7 +20,7 @@ remotely...
 > npm install vrpc
 > ```
 
-## STEP 1: Write a program to remote-control the Bar
+## Step 1: Write a program to remote-control the Bar
 
 Let's write a little program that is capable to remotely call the functions
 as made available through the bar agent.
@@ -29,12 +29,12 @@ The only VRPC component needed is the `VrpcClient` client.
 
 ### Client Code
 
-*index.js*
+`index.js`
 
 ```javascript
 const { VrpcClient } = require('vrpc')
 
-async function main () {
+async function main() {
   // create a remote client
   const client = new VrpcClient({
     domain: 'vrpc',
@@ -107,7 +107,7 @@ main().catch(err => console.log(`An error happened: ${err.message}`))
 
 > **IMPORTANT**
 >
-> Don't forget to exchange `<yourBarAgent>` with the name you used while
+> Don't forget to replace `<yourBarAgent>` with the name you used while
 > starting the bar agent! See the console output to find it.
 
 Make sure you have an agent running, then try the client using:
@@ -118,53 +118,3 @@ node index.js
 
 Convince yourself, that this example works no matter whether you used the C++ or
 Node.js bar implementation!
-
-## Optional steps to make your communication private
-
-Using the services from [Heisenware GmbH](https://heisenware.com) you can make
-your communication private by obtaining an exclusive and access controlled
-domain.
-
-### STEP A: Create a Heisenware account
-
-If you already have an account, simply skip this step.
-
-If not, quickly create a new one
-[here](https://admin.heisenware.cloud/#/createAccount). It takes less than a
-minute and the only thing required is your name and a valid email address.
-
-### STEP B: Get a domain
-
-If you already have a domain, simply skip this step.
-
-If not, navigate to the `Domains` tab in the [Admin
-Tool](https://admin.heisenware.cloud) and click *ADD DOMAIN*, choose a free
-domain and hit *Start 30 days trial* button.
-
-### STEP C: Test connectivity
-
-Using the [Admin
-Tool](https://admin.heisenware.cloud), navigate to the *Access Control* tab
-and copy the default `Client Token` of the `Full Access` role.
-
-Or create a new role that has sufficient rights to access all functions of the
-`Bar` class served by your agent.
-
-Once done, replace the options of `VrpcClient` in the above code with:
-
-```javascript
-const VrpcClient = new VrpcClient({
-  domain: '<yourDomain',
-  agent: '<yourAgent>',
-  token: '<yourToken>'
-  broker: 'mqtts://heisenware.cloud'
-})
-```
-
-and you are good to go.
-
-**IMPORTANT**
->
-> Use `heisenware.cloud` as broker host when working with professional
-> Heisenware accounts.
->

@@ -3,9 +3,9 @@
 This is a very simple example demonstrating the basic steps needed to
 embed existing C++ code into Node.js.
 
-> **NOTE**
->
-> In order to follow this example from scratch, create a new directory (e.g.
+## Prerequisites
+
+> Create a new directory (e.g.
 > `vrpc-embedded-cpp1`), cd into it and run:
 >
 > ```bash
@@ -15,12 +15,12 @@ embed existing C++ code into Node.js.
 >
 > Finally create a directory `src` and you are good to go.
 
-## STEP 1: C++ code that should be embedded
+## Step 1: C++ code that should be embedded
 
 We pretend that the code below already existed and should be made usable
 from within Node.js.
 
-*src/Foo.hpp*
+`src/Foo.hpp`
 
 ```cpp
 class Foo {
@@ -41,12 +41,12 @@ public:
 };
 ```
 
-## STEP 2: Adapter File
+## Step 2: Adapter File
 
 The adapter file (conventionally called `adapter.cpp`) must include all relevant
 headers and mention all constructors and functions that are going to be used.
 
-*src/adapter.cpp*
+`src/adapter.cpp`
 
 ```cpp
 #include "Foo.hpp"
@@ -61,16 +61,16 @@ VRPC_CONST_MEMBER_FUNCTION(Foo, int, getValue);
 VRPC_MEMBER_FUNCTION(Foo, void, setValue, int);
 ```
 
-See [here](docs/reference/cppBinding.md) for a full reference of all available
-adapter macros.
+<!-- See [here](docs/reference/cppBinding.md) for a full reference of all available
+adapter macros. -->
 
-## STEP 3: Creation of a native addon
+## Step 3: Creation of a native addon
 
 We want to run the C++ code embedded in our final Node.js application.
 Hence, a native addon must be compiled. We follow standard technology
 and create a `binding.gyp` file (and place it in the root directory):
 
-*binding.gyp*
+`binding.gyp`
 
 ```python
 {
@@ -104,9 +104,9 @@ npm install
 Once finished, the freshly created addon called `vrpc_foo.node` is available
 under `build/Release`.
 
-## STEP 4: The Node.js application
+## Step 4: The Node.js application
 
-*index.js*
+`index.js`
 
 ```javascript
 const { VrpcNative } = require('vrpc')
@@ -133,3 +133,5 @@ node index.js
 Note that the C++ code is called like all other instructions in Node.js as
 part of the event-loop. The execution however, is at the speed of compiled
 C++ !!
+
+---

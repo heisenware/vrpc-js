@@ -1,7 +1,6 @@
 const EventEmitter = require('events')
 
 class Bar {
-
   constructor (selection = []) {
     this._selection = selection
     this._emitter = new EventEmitter()
@@ -53,7 +52,7 @@ class Bar {
    *
    * @param {Function(Bottle)} listener
    */
-  onAdd(listener) {
+  onAdd (listener) {
     this._emitter.on('add', listener)
   }
 
@@ -62,7 +61,7 @@ class Bar {
    *
    * @param {Function(Bottle)} listener
    */
-  onRemove(listener) {
+  onRemove (listener) {
     this._emitter.on('remove', listener)
   }
 
@@ -76,7 +75,9 @@ class Bar {
     const a = [this._random(), this._random(), this._random()]
     if (done) {
       setTimeout(() => {
-        done(`Your drink is ready! I mixed ${a[0]} with ${a[1]} and a bit of ${a[2]}.`)
+        done(
+          `Your drink is ready! I mixed ${a[0]} with ${a[1]} and a bit of ${a[2]}.`
+        )
       }, 2000)
     }
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -93,7 +94,7 @@ class Bar {
   _random () {
     const nBottles = this._selection.length
     if (nBottles === 0) {
-      throw new Error('I searched, but couldn\'t find any bottles')
+      throw new Error("I searched, but couldn't find any bottles")
     }
     const index = Math.floor(Math.random() * Math.floor(nBottles))
     return this._selection[index].name

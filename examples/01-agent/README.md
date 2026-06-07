@@ -1,11 +1,13 @@
-# Example - "Straight to the bar"
+# "At the bar" - The agent
 
-With Node.js being such a nice and easy programming language we will not split
-the example in two, but directly head to the bar.
+Using JavaScript grants you full access to all VRPC features. This includes
+Node.js backend agents and clients, React frontend integration, and native
+bindings for C++ add-ons. The following example demonstrates a Node.js-based
+agent and client.
 
-> **NOTE**
->
-> In order to follow this example from scratch, create a new directory (e.g.
+## Prerequisites
+
+> Create a new directory (e.g.
 > `vrpc-node-agent-example`), cd into it and run:
 >
 > ```bash
@@ -15,19 +17,17 @@ the example in two, but directly head to the bar.
 >
 > Finally create a directory `src` and you are good to go.
 
-## STEP 1: Existing Node.js code
+## Step 1: Create plain javascript code
 
-We pretend that the code below already existed and should be made remotely
-accessible.
+Let's start with creating some code representing our agent.
 
-*src/Bar.js*
+`src/Bar.js`
 
 ```javascript
 const EventEmitter = require('events')
 
 class Bar {
-
-  constructor (selection = []) {
+  constructor(selection = []) {
     this._selection = selection
     this._emitter = new EventEmitter()
   }
@@ -35,7 +35,7 @@ class Bar {
   /**
    * Provides deeper thoughts about bars.
    */
-  static philosophy () {
+  static philosophy() {
     return 'I have mixed drinks about feelings.'
   }
 
@@ -50,7 +50,7 @@ class Bar {
    * @example
    * bar.addBottle('Botucal', category: 'rum', country: 'Venezuela')
    */
-  addBottle (name, category = 'n/a', country = 'n/a') {
+  addBottle(name, category = 'n/a', country = 'n/a') {
     this._selection.push({ name, category, country })
     this._emitter.emit('add', name)
   }
@@ -61,7 +61,7 @@ class Bar {
    * @param {String} name Removes the first bottle found having the given name.
    * @emits Bar#remove
    */
-  removeBottle (name) {
+  removeBottle(name) {
     const index = this._selection.findIndex(x => x.name === name)
     if (index === -1) {
       throw new Error('Sorry, this bottle is not in our selection')
@@ -97,11 +97,13 @@ class Bar {
    * @param {Function(String)} done Notification that the drink is ready
    * @returns {String} Some bartender wisdom
    */
-  async prepareDrink (done) {
+  async prepareDrink(done) {
     const a = [this._random(), this._random(), this._random()]
     if (done) {
       setTimeout(() => {
-        done(`Your drink is ready! I mixed ${a[0]} with ${a[1]} and a bit of ${a[2]}.`)
+        done(
+          `Your drink is ready! I mixed ${a[0]} with ${a[1]} and a bit of ${a[2]}.`
+        )
       }, 2000)
     }
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -111,14 +113,14 @@ class Bar {
   /**
    * Shows the entire selection of the bar.
    */
-  getSelection () {
+  getSelection() {
     return this._selection
   }
 
-  _random () {
+  _random() {
     const nBottles = this._selection.length
     if (nBottles === 0) {
-      throw new Error('I searched, but couldn\'t find any bottles')
+      throw new Error("I searched, but couldn't find any bottles")
     }
     const index = Math.floor(Math.random() * Math.floor(nBottles))
     return this._selection[index].name
@@ -127,7 +129,7 @@ class Bar {
 module.exports = Bar
 ```
 
-## STEP 2: Make the code remotely callable
+## Step 2: Make it remotely callable
 
 There are two things to do:
 
@@ -136,15 +138,13 @@ There are two things to do:
 
 We will do both in a single short `index.js` file, like so:
 
-*index.js*
-
 ```javascript
 const { VrpcAdapter, VrpcAgent } = require('vrpc')
 
 // Register class "Bar" to be remotely callable
 VrpcAdapter.register('./src/Bar')
 
-async function main () {
+async function main() {
   try {
     const agent = VrpcAgent.fromCommandline()
     await agent.serve()
@@ -166,20 +166,13 @@ node index.js
 
 With that you made your Node.js code remotely callable!
 
-Convince yourself and point your browser to
-[VRPC - Live](https://live.vrpc.io) and use `vrpc` as domain name.
-You should see your agent online (it uses your user-, host- and platform name).
-
-Or call your code from another piece of code running somewhere else on the
-planet. Follow e.g. the `Node.js Client` example.
-
 > **NOTE**
 >
 > The function `VrpcAdapter.register()` can take options detailing
 > the class registration process. The following options are available:
 >
 > - `onlyPublic` - registers only public functions, i.e. skips those starting with
->   an underscore "`_`"  (default: true)
+>   an underscore "`_`" (default: true)
 >
 > - `withNew` - whether the registered class needs the `new` keyword to be
 >   constructed (default: true)
@@ -187,44 +180,4 @@ planet. Follow e.g. the `Node.js Client` example.
 > - `schema` - optionally provide a JSON schema (in ajv style) that is used for
 >   validating arguments before object instantiation (default: null)
 
-## Optional steps to make your communication private
-
-Using the services from [Heisenware GmbH](https://heisenware.com) you can make
-your communication private by obtaining an exclusive and access controlled
-domain.
-
-### STEP A: Create a Heisenware account
-
-If you already have an account, simply skip this step.
-
-If not, quickly create a new one
-[here](https://admin.heisenware.cloud/#/createAccount). It takes less than a
-minute and the only thing required is your name and a valid email address.
-
-### STEP B: Get a domain
-
-If you already have a domain, simply skip this step.
-
-If not, navigate to the `Domains` tab in the [Admin
-Tool](https://admin.heisenware.cloud) and click *ADD DOMAIN*, choose a free
-domain and hit *Start 30 days trial* button.
-
-### STEP C: Test connectivity
-
-For any agent to work, you must provide it with a valid domain and access
-token. You get an access token from your [Admin
-Tool](https://admin.heisenware.cloud) using the *Access Control* tab.
-
-Simply copy the default *Agent Token* or create a new one and use this.
-
-Having that you are ready to make the communication to your agent private:
-
-```bash
-node index.js -b mqtts://heisenware.cloud -d <yourDomain> -t <yourToken>
-```
-
- **IMPORTANT**
->
-> Use `heisenware.cloud` as broker host when working with professional
-> Heisenware accounts.
->
+---

@@ -3,11 +3,11 @@
 This example shows a more realistic case of a C++ application that
 is comprised of header and source files and using more advanced language
 data-types and constructs. By going through it, you will hopefully notice
-that emedding it using VRPC still remains a trivial task...
+that embedding it using VRPC still remains a trivial task...
 
-> **NOTE**
->
-> In order to follow this example from scratch, create a new directory (e.g.
+## Prerequisites
+
+> Create a new directory (e.g.
 > `vrpc-embedded-cpp2`), cd into it and run:
 >
 > ```bash
@@ -22,7 +22,7 @@ that emedding it using VRPC still remains a trivial task...
 This time our code is a bit more elaborate and split into header and
 corresponding source file.
 
-*src/Bar.hpp*
+`src/Bar.hpp`
 
 ```cpp
 #include <functional>
@@ -72,7 +72,7 @@ class Bar {
 };
 ```
 
-*src/Bar.cpp*
+`src/Bar.cpp`
 
 ```cpp
 #include "Bar.hpp"
@@ -148,7 +148,7 @@ std::string Bar::_random() const {
 This adapter code shows some new features, such as adding custom data types,
 handling callbacks, overloads and static functions.
 
-*src/adapter.cpp*
+`src/adapter.cpp`
 
 ```cpp
 #include "Bar.hpp"
@@ -182,7 +182,7 @@ VRPC_CONST_MEMBER_FUNCTION(Bar, Bar::Selection, getSelection)
 Creation of the addon actually always stays the same. Typically, you can start
 from copying some example file over and slightly adapt it to your needs.
 
-*binding.gyp*
+`binding.gyp`
 
 ```python
 {
@@ -230,7 +230,7 @@ in order to build the native addon.
 By reading the code, you will get a feeling how VRPC exposes the adapted
 code. VRPC uses typical language features to represent the bound functionality.
 
-*index.js*
+`index.js`
 
 ```javascript
 const { VrpcNative } = require('vrpc')
@@ -308,3 +308,5 @@ that can be wrapped up to `Promise`s and play nice with `async/await` patterns
 for category one. The event-like callbacks can be taken up by the special
 function `vrpcOn` and `vrpcOff`. In both cases, all callback arguments are
 perfectly forwarded.
+
+---

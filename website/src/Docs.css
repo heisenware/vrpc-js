@@ -1,0 +1,391 @@
+/* src/Docs.css */
+
+.docs-container {
+  display: flex;
+  max-width: 1440px;
+  margin: 0 auto;
+  min-height: calc(100vh - 80px); /* Adjust based on navbar height */
+  width: 100%;
+}
+
+/* SIDEBAR */
+.docs-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  padding: 32px 24px 32px 0;
+  position: sticky;
+  top: 80px;
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.sidebar-header {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-left: 12px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-item {
+  text-decoration: none;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+  background: var(--surface-color);
+  color: var(--text-main);
+}
+
+.nav-item.active {
+  background: var(--accent-glow);
+  color: var(--accent-ci-light);
+  font-weight: 500;
+}
+
+/* MAIN CONTENT */
+.docs-content {
+  flex-grow: 1;
+  padding: 40px 64px 80px 64px;
+  max-width: 880px; /* Optimal reading width */
+}
+
+/* ========================================================
+   MARKDOWN TYPOGRAPHY & SPACING
+   ======================================================== */
+
+.markdown-body {
+  color: var(--text-main);
+  font-size: 1.05rem;
+  line-height: 1.75; /* Slightly increased for better readability */
+  letter-spacing: -0.01em;
+}
+
+/* --- HEADINGS --- */
+.markdown-body h1 {
+  font-size: 2rem; /* Dialed down from 2.75rem */
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin-bottom: 24px; /* Tighter margin */
+  padding-bottom: 16px; /* Tighter padding */
+  /* border-bottom: 1px solid var(--border-color); */
+  color: #ffffff;
+}
+
+.markdown-body h2 {
+  font-size: 1.8rem;
+  margin: 56px 0 20px 0; /* Huge top margin to clearly separate sections */
+  color: #ffffff;
+  letter-spacing: -0.03em;
+}
+
+.markdown-body h3 {
+  font-size: 1.35rem;
+  margin: 36px 0 16px 0;
+  color: #f4f4f5;
+}
+
+/* --- PARAGRAPHS & LISTS --- */
+.markdown-body p {
+  margin-bottom: 24px;
+  color: #a1a1aa;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin-bottom: 24px;
+  padding-left: 24px;
+  color: #a1a1aa;
+}
+
+.markdown-body li {
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+
+.markdown-body strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* --- LINKS --- */
+.markdown-body a {
+  color: #ffffff;
+  text-decoration: underline;
+  text-decoration-color: var(--border-hover);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  transition: all 0.2s ease;
+}
+
+.markdown-body a:hover {
+  color: var(--accent-ci-light);
+  text-decoration-color: var(--accent-ci-light);
+}
+
+/* --- THE DIVIDER (hr) --- */
+.markdown-body hr {
+  height: 1px;
+  border: none;
+  margin: 48px 0;
+  /* Premium fading gradient line */
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--border-hover) 15%,
+    var(--border-hover) 85%,
+    transparent 100%
+  );
+}
+
+/* --- BLOCKQUOTES (Notes & Warnings) --- */
+.markdown-body blockquote {
+  margin: 32px 0;
+  padding: 16px 24px;
+  border-left: 2px solid var(--accent-ci);
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(90deg, var(--accent-glow), transparent);
+}
+
+.markdown-body blockquote p {
+  margin: 0;
+  color: #d4d4d8;
+  font-size: 1rem;
+}
+
+/* --- TABLES --- */
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 40px 0;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--surface-color);
+  color: #ffffff;
+  font-weight: 500;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-hover);
+}
+
+.markdown-body th:first-child {
+  border-top-left-radius: 8px;
+}
+.markdown-body th:last-child {
+  border-top-right-radius: 8px;
+}
+
+.markdown-body td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: #a1a1aa;
+}
+
+.markdown-body tr:last-child td {
+  border-bottom: none;
+}
+
+/* --- INLINE CODE --- */
+.markdown-body p code,
+.markdown-body li code,
+.markdown-body td code {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 0.85em;
+  color: var(
+    --text-main
+  ); /* Changed from colored to neutral for better reading flow */
+}
+
+/* --- CODE BLOCKS --- */
+.md-code-block {
+  background: #000000; /* Pure black to contrast with the surface */
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin: 32px 0;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.md-code-header {
+  background: var(--surface-color);
+  padding: 8px 16px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ========================================================
+   PREMIUM "FLOATING PILL" TABS (Zero Borders)
+   ======================================================== */
+
+.md-tab-group {
+  margin: 48px 0;
+  background: transparent;
+}
+
+/* The floating pill container */
+.md-tab-header {
+  display: inline-flex; /* Hugs the buttons tightly */
+  background: rgba(255, 255, 255, 0.03); /* Barely visible frosted glass */
+  padding: 6px;
+  border-radius: 100px; /* Perfect pill shape */
+  margin-bottom: 24px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05); /* Inner light reflection */
+}
+
+/* The invisible buttons */
+.md-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 10px 24px;
+  font-size: 0.9rem;
+  font-family: var(--sans);
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  border-radius: 100px; /* Pill-shaped buttons */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.md-tab-btn:hover {
+  color: #ffffff;
+}
+
+/* The "Active" state looks like a physical button sliding over */
+.md-tab-btn.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1); /* Frosted highlight */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); /* Soft drop shadow */
+}
+
+/* Make inactive logos sleep in the background */
+.md-tab-logo {
+  height: 32px;
+  width: auto;
+  opacity: 0.4;
+  filter: grayscale(100%);
+  transition: all 0.3s ease;
+}
+
+/* Wake up the active logo */
+.md-tab-btn.active .md-tab-logo {
+  opacity: 1;
+  filter: grayscale(0%);
+}
+
+.md-tab-content {
+  padding: 0;
+}
+
+.md-tab-content h2 {
+  margin-top: 16px;
+}
+
+/* ========================================================
+   SEAMLESS CODE BLOCKS
+   ======================================================== */
+
+.md-code-block {
+  background: #030303; /* Pure, deep black */
+  /* Instead of a border, we use a 1px inner glow (hairline) */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 20px 40px rgba(0, 0, 0, 0.6); /* Massive ambient shadow */
+  border-radius: 12px;
+  margin: 32px 0;
+  overflow: hidden;
+}
+
+.md-code-header {
+  background: transparent;
+  padding: 12px 16px 4px 16px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: none;
+}
+
+/* MAGIC TRICK: Hide redundant code headers INSIDE tabs */
+.md-tab-content .md-code-header {
+  display: none;
+}
+
+/* Adjust the syntax highlighter padding since the header is gone */
+.md-tab-content .md-code-block > div {
+  padding: 1.5rem !important;
+}
+
+/* ========================================================
+   ASYNC FETCHING STATES
+   ======================================================== */
+
+.md-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  color: var(--text-muted);
+  font-family: var(--sans);
+}
+
+.md-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent-ci);
+  border-radius: 50%;
+  animation: md-spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes md-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.md-error-state {
+  padding: 32px;
+  border: 1px solid rgba(255, 50, 50, 0.2);
+  background: rgba(255, 50, 50, 0.05);
+  border-radius: 8px;
+  margin-top: 40px;
+  color: #ff6b6b;
+}
+
+.md-error-url {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-top: 8px;
+  word-break: break-all;
+}

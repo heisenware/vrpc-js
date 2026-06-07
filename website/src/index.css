@@ -1,0 +1,53 @@
+/* src/index.css */
+:root {
+  --bg-color: #000000;
+  --surface-color: #0a0a0a;
+  --surface-elevated: #141414;
+  --border-color: #262626;
+  --border-hover: #3a3a3a;
+
+  --text-main: #ededed;
+  --text-muted: #a1a1aa;
+
+  /* Heisenware CI Colors */
+  --accent-ci: #0f8170;
+  --accent-ci-light: #14a38e;
+  --accent-glow: rgba(20, 163, 142, 0.15);
+
+  --sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: #ffffff;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+p {
+  margin: 0;
+}
