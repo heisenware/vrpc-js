@@ -137,7 +137,7 @@ include(FetchContent)
 FetchContent_Declare(
   vrpc
   GIT_REPOSITORY https://github.com/heisenware/vrpc-hpp.git
-  GIT_TAG        v3.1.1
+  GIT_TAG        v3.1.2
 )
 FetchContent_MakeAvailable(vrpc)
 
