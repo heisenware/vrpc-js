@@ -10,17 +10,35 @@ export default function LiveRadar () {
 
   useEffect(() => {
     if (!client) return
+
+    // 1. Seed the initial state with already connected agents
+    const currentlyOnline = client.getAvailableAgents({ mustBeOnline: true })
+    const initialVisitors = currentlyOnline.filter(agent =>
+      agent.startsWith('visitor-')
+    )
+
+    // Update state with the snapshot
+    setOnlineAgents(initialVisitors)
+
+    // 2. Listen for future changes
     const handleAgent = ({ agent, status }) => {
       if (!agent.startsWith('visitor-')) return
+
       setOnlineAgents(prev => {
         if (status === 'offline') return prev.filter(a => a !== agent)
-        if (status === 'online' && !prev.includes(agent))
+        if (status === 'online' && !prev.includes(agent)) {
           return [...prev, agent]
+        }
         return prev
       })
     }
+
     client.on('agent', handleAgent)
-    return () => client.off('agent', handleAgent)
+
+    return () => {
+      // VrpcClient inherits from EventEmitter, so .off() is a valid alias for .removeListener()
+      client.off('agent', handleAgent)
+    }
   }, [client])
 
   const sendGreeting = async targetAgent => {
