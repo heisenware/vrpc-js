@@ -1,6 +1,6 @@
 {
-  "name": "VRPC",
-  "short_name": "VRPC",
+  "name": "MyWebSite",
+  "short_name": "MySite",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
