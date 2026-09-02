@@ -127,6 +127,7 @@ class VrpcClient extends EventEmitter {
     this._instance = nanoid(8)
     this._mqttClientId = mqttClientId || this._createMqttClientId()
     this._vrpcClientId = this._createVrpcClientId()
+    this._vrpcConnectionId = this._createVrpcConnectionId()
     this._agents = {}
     this._eventEmitter = new EventEmitter()
     this._invokeId = 0
@@ -147,12 +148,33 @@ class VrpcClient extends EventEmitter {
   }
 
   /**
-   * Provides a unique id for this client instance
+   * Provides the identity-derived id of this client
+   *
+   * Every client constructed with the same domain, host and identity
+   * reports the same client id: it names the principal, not the
+   * connection. Agents receive it as `clientId` in the presence messages
+   * and can group the connections (e.g. browser tabs) of one identity by
+   * it. See getConnectionId() for the id that is unique per instance.
    *
    * @returns {String} clientId
    */
   getClientId () {
     return this._vrpcClientId
+  }
+
+  /**
+   * Provides the unique id of this connection
+   *
+   * Unique per VrpcClient instance: two clients sharing one identity still
+   * have distinct connection ids. Agents key all their bookkeeping by it
+   * (response routing, event listeners, isolated instances, presence), so
+   * one connection ending never disturbs the others of the same identity.
+   * Without an identity the connection id equals the client id.
+   *
+   * @returns {String} connectionId
+   */
+  getConnectionId () {
+    return this._vrpcConnectionId
   }
 
   /**
@@ -184,8 +206,11 @@ class VrpcClient extends EventEmitter {
       rejectUnauthorized: false,
       connectTimeout: this._timeout,
       will: {
-        topic: `${this._vrpcClientId}/__clientInfo__`,
-        payload: JSON.stringify({ status: 'offline' })
+        topic: `${this._vrpcConnectionId}/__clientInfo__`,
+        payload: JSON.stringify({
+          status: 'offline',
+          clientId: this._vrpcClientId
+        })
       }
     }
     if (username === undefined) delete options.username
@@ -236,7 +261,7 @@ class VrpcClient extends EventEmitter {
           )
         }
         // Single wildcard catches BOTH RPC responses (length 3) AND events (length 4)
-        await this._mqttSubscribe(`${this._vrpcClientId}/#`)
+        await this._mqttSubscribe(`${this._vrpcConnectionId}/#`)
 
         // Re-subscribe to all cached event topics
         this._log.debug('Restoring event subscriptions after reconnect...')
@@ -409,7 +434,7 @@ class VrpcClient extends EventEmitter {
       f: isIsolated ? '__createIsolated__' : '__createShared__',
       a: [instance, ...args],
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      s: this._vrpcClientId,
+      s: this._vrpcConnectionId,
       v: VRPC_PROTOCOL_VERSION
     }
     const proxy = await this._getProxy(agent, className, json)
@@ -462,7 +487,7 @@ class VrpcClient extends EventEmitter {
       f: '__delete__',
       a: [instance],
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      s: this._vrpcClientId,
+      s: this._vrpcConnectionId,
       v: VRPC_PROTOCOL_VERSION
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
@@ -502,7 +527,7 @@ class VrpcClient extends EventEmitter {
       f: functionName,
       a: wrapped,
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      s: this._vrpcClientId,
+      s: this._vrpcConnectionId,
       v: VRPC_PROTOCOL_VERSION
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/${functionName}`
@@ -545,7 +570,7 @@ class VrpcClient extends EventEmitter {
       f: functionName,
       a: [],
       i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
-      s: this._vrpcClientId,
+      s: this._vrpcConnectionId,
       v: VRPC_PROTOCOL_VERSION
     }
     if (agent === '*') {
@@ -752,8 +777,12 @@ class VrpcClient extends EventEmitter {
   async end () {
     if (!this._client) return
     this._mqttPublish(
-      `${this._vrpcClientId}/__clientInfo__`,
-      JSON.stringify({ status: 'offline', v: VRPC_PROTOCOL_VERSION })
+      `${this._vrpcConnectionId}/__clientInfo__`,
+      JSON.stringify({
+        status: 'offline',
+        clientId: this._vrpcClientId,
+        v: VRPC_PROTOCOL_VERSION
+      })
     )
     this._eventEmitter.removeAllListeners()
     this.removeAllListeners()
@@ -817,6 +846,14 @@ class VrpcClient extends EventEmitter {
   _createVrpcClientId () {
     const identity = this._identity || this._instance
     return `${this._domain}/${os.hostname()}/${identity}`
+  }
+
+  _createVrpcConnectionId () {
+    // Without an identity the client id already is unique per instance.
+    // With one, the instance token makes every connection of that identity
+    // distinct while keeping the three-segment layout agents parse.
+    if (!this._identity) return this._vrpcClientId
+    return `${this._vrpcClientId}:${this._instance}`
   }
 
   _mqttPublish (topic, message, options) {
@@ -981,6 +1018,7 @@ class VrpcClient extends EventEmitter {
     const proxyId = `${this._instance}-${this._proxyId++}`
     const proxy = {
       vrpcClientId: this._vrpcClientId,
+      vrpcConnectionId: this._vrpcConnectionId,
       vrpcInstanceId: instance,
       vrpcProxyId: proxyId
     }
@@ -1027,7 +1065,7 @@ class VrpcClient extends EventEmitter {
               i: `${this._instance}-${
                 this._invokeId++ % Number.MAX_SAFE_INTEGER
               }`,
-              s: this._vrpcClientId,
+              s: this._vrpcConnectionId,
               v: VRPC_PROTOCOL_VERSION
             }
             this._mqttPublish(
@@ -1061,7 +1099,7 @@ class VrpcClient extends EventEmitter {
             i: `${this._instance}-${
               this._invokeId++ % Number.MAX_SAFE_INTEGER
             }`,
-            s: this._vrpcClientId,
+            s: this._vrpcConnectionId,
             v: VRPC_PROTOCOL_VERSION
           }
           this._mqttPublish(
@@ -1096,7 +1134,7 @@ class VrpcClient extends EventEmitter {
             i: `${this._instance}-${
               this._invokeId++ % Number.MAX_SAFE_INTEGER
             }`,
-            s: this._vrpcClientId,
+            s: this._vrpcConnectionId,
             v: VRPC_PROTOCOL_VERSION
           }
           this._mqttPublish(
@@ -1280,7 +1318,7 @@ class VrpcClient extends EventEmitter {
     const topicId = VrpcClient._createHash(hashInput, 12)
 
     // Route directly to the client's single event inbox wildcard
-    const topic = `${this._vrpcClientId}/${topicId}`
+    const topic = `${this._vrpcConnectionId}/${topicId}`
     const id = `__e__${topic}`
 
     const handler = ({ a }) => callback.apply(null, a)

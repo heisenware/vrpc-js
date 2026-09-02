@@ -2,13 +2,31 @@ const { expect } = require('chai')
 const os = require('os')
 const path = require('path')
 const fs = require('fs-extra')
-const crypto = require('crypto')
+const Storage = require('@heisenware/storage')
 const {
   VrpcAgent,
   VrpcAdapter,
   VrpcPersistor,
   VrpcClient
 } = require('../../index')
+
+// Layout-agnostic view on a persisted directory: storage 1.x constructs
+// synchronously (md5-named files), >= 2.x through the async factory
+// (readable <key>.json files). The persistor supports both.
+const openStorage = async dir =>
+  typeof Storage.open === 'function'
+    ? Storage.open({ dir, watch: false })
+    : new Storage({ dir })
+
+// Writes settle asynchronously: poll the key map instead of sleeping
+const waitForKey = async (storage, folder, key, present, timeout = 3000) => {
+  const start = Date.now()
+  while (Date.now() - start < timeout) {
+    if (storage.keys(folder).includes(key) === present) return true
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  return storage.keys(folder).includes(key) === present
+}
 
 // A dummy class for testing
 class Dummy {
@@ -26,7 +44,8 @@ describe('VrpcPersistor', () => {
   let testDir
   const domain = 'test.vrpc'
   const agentName = `agent-${Date.now()}` // Use unique agent to avoid test collisions
-  const broker = 'mqtts://broker.hivemq.com'
+  // VRPC_TEST_BROKER=mqtt://localhost:1883 runs the suite against a local broker
+  const broker = process.env.VRPC_TEST_BROKER || 'mqtts://broker.hivemq.com'
   const sleep = (ms = 200) => new Promise(resolve => setTimeout(resolve, ms))
 
   before(() => {
@@ -50,6 +69,8 @@ describe('VrpcPersistor', () => {
     if (agent) await agent.end()
     VrpcAdapter.removeAllListeners('create')
     VrpcAdapter.removeAllListeners('delete')
+    // storage >= 2 keeps a per-directory singleton: release it
+    if (typeof Storage.dispose === 'function') await Storage.dispose(testDir)
     await fs.remove(testDir)
   })
 
@@ -58,14 +79,11 @@ describe('VrpcPersistor', () => {
     agent.create({ className: 'Dummy', instance: 'dummy-1', args: [123] })
     await sleep()
 
-    const hash = crypto.createHash('md5').update('dummy-1').digest('hex')
-    const expectedFile = path.join(testDir, 'Dummy', hash)
-
-    expect(await fs.pathExists(expectedFile)).to.be.true
-    const content = await fs.readJson(expectedFile)
-    expect(content).to.deep.equal({
-      key: 'dummy-1',
-      value: { className: 'Dummy', args: [123] }
+    const storage = await openStorage(testDir)
+    expect(await waitForKey(storage, 'Dummy', 'dummy-1', true)).to.be.true
+    expect(await storage.getItem('dummy-1')).to.deep.equal({
+      className: 'Dummy',
+      args: [123]
     })
   })
 
@@ -99,9 +117,8 @@ describe('VrpcPersistor', () => {
     agent.create({ className: 'Dummy', instance: 'dummy-3' })
     await sleep()
 
-    const hash = crypto.createHash('md5').update('dummy-3').digest('hex')
-    const expectedFile = path.join(testDir, 'Dummy', hash)
-    expect(await fs.pathExists(expectedFile)).to.be.true
+    const storage = await openStorage(testDir)
+    expect(await waitForKey(storage, 'Dummy', 'dummy-3', true)).to.be.true
 
     const client = new VrpcClient({
       domain,
@@ -113,7 +130,7 @@ describe('VrpcPersistor', () => {
     await client.delete('dummy-3')
     await sleep()
     await client.end()
-    expect(await fs.pathExists(expectedFile)).to.be.false
+    expect(await waitForKey(storage, 'Dummy', 'dummy-3', false)).to.be.true
   })
   it('should handle restoring a large number of instances', async function () {
     // Increase timeout for this more demanding test

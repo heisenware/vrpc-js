@@ -495,11 +495,13 @@ class VrpcAgent extends EventEmitter {
   }
 
   _handleClientInfoMessage (topic, json) {
-    // Client went offline
-    const clientId = topic.slice(0, -15) // /__clientInfo__ = 15
+    // A client connection went offline. The topic carries the connection
+    // id (unique per VrpcClient instance) - the key of all bookkeeping -
+    // so ending one connection never touches others sharing its identity.
+    const connectionId = topic.slice(0, -15) // /__clientInfo__ = 15
     if (json.status === 'offline') {
-      VrpcAdapter._unregisterClient(clientId)
-      const entry = this._isolatedInstances.get(clientId)
+      VrpcAdapter._unregisterClient(connectionId)
+      const entry = this._isolatedInstances.get(connectionId)
       if (entry) {
         entry.forEach(instanceId => {
           const json = { f: '__delete__', a: [instanceId], r: null }
@@ -509,8 +511,10 @@ class VrpcAgent extends EventEmitter {
           }
         })
       }
-      this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
-      this.emit('clientGone', clientId)
+      this._mqttUnsubscribe(`${connectionId}/__clientInfo__`)
+      // clientId: the identity-derived id shared by all connections of one
+      // identity (undefined for clients < 3.8.0)
+      this.emit('clientGone', connectionId, { clientId: json.clientId })
     }
   }
 
@@ -679,10 +683,14 @@ class VrpcAgent extends EventEmitter {
 /**
  * Event 'clientGone'
  *
- * Emitted when a tracked VRPC client exited.
+ * Emitted when a tracked VRPC client connection ended. Listeners receive
+ * the connection id (unique per VrpcClient instance) and an info object
+ * whose `clientId` is the identity-derived id shared by all connections
+ * of one identity (undefined for clients < 3.8.0).
  *
  * @event VrpcAgent#clientGone
- * @type {String} clientId
+ * @type {String} connectionId
+ * @type {Object} info
  */
 
 module.exports = VrpcAgent

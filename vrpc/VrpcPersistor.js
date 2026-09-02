@@ -47,6 +47,9 @@ const VrpcAdapter = require('./VrpcAdapter')
  * for an 'update' event on instances to persist their state after creation.
  *
  * @requires @heisenware/storage - This peer dependency must be installed.
+ * Storage 1.x (synchronous constructor) and >= 2.x (async `Storage.open`)
+ * are both supported; the layer is opened lazily and every operation waits
+ * for it.
  */
 class VrpcPersistor {
   /**
@@ -76,8 +79,8 @@ class VrpcPersistor {
         .toLocaleLowerCase()
         .replace(/[^a-zA-Z0-9]/g, '-')}`
 
-    this._storage = new Storage({ log: this._log, dir: this._dir })
-    this._isInitialized = this._init()
+    this._storage = null
+    this._isInitialized = this._init(Storage)
 
     this._log.info(
       `[VrpcPersistor] Persistence layer enabled. Storage path: ${this._dir}`
@@ -166,8 +169,12 @@ class VrpcPersistor {
    * Initializes the persistor by attaching listeners to VRPC adapter events.
    * @private
    */
-  async _init () {
+  async _init (Storage) {
     try {
+      // Listeners go first and synchronously: an instance created right
+      // after construction must be caught. The operations they trigger wait
+      // for the storage layer opened below.
+
       // Persist new instance creation
       VrpcAdapter.on('create', async ({ instance, className, args }) => {
         this._log.info(
@@ -211,6 +218,14 @@ class VrpcPersistor {
           )
         )
       })
+
+      // storage >= 2 constructs through the async factory only; 1.x has a
+      // synchronous constructor. No watcher: this persistor is the sole
+      // writer of its directory.
+      this._storage =
+        typeof Storage.open === 'function'
+          ? await Storage.open({ dir: this._dir, log: this._log, watch: false })
+          : new Storage({ dir: this._dir, log: this._log })
     } catch (err) {
       this._log.error(
         `[VrpcPersistor] Could not initialize persistence layer: ${err.message}`
@@ -225,6 +240,7 @@ class VrpcPersistor {
    * @private
    */
   async _persist (id, className, args) {
+    await this._isInitialized
     await this._storage.setItem(id, { className, args }, { folder: className })
   }
 
@@ -233,6 +249,7 @@ class VrpcPersistor {
    * @private
    */
   async _delete (id) {
+    await this._isInitialized
     await this._storage.removeItem(id)
   }
 }

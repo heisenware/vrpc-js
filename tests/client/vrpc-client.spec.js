@@ -105,11 +105,43 @@ describe('vrpc-client', () => {
           assert.equal(hostname, 'client')
           assert.equal(identity, 'Test Client')
         })
+        it('should provide a connection id that extends the client id', () => {
+          const clientId = client.getClientId()
+          const connectionId = client.getConnectionId()
+          assert.notStrictEqual(connectionId, clientId)
+          assert(connectionId.startsWith(`${clientId}:`))
+          assert.strictEqual(connectionId.split('/').length, 3)
+        })
         it('should end', async () => {
           await client.end()
         })
       }
     )
+    context('when constructed without identity', () => {
+      it('should use the client id as connection id', () => {
+        const client = new VrpcClient({
+          broker: 'mqtt://broker',
+          domain: 'test.vrpc'
+        })
+        assert.strictEqual(client.getConnectionId(), client.getClientId())
+      })
+    })
+    context('when two clients share one identity', () => {
+      it('should share the client id but not the connection id', () => {
+        const options = {
+          broker: 'mqtt://broker',
+          domain: 'test.vrpc',
+          identity: 'app1:erwin'
+        }
+        const client1 = new VrpcClient(options)
+        const client2 = new VrpcClient(options)
+        assert.strictEqual(client1.getClientId(), client2.getClientId())
+        assert.notStrictEqual(
+          client1.getConnectionId(),
+          client2.getConnectionId()
+        )
+      })
+    })
     context('when constructed custom MQTT clientId', () => {
       let client
       it('should connect', async () => {
@@ -488,6 +520,7 @@ describe('vrpc-client', () => {
       })
       it('should contain proper instance-, and client ids', () => {
         assert.strictEqual(proxy1.vrpcClientId, client.getClientId())
+        assert.strictEqual(proxy1.vrpcConnectionId, client.getConnectionId())
         assert.strictEqual(proxy1.vrpcInstanceId, 'instance1')
         assert.strictEqual(proxy2.vrpcClientId, client.getClientId())
         assert.strictEqual(proxy2.vrpcInstanceId, 'instance2')
@@ -1140,6 +1173,61 @@ describe('vrpc-client', () => {
       // and now mock a subscription with qos=0 but this is also intended
       bestEffortClient._mqttSubscribe('foo', { outputQos: 0 })
       assert(errorSpy.notCalled) // all fine
+    })
+  })
+  /**********************************
+   * connections sharing an identity *
+   **********************************/
+  describe('connections sharing an identity', () => {
+    // Two browser tabs of one user against a real remote agent: two
+    // connections, one identity. The agent must keep the survivor's event
+    // listeners when the other connection ends.
+    const options = {
+      broker: 'mqtt://broker',
+      domain: 'test.vrpc',
+      identity: 'app1:erwin'
+    }
+    const valueSpyA = sinon.spy()
+    const valueSpyB = sinon.spy()
+    let tabA
+    let tabB
+    let fooA
+    let fooB
+    before(async () => {
+      tabA = new VrpcClient(options)
+      tabB = new VrpcClient(options)
+      await tabA.connect()
+      await tabB.connect()
+      fooA = await tabA.create({
+        agent: 'agent1',
+        className: 'Foo',
+        instance: 'sharedIdentityFoo'
+      })
+      fooB = await tabB.create({
+        agent: 'agent1',
+        className: 'Foo',
+        instance: 'sharedIdentityFoo'
+      })
+      await fooA.on('value', valueSpyA)
+      await fooB.on('value', valueSpyB)
+    })
+    after(async () => {
+      await tabB.delete('sharedIdentityFoo')
+      await tabB.end()
+    })
+    it('should deliver events to both connections', async () => {
+      await fooA.increment()
+      await new Promise(resolve => setTimeout(resolve, 200))
+      assert(valueSpyA.calledWith(1))
+      assert(valueSpyB.calledWith(1))
+    })
+    it('should keep the surviving connection subscribed after the other ended', async () => {
+      await tabA.end()
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await fooB.increment()
+      await new Promise(resolve => setTimeout(resolve, 200))
+      assert(valueSpyB.calledWith(2))
+      assert.strictEqual(valueSpyA.callCount, 1)
     })
   })
 })

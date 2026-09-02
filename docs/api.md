@@ -429,7 +429,10 @@ mqtt.Client#end(), this event is emitted once the callback returns.
 ### "clientGone"
 Event 'clientGone'
 
-Emitted when a tracked VRPC client exited.
+Emitted when a tracked VRPC client connection ended. Listeners receive
+the connection id (unique per VrpcClient instance) and an info object
+whose `clientId` is the identity-derived id shared by all connections
+of one identity (undefined for clients < 3.8.0).
 
 **Kind**: event emitted by [<code>VrpcAgent</code>](#VrpcAgent)
 
@@ -472,6 +475,7 @@ functions as provided through one or more (distributed) agents.
 * [VrpcClient](#VrpcClient) ⇐ <code>EventEmitter</code>
     * [new VrpcClient(options)](#new_VrpcClient_new)
     * [.getClientId()](#VrpcClient+getClientId) ⇒ <code>String</code>
+    * [.getConnectionId()](#VrpcClient+getConnectionId) ⇒ <code>String</code>
     * [.connect()](#VrpcClient+connect) ⇒ <code>Promise</code>
     * [.create(options)](#VrpcClient+create) ⇒ <code>Promise.&lt;Proxy&gt;</code>
     * [.getInstance(instance, [options])](#VrpcClient+getInstance) ⇒ <code>Promise.&lt;Proxy&gt;</code>
@@ -538,10 +542,32 @@ const client = new VrpcClient({
 <a name="VrpcClient+getClientId"></a>
 
 ### vrpcClient.getClientId() ⇒ <code>String</code>
-Provides a unique id for this client instance
+Provides the identity-derived id of this client
+
+Every client constructed with the same domain, host and identity
+reports the same client id: it names the principal, not the
+connection. Agents receive it as `clientId` in the presence messages
+and can group the connections (e.g. browser tabs) of one identity by
+it. See getConnectionId() for the id that is unique per instance.
 
 **Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)
 **Returns**: <code>String</code> - clientId
+
+* * *
+
+<a name="VrpcClient+getConnectionId"></a>
+
+### vrpcClient.getConnectionId() ⇒ <code>String</code>
+Provides the unique id of this connection
+
+Unique per VrpcClient instance: two clients sharing one identity still
+have distinct connection ids. Agents key all their bookkeeping by it
+(response routing, event listeners, isolated instances, presence), so
+one connection ending never disturbs the others of the same identity.
+Without an identity the connection id equals the client id.
+
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)
+**Returns**: <code>String</code> - connectionId
 
 * * *
 
@@ -1167,6 +1193,9 @@ for an 'update' event on instances to persist their state after creation.
 
 **Kind**: global class
 **Requires**: <code>@heisenware/storage</code> - This peer dependency must be installed.
+Storage 1.x (synchronous constructor) and >= 2.x (async `Storage.open`)
+are both supported; the layer is opened lazily and every operation waits
+for it.
 
 * [VrpcPersistor](#VrpcPersistor)
     * [new VrpcPersistor(options)](#new_VrpcPersistor_new)

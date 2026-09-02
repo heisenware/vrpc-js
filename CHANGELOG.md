@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.8.0] - Sep 02 2026
+
+### Added
+
+- **Connection id**: `VrpcClient.getConnectionId()` and `proxy.vrpcConnectionId` expose an id that is unique per client instance, even when several clients share one `identity`. `getClientId()` and `proxy.vrpcClientId` keep returning the identity-derived client id: it names the principal and is shared by all of its connections.
+- **Presence carries the identity**: the client-info messages (last will and `end()`) now include `clientId`, and the agents' `clientGone` event emits `(connectionId, { clientId })` so consumers can group the connections of one identity.
+
+### Changed
+
+- **Peer range on `@heisenware/storage`** widened to `^1.2.2 || ^2.0.0 || ^3.0.0`, so consumers on storage 3.x install without `--legacy-peer-deps`. `VrpcPersistor` opens storage >= 2 through the async `Storage.open()` (1.x keeps its synchronous constructor) and every operation waits for the layer to be ready. Note that storage >= 2 stores readable `<id>.json` files and restricts ids to letters, digits, `_` and `-`; instances with other ids are reported as failed to persist.
+- **`clientGone` payload**: the first argument is the connection id. For clients without an identity it equals the client id as before; consumers comparing it with `getClientId()` of a client that has an identity must compare with `getConnectionId()` instead. Agents < 3.8.0 interoperate with 3.8.0 clients unchanged: the connection id keeps the three-segment topic layout they parse.
+
+### Fixed
+
+- **Clients sharing an identity silently lost their event subscriptions**: every client with the same domain, host and identity used one id for its last will, its response routing and the agents' listener bookkeeping. When any of them disconnected (tab closed, keepalive expired) the agents unregistered every listener and isolated instance of that id, and the surviving clients kept their sockets but never received another event. Presence, routing and bookkeeping are now keyed by the per-connection id, so one connection ending never disturbs the others. Clients without an identity are unaffected.
+
 ## [3.7.0] - Apr 07 2026
 
 ### Changed
