@@ -3,6 +3,10 @@
 /* global describe, it */
 
 const { assert } = require('chai')
+
+// VRPC_TEST_BROKER=mqtt://localhost:1883 runs the suite against a local broker
+const BROKER =
+  process.env.VRPC_TEST_BROKER || 'mqtts://broker.hivemq.com:8883'
 const sinon = require('sinon')
 const EventEmitter = require('events')
 const { VrpcClient } = require('../../../index')
@@ -19,6 +23,7 @@ describe('An instance of the VrpcClient class', () => {
   let vrpc
   it('should be construct-able given an optional domain', async () => {
     vrpc = new VrpcClient({
+      broker: BROKER,
       domain: 'test.vrpc'
     })
     await vrpc.connect()
@@ -208,6 +213,7 @@ describe('Another instance of the VrpcClient class', () => {
   let vrpc
   it('should be construct-able with pre-defined domain and agent', async () => {
     vrpc = new VrpcClient({
+      broker: BROKER,
       domain: 'test.vrpc',
       agent: 'js'
     })

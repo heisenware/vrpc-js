@@ -133,8 +133,9 @@ describe('VrpcPersistor', () => {
     expect(await waitForKey(storage, 'Dummy', 'dummy-3', false)).to.be.true
   })
   it('should handle restoring a large number of instances', async function () {
-    // Increase timeout for this more demanding test
-    this.timeout(10000)
+    // The budget is dominated by the broker round trip of the agent restart
+    // below, not by the persistor: a public broker can take >10 s per connect
+    this.timeout(60000)
     const instanceCount = 100
 
     new VrpcPersistor({ agentInstance: agent, dir: testDir })
@@ -147,8 +148,11 @@ describe('VrpcPersistor', () => {
         args: [i]
       })
     }
-    // Give more time for the many async file writes to settle
-    await sleep(500)
+    // Wait until every instance landed on disk (writes settle asynchronously)
+    const storage = await openStorage(testDir)
+    const allPersisted = () => storage.keys('Dummy').length === instanceCount
+    for (let i = 0; i < 100 && !allPersisted(); i++) await sleep(50)
+    expect(storage.keys('Dummy').length).to.equal(instanceCount)
     await agent.end() // Simulate shutdown
 
     // Phase 2: Create a new agent and restore all instances

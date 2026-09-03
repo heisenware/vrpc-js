@@ -3,6 +3,13 @@ on: [push, workflow_dispatch]
 jobs:
   integration-test:
     runs-on: ubuntu-latest
+    services:
+      # Hermetic broker for the suites that accept one: the public HiveMQ
+      # broker costs >10 s per connect from the runners and fails at will
+      mosquitto:
+        image: eclipse-mosquitto:1.6.12
+        ports:
+          - 1883:1883
     steps:
       - uses: actions/checkout@master
       - run: npm install
@@ -10,4 +17,8 @@ jobs:
       - run: npm run test:agent
       - run: npm run test:client
       - run: npm run test:persistor
+        env:
+          VRPC_TEST_BROKER: mqtt://localhost:1883
       - run: npm run test:production
+        env:
+          VRPC_TEST_BROKER: mqtt://localhost:1883

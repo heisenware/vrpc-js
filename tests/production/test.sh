@@ -29,7 +29,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "--- Starting agent ---"
-$executable -d test.vrpc -a js -f "$adapterFile" & agent_pid=$!
+# VRPC_TEST_BROKER=mqtt://localhost:1883 runs the suite against a local broker
+broker="${VRPC_TEST_BROKER:-mqtts://broker.hivemq.com:8883}"
+$executable -d test.vrpc -a js -b "$broker" -f "$adapterFile" & agent_pid=$!
 
 sleep 6
 
