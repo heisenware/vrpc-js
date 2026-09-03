@@ -1230,4 +1230,86 @@ describe('vrpc-client', () => {
       assert.strictEqual(valueSpyA.callCount, 1)
     })
   })
+  /*******************************************
+   * instances sharing an id across agents   *
+   *******************************************/
+  describe('instances sharing an id across agents', () => {
+    // A builder backend and a deployed app backend host executors under
+    // the same instance ids. Losing the instance on ONE agent must not
+    // drop the client's event subscriptions on the other agent's twin.
+    const valueSpy = sinon.spy()
+    let client
+    let agent1Twin
+    before(async () => {
+      client = new VrpcClient({ broker: 'mqtt://broker', domain: 'test.vrpc' })
+      await client.connect()
+      agent1Twin = await client.create({
+        agent: 'agent1',
+        className: 'Foo',
+        instance: 'twinFoo'
+      })
+      await client.create({
+        agent: 'agent2',
+        className: 'Foo',
+        instance: 'twinFoo'
+      })
+      await agent1Twin.on('value', valueSpy)
+    })
+    after(async () => {
+      await client.delete('twinFoo', { agent: 'agent1', className: 'Foo' })
+      await client.end()
+    })
+    it('should deliver events before the twin is lost', async () => {
+      await agent1Twin.increment()
+      await new Promise(resolve => setTimeout(resolve, 200))
+      assert(valueSpy.calledWith(1))
+    })
+    it("should resolve an explicit agent to that agent's twin", async () => {
+      const agent2Twin = await client.getInstance('twinFoo', {
+        agent: 'agent2',
+        className: 'Foo'
+      })
+      // agent1's counter is at 1 (previous case), agent2's starts fresh
+      assert.strictEqual(await agent2Twin.increment(), 1)
+      assert.strictEqual(await agent2Twin.increment(), 2)
+    })
+    it("should prefer the client's default agent when none is given", async () => {
+      const agent2Client = new VrpcClient({
+        broker: 'mqtt://broker',
+        domain: 'test.vrpc',
+        agent: 'agent2'
+      })
+      await agent2Client.connect()
+      await new Promise(resolve => setTimeout(resolve, 500))
+      const twin = await agent2Client.getInstance('twinFoo')
+      // agent2's counter is at 2, agent1's at 1
+      assert.strictEqual(await twin.increment(), 3)
+      await agent2Client.end()
+    })
+    it("should not serve a cached proxy of another agent's twin", async () => {
+      await client.create({
+        agent: 'agent1',
+        className: 'Foo',
+        instance: 'twinFoo',
+        cacheProxy: true
+      })
+      const viaAgent2 = await client.getInstance('twinFoo', {
+        agent: 'agent2',
+        className: 'Foo'
+      })
+      // agent2's counter is at 3, agent1's at 1
+      assert.strictEqual(await viaAgent2.increment(), 4)
+    })
+    it('should keep the subscription when the twin on the other agent goes', async () => {
+      const gone = new Promise(resolve => client.once('instanceGone', resolve))
+      await client.delete('twinFoo', { agent: 'agent2', className: 'Foo' })
+      await gone
+      await new Promise(resolve => setTimeout(resolve, 200))
+      // only the increment below may reach the spy from here on
+      valueSpy.resetHistory()
+      const value = await agent1Twin.increment()
+      await new Promise(resolve => setTimeout(resolve, 200))
+      assert(valueSpy.calledOnceWith(value))
+    })
+  })
 })

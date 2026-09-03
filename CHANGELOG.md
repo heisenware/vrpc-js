@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.8.1] - Sep 03 2026
+
+### Fixed
+
+- **Losing an instance on one agent dropped the client's subscriptions on another agent's instance of the same id**: the client cleaned its cached event subscriptions by instance id alone when an `instanceGone` arrived, although it listens to the class information of every agent in the domain. A deployed app backend rebooting with the same executor ids as the builder backend therefore silently deafened every builder tab. The cleanup is now scoped to the agent and class that lost the instance.
+- **Instance lookups honour the agent**: `getInstance()` and `delete()` with an explicit `agent` never serve a proxy cached for another agent's instance of the same id (the proxy cache is keyed by agent, class and instance now), and a client constructed with a default agent prefers that agent's instance when none is given (the priority branch was inverted and never applied).
+
 ## [3.8.0] - Sep 02 2026
 
 ### Added

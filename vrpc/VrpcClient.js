@@ -321,7 +321,7 @@ class VrpcClient extends EventEmitter {
           if (removed.length !== 0) {
             this.emit('instanceGone', removed, { domain, agent, className })
             removed.forEach(lostInstance =>
-              this._clearCachedSubscriptions({ lostInstance })
+              this._clearCachedSubscriptions({ lostInstance, agent, className })
             )
           }
           if (added.length !== 0) {
@@ -438,7 +438,14 @@ class VrpcClient extends EventEmitter {
       v: VRPC_PROTOCOL_VERSION
     }
     const proxy = await this._getProxy(agent, className, json)
-    if (instance && cacheProxy) this._proxies[instance] = proxy
+    if (instance && cacheProxy) {
+      this._proxies[`${agent}/${className}/${instance}`] = {
+        agent,
+        className,
+        instance,
+        proxy
+      }
+    }
     return proxy
   }
 
@@ -460,7 +467,8 @@ class VrpcClient extends EventEmitter {
     if (!this._isConnected()) {
       throw new Error('Client is not connected')
     }
-    if (this._proxies[instance]) return this._proxies[instance]
+    const cached = this._cachedProxy(instance, options)
+    if (cached) return cached
     const { agent, className } = await this._getInstanceData(instance, options)
     return this._createProxy(agent, className, instance)
   }
@@ -492,7 +500,7 @@ class VrpcClient extends EventEmitter {
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
     this._mqttPublish(topic, JSON.stringify(json))
-    if (this._proxies[instance]) delete this._proxies[instance]
+    delete this._proxies[`${agent}/${className}/${instance}`]
     return this._handleAgentAnswer(json, agent)
   }
 
@@ -1374,11 +1382,19 @@ class VrpcClient extends EventEmitter {
     return foundId
   }
 
-  _clearCachedSubscriptions ({ lostAgent, lostInstance }) {
+  _clearCachedSubscriptions ({ lostAgent, lostInstance, agent, className }) {
     const obsoleteTopics = Object.keys(this._cachedSubscriptions).filter(
       topic => {
         const sub = this._cachedSubscriptions[topic]
-        return sub.agent === lostAgent || sub.instance === lostInstance
+        if (lostAgent !== undefined) return sub.agent === lostAgent
+        // Instance ids are unique per agent only: a twin of the same id on
+        // another agent (a deployed app next to its builder) keeps its
+        // subscriptions when this one goes
+        return (
+          sub.instance === lostInstance &&
+          sub.agent === agent &&
+          sub.className === className
+        )
       }
     )
 
@@ -1432,12 +1448,25 @@ class VrpcClient extends EventEmitter {
     return instanceData
   }
 
+  _cachedProxy (instance, { agent, className } = {}) {
+    // Instance ids are unique per agent only: a cached proxy is served
+    // solely when it is the one match for the given agent and class - twins
+    // on several agents are resolved through the topology instead
+    const hits = Object.values(this._proxies).filter(
+      x =>
+        x.instance === instance &&
+        (!agent || x.agent === agent) &&
+        (!className || x.className === className)
+    )
+    return hits.length === 1 ? hits[0].proxy : null
+  }
+
   _getInstanceFromCache (instance, options = {}) {
     // when no agent is specified, but an explicit class default exists give
     // such instances priority in being found
     if (!options.agent && this._agent !== '*') {
       const { classes, status } = this._agents[this._agent] || {}
-      if (!classes || status === 'offline') {
+      if (classes && status !== 'offline') {
         for (const className in classes) {
           if (options.className && className !== options.className) continue
           const { instances } = classes[className]
