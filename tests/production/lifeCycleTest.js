@@ -74,6 +74,13 @@ describe('Agent Life-Cycle', () => {
       await remote.connect()
     })
     it('VrpcClient should see the agent online', done => {
+      // On a fast local broker the retained agent info can arrive between
+      // connect() resolving and this listener attaching: consult the
+      // client's view first, then wait for the event
+      const known = remote._agents.nodeJsTestAgent
+      if (known?.status === 'online' && known.version === '1.0.0-test') {
+        return done()
+      }
       const testFunc = ({ domain, agent, status, version }) => {
         if (
           domain === 'test.vrpc' &&
