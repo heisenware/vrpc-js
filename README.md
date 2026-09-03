@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![npm version](https://img.shields.io/npm/v/vrpc.svg)](https://www.npmjs.com/package/vrpc)
 
-**Stop writing API boilerplate.** VRPC (Virtual Remote Procedure Call) allows you to call Node.js, C++, Python, and Arduino classes across any network as if they were local objects. Perfect for microservices, IoT backends, and directly driving React frontends—without the need for REST, GraphQL, or WebSocket boilerplate.
+**Stop writing API boilerplate.** VRPC (Variadic Remote Procedure Call) allows you to call Node.js, C++, Python, and Arduino classes across any network as if they were local objects. Perfect for microservices, IoT backends, and directly driving React frontends—without the need for REST, GraphQL, or WebSocket boilerplate.
 
 This repository provides both the **Agent** (to expose your Node.js code) and the **Client** (to seamlessly control remote code from Node.js, the browser, or React/Vue applications).
 

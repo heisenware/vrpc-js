@@ -1,6 +1,6 @@
 # Introduction to VRPC
 
-Welcome to **VRPC (Virtual Remote Procedure Call)**, an open-source distributed computing framework designed to seamlessly connect React frontends, cloud microservices, and IoT edge devices without writing a single line of API boilerplate.
+Welcome to **VRPC (Variadic Remote Procedure Call)**, an open-source distributed computing framework designed to seamlessly connect React frontends, cloud microservices, and IoT edge devices without writing a single line of API boilerplate.
 
 ## The Problem: API Fatigue
 
