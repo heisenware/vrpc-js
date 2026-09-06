@@ -1,6 +1,6 @@
 'use strict'
 
-/* global describe, context, before, after, it */
+/* global describe, context, before, after, afterEach, it */
 const { VrpcAgent, VrpcClient, VrpcAdapter } = require('../../index')
 const assert = require('assert')
 const sinon = require('sinon')
@@ -170,6 +170,8 @@ describe('vrpc-agent', () => {
       agent._client = {
         subscribe: mockSubscribeFunction
       }
+      // a refusal now arms a retry timer: none may leak into the next test
+      afterEach(() => agent._subscribeRetrier.cancel())
       it('should correctly report error on subscribe with qos=128', () => {
         const errorSpy = sinon.spy()
         agent.on('error', errorSpy)
@@ -189,6 +191,39 @@ describe('vrpc-agent', () => {
         )
 
         agent.off('error', errorSpy)
+      })
+      it('should retry a refused subscription until the broker grants it (#1496)', () => {
+        const clock = sinon.useFakeTimers()
+        const errorSpy = sinon.spy()
+        agent.on('error', errorSpy)
+        // the broker refuses 'baz' twice, then grants it
+        let refusals = 2
+        const subscribeSpy = sinon.spy((topic, options, callback) => {
+          const topicArray = Array.isArray(topic) ? topic : [topic]
+          const qos = refusals > 0 ? 128 : options.qos
+          refusals -= 1
+          callback(null, topicArray.map(x => ({ topic: x, qos })))
+        })
+        agent._client = { subscribe: subscribeSpy }
+        try {
+          agent._mqttSubscribe('baz')
+          assert.strictEqual(errorSpy.callCount, 1)
+          assert.deepEqual(agent._subscribeRetrier.pending, ['baz'])
+          clock.tick(1000)
+          assert.strictEqual(subscribeSpy.callCount, 2) // refused again
+          assert.strictEqual(errorSpy.callCount, 2)
+          clock.tick(2000)
+          assert.strictEqual(subscribeSpy.callCount, 3) // granted
+          assert.strictEqual(errorSpy.callCount, 2)
+          assert.deepEqual(agent._subscribeRetrier.pending, [])
+          clock.tick(60000)
+          assert.strictEqual(subscribeSpy.callCount, 3) // and stays quiet
+        } finally {
+          agent.off('error', errorSpy)
+          agent._client = { subscribe: mockSubscribeFunction }
+          agent._subscribeRetrier.cancel()
+          clock.restore()
+        }
       })
       it('should correctly report error on subscribe where qos=0 is returned', () => {
         const errorSpy = sinon.spy()

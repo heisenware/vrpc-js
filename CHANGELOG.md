@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **A refused subscription is retried until the broker grants it** (agent and client): while the broker's authorization service is unavailable it answers every subscribe with `qos=128`; an agent or client that subscribed in that window stayed deaf for good - connected, looking online, never receiving a message on the refused topic (a heisenware-cloud auth restart left a tenant's media server and connectors agent deaf until restarted). Both now retry with a growing delay (1 s doubling up to 30 s) until the topic is granted, drop pending retries when a (re)connect subscribes afresh or `end()` is called, and keep emitting the `SUBSCRIBE_FAILED` error so consumers still see it.
+
 ## [3.8.1] - Sep 03 2026
 
 ### Fixed

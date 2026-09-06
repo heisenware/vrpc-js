@@ -1,6 +1,6 @@
 'use strict'
 
-/* global describe, context, before, after, it */
+/* global describe, context, before, after, afterEach, it */
 const { VrpcClient } = require('../../index')
 const assert = require('assert')
 const sinon = require('sinon')
@@ -1122,6 +1122,8 @@ describe('vrpc-client', () => {
     vrpcClient._client = {
       subscribe: mockSubscribeFunction
     }
+    // a refusal now arms a retry timer: none may leak into the next test
+    afterEach(() => vrpcClient._subscribeRetrier.cancel())
     it('should correctly report error on subscribe with qos=128', () => {
       const errorSpy = sinon.spy()
       vrpcClient.on('error', errorSpy)
@@ -1141,6 +1143,37 @@ describe('vrpc-client', () => {
       )
 
       vrpcClient.off('error', errorSpy)
+    })
+    it('should retry a refused subscription until the broker grants it (#1496)', async () => {
+      const clock = sinon.useFakeTimers()
+      const errorSpy = sinon.spy()
+      vrpcClient.on('error', errorSpy)
+      let refusals = 2
+      const subscribeSpy = sinon.spy((topic, options, callback) => {
+        const topicArray = Array.isArray(topic) ? topic : [topic]
+        const qos = refusals > 0 ? 128 : options.qos
+        refusals -= 1
+        callback(null, topicArray.map(x => ({ topic: x, qos })))
+      })
+      vrpcClient._client = { subscribe: subscribeSpy }
+      try {
+        await vrpcClient._mqttSubscribe('baz')
+        assert.strictEqual(errorSpy.callCount, 1)
+        assert.deepEqual(vrpcClient._subscribeRetrier.pending, ['baz'])
+        await clock.tickAsync(1000)
+        assert.strictEqual(subscribeSpy.callCount, 2) // refused again
+        await clock.tickAsync(2000)
+        assert.strictEqual(subscribeSpy.callCount, 3) // granted
+        assert.strictEqual(errorSpy.callCount, 2)
+        assert.deepEqual(vrpcClient._subscribeRetrier.pending, [])
+        await clock.tickAsync(60000)
+        assert.strictEqual(subscribeSpy.callCount, 3)
+      } finally {
+        vrpcClient.off('error', errorSpy)
+        vrpcClient._client = { subscribe: mockSubscribeFunction }
+        vrpcClient._subscribeRetrier.cancel()
+        clock.restore()
+      }
     })
     it('should correctly report error on subscribe where qos=0 is returned', () => {
       const errorSpy = sinon.spy()

@@ -41,6 +41,7 @@ const os = require('os')
 const { nanoid } = require('nanoid')
 const mqtt = require('mqtt')
 const EventEmitter = require('events')
+const SubscribeRetrier = require('./SubscribeRetrier')
 
 const VRPC_PROTOCOL_VERSION = 3
 
@@ -135,6 +136,11 @@ class VrpcClient extends EventEmitter {
     this._client = null
     this._cachedSubscriptions = {}
     this._proxies = {}
+    // refused subscriptions (SUBACK qos=128) are retried until granted
+    this._subscribeRetrier = new SubscribeRetrier({
+      subscribe: (topics, options) => this._mqttSubscribe(topics, options).catch(() => {}),
+      log: this._log
+    })
     this._callbackIds = new WeakMap()
     this._emitterListener = new WeakMap()
     this._pendingSubscriptions = new Map()
@@ -247,6 +253,8 @@ class VrpcClient extends EventEmitter {
     this._client.on('connect', async () => {
       // forward the good news
       this.emit('connect')
+      // everything is subscribed afresh below: pending retries are moot
+      this._subscribeRetrier.cancel()
       try {
         // This will give us an overview of all remotely available classes
         const agent = this._agent === '*' ? '+' : this._agent
@@ -783,6 +791,7 @@ class VrpcClient extends EventEmitter {
    * @returns {Promise} Resolves when ended
    */
   async end () {
+    this._subscribeRetrier.cancel()
     if (!this._client) return
     this._mqttPublish(
       `${this._vrpcConnectionId}/__clientInfo__`,
@@ -920,7 +929,11 @@ class VrpcClient extends EventEmitter {
               err.subscribeOptions = options
               this._log.error(err.message)
               this.emit('error', err)
+              this._subscribeRetrier.schedule(erroneousGranted, options)
             }
+            this._subscribeRetrier.granted(
+              granted.filter(x => x.qos !== 128).map(x => x.topic)
+            )
             const reducedQos = granted.filter(x => x.qos < this._qos)
             if (reducedQos.length > 0) {
               err = new Error(

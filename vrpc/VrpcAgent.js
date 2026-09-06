@@ -6,6 +6,7 @@ const { ArgumentParser } = require('argparse')
 const EventEmitter = require('events')
 const jsonStringifySafe = require('json-stringify-safe')
 const VrpcAdapter = require('./VrpcAdapter')
+const SubscribeRetrier = require('./SubscribeRetrier')
 
 const VRPC_PROTOCOL_VERSION = 3
 
@@ -144,6 +145,11 @@ class VrpcAgent extends EventEmitter {
     // maps clientId to instanceId
     this._isolatedInstances = new Map()
     this._sharedInstances = new Map()
+    // refused subscriptions (SUBACK qos=128) are retried until granted
+    this._subscribeRetrier = new SubscribeRetrier({
+      subscribe: (topics, options) => this._mqttSubscribe(topics, options),
+      log: this._log
+    })
 
     // Handle the internal error event in case the user forgot to implement it
     this.on('error', err => {
@@ -213,6 +219,7 @@ class VrpcAgent extends EventEmitter {
    * @returns {Promise} Resolves when disconnected and ended
    */
   async end ({ unregister = false } = {}) {
+    this._subscribeRetrier.cancel()
     try {
       if (!this._client || !this._client.connected) {
         this.emit('end')
@@ -370,7 +377,11 @@ class VrpcAgent extends EventEmitter {
             err.subscribeOptions = options
             this._log.error(err)
             this.emit('error', err)
+            this._subscribeRetrier.schedule(erroneousGranted, options)
           }
+          this._subscribeRetrier.granted(
+            granted.filter(x => x.qos !== 128).map(x => x.topic)
+          )
           const reducedQos = granted.filter(x => x.qos < this._qos)
           if (reducedQos.length > 0) {
             err = new Error(
@@ -471,6 +482,8 @@ class VrpcAgent extends EventEmitter {
 
   _handleConnect () {
     this._log.info('[OK]')
+    // everything is subscribed afresh: pending retries are moot
+    this._subscribeRetrier.cancel()
     try {
       const topics = this._generateTopics()
       if (topics.length > 0) this._mqttSubscribe(topics)
