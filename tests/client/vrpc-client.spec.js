@@ -651,6 +651,24 @@ describe('vrpc-client', () => {
         assert(valueSpy1.callCount, 2)
         assert(valueSpy2.callCount, 2)
       })
+      it('resolves an off() for a listener it never registered without sending it', async () => {
+        // the subscription may have been dropped when the instance's agent
+        // went away, or the listener was never registered: nothing of ours
+        // to remove, so nothing travels - the agent would only have been
+        // handed a null listener (#1516 of heisenware-cloud)
+        const stranger = sinon.spy()
+        const publishSpy = sinon.spy(client, '_mqttPublish')
+        try {
+          const ret = await agent1Foo1.off('value', stranger)
+          assert.strictEqual(ret, true)
+          assert(
+            !publishSpy.getCalls().some(c => String(c.args[0]).endsWith('/off')),
+            'an off travelled to the agent'
+          )
+        } finally {
+          publishSpy.restore()
+        }
+      })
       it('should work when an EventEmitter is used to receive callbacks', async () => {
         const fooSpy = sinon.spy()
         const booSpy = sinon.spy()

@@ -7,7 +7,7 @@ const TestClassNoDoc = require('./fixtures/TestClassNoDoc')
 
 const testInstance = new TestClassNoDoc(42)
 
-/* global describe, it */
+/* global describe, it, before */
 
 describe('vrpc-adapter', () => {
   /*********************
@@ -140,6 +140,56 @@ describe('vrpc-adapter', () => {
   /*************************
    * documentation parsing *
    *************************/
+  describe('removing listeners the adapter does not hold', () => {
+    // A client whose subscription outlived a restart of this agent (or
+    // that never registered the listener) still sends off()/removeListener()
+    // - historically with a null listener, which the instance's
+    // EventEmitter rejected ("listener must be of type function"). Both
+    // are nothing to remove: answered true, never handed to the emitter.
+    const EventEmitter = require('events')
+    class Emitting extends EventEmitter {
+      constructor () {
+        super()
+        this._value = 0
+      }
+
+      increment () {
+        this._value += 1
+        this.emit('value', this._value)
+        return this._value
+      }
+    }
+    before(() => {
+      VrpcAdapter.register(Emitting)
+      VrpcAdapter.create({ className: 'Emitting', instance: 'emitting1' })
+    })
+    const callOff = (f, listener) =>
+      JSON.parse(
+        VrpcAdapter.call(
+          JSON.stringify({ c: 'emitting1', f, a: ['value', listener], i: 'i-off', s: 'client-1' })
+        )
+      )
+    it('answers off() with a null listener instead of throwing', () => {
+      const json = callOff('off', null)
+      assert.strictEqual(json.e, undefined)
+      assert.strictEqual(json.r, true)
+    })
+    it('answers off() for an event id it never registered', () => {
+      const json = callOff('off', '__e__client-1/never-registered')
+      assert.strictEqual(json.e, undefined)
+      assert.strictEqual(json.r, true)
+    })
+    it('treats removeListener the same', () => {
+      const json = callOff('removeListener', null)
+      assert.strictEqual(json.e, undefined)
+      assert.strictEqual(json.r, true)
+    })
+    it('still emits to nobody afterwards and keeps working', () => {
+      const instance = VrpcAdapter.getInstance('emitting1')
+      assert.strictEqual(instance.increment(), 1)
+    })
+  })
+
   describe('documentation parsing', () => {
     it('should have parsed meta information', () => {
       const meta = VrpcAdapter._getMetaData('TestClassDoc')

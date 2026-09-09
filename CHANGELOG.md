@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.8.3] - Sep 09 2026
+
+### Fixed
+
+- **An `off()` the client cannot map to a listener no longer travels, and the agent tolerates one that arrives**: after an agent restarted, the client's cache had already dropped the instance's subscriptions, so a later `proxy.off(event, handler)` (a React effect cleanup, typically) found nothing of its own to remove - and sent the call anyway with a `null` listener, which the instance's `EventEmitter` rejected (`The "listener" argument must be of type function. Received null`, logged on every service restart in heisenware-cloud, #1516 there). The client now resolves such an `off()`/`removeListener()` locally without sending it; the adapter answers `off()`/`removeListener()` with a listener it does not hold (or none) as a no-op instead of handing it to the emitter.
+
 ## [3.8.2] - Sep 06 2026
 
 ### Fixed

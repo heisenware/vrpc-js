@@ -547,6 +547,17 @@ class VrpcAdapter {
       return
     }
     const unwrapped = VrpcAdapter._unwrapArguments(json)
+    // special case: removing a listener the adapter does not hold (the
+    // client's subscription outlived a restart of this agent, or it sent
+    // no listener at all) - nothing to remove, and the instance's
+    // EventEmitter would throw on a listener that is not a function
+    if (
+      (json.f === 'off' || json.f === 'removeListener') &&
+      typeof unwrapped[1] !== 'function'
+    ) {
+      json.r = true
+      return
+    }
     // Check whether context is a registered class
     const entry = VrpcAdapter._functionRegistry.get(json.c)
     if (entry !== undefined) {

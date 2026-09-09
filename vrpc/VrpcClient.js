@@ -1284,6 +1284,17 @@ class VrpcClient extends EventEmitter {
           isContinuousRemover
         ) {
           const id = await this._offRemoteEvent({ callback })
+          if (
+            !id &&
+            (functionName === 'off' || functionName === 'removeListener')
+          ) {
+            // Nothing of ours to remove - the subscription was already
+            // dropped (the instance or its agent went away and the cache
+            // was cleared, or the listener was never registered). Sending
+            // the call anyway would hand the agent a null listener, which
+            // its EventEmitter rejects. Handled locally: nothing to do.
+            return null
+          }
           wrapped.push(id || null)
           continue
         } else {
