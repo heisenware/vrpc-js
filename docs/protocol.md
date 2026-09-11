@@ -211,11 +211,22 @@ VRPC **publishes** the (retained) agent info message:
 4. Finally, VRPC listens to RPC responses by **subscribing** to
 
       ```xml
-      <domain>/<host>/<random>
+      <domain>/<mqttClientId>/<secret>
       ```
 
-    which can be regarded as VRPC client ID. This information
-    is packed into the `<sender>` property of the RPC payload.
+    the *connection id*: the mqtt client id is what the broker knows this
+    connection by (so a broker can confine the client to topics under it),
+    and `<secret>` is 16 random characters nobody who cannot read those
+    topics can learn. The connection id is packed into the `<sender>`
+    property (`s`) of every RPC payload and is the id agents key their
+    bookkeeping by (responses, events, isolated instances, presence). It is
+    always three segments: agents recognise the presence message below by
+    `__clientInfo__` being the fourth topic token.
+
+    Distinct from it is the *client id* `<domain>/<host>/<identity>`
+    (`getClientId()`), which names the principal and is shared by all
+    connections of one identity; it travels as `clientId` in the presence
+    payload.
 
 ### Runtime
 
@@ -246,12 +257,17 @@ Either by explicitly calling the `end()` function or by MQTT last will
 VRPC **publishes** the (non-retained) client info message:
 
   ```xml
-  <domain>/<host>/<random>/__clientInfo__
+  <domain>/<mqttClientId>/<secret>/__clientInfo__
 
   JSON PAYLOAD {
-    status: 'offline'
+    status: 'offline',
+    clientId: '<domain>/<host>/<identity>'
   }
   ```
+
+An isolated instance (`__createIsolated__`) remembers the connection id
+that created it and answers that connection only; the agent refuses calls
+and deletes from any other sender and never re-homes an existing id.
 
 ## Adapter Details
 

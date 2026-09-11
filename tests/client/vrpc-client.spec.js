@@ -105,11 +105,14 @@ describe('vrpc-client', () => {
           assert.equal(hostname, 'client')
           assert.equal(identity, 'Test Client')
         })
-        it('should provide a connection id that extends the client id', () => {
+        it('should provide a connection id of domain, mqtt client id and a secret', () => {
           const clientId = client.getClientId()
           const connectionId = client.getConnectionId()
           assert.notStrictEqual(connectionId, clientId)
-          assert(connectionId.startsWith(`${clientId}:`))
+          const [domain, mqttClientId, secret] = connectionId.split('/')
+          assert.strictEqual(domain, 'test.vrpc')
+          assert.strictEqual(mqttClientId, client._client.options.clientId)
+          assert.strictEqual(secret.length, 16)
           assert.strictEqual(connectionId.split('/').length, 3)
         })
         it('should end', async () => {
@@ -118,12 +121,20 @@ describe('vrpc-client', () => {
       }
     )
     context('when constructed without identity', () => {
-      it('should use the client id as connection id', () => {
+      it('should still tell connection id and client id apart', () => {
         const client = new VrpcClient({
           broker: 'mqtt://broker',
           domain: 'test.vrpc'
         })
-        assert.strictEqual(client.getConnectionId(), client.getClientId())
+        assert.notStrictEqual(client.getConnectionId(), client.getClientId())
+        assert.strictEqual(client.getConnectionId().split('/').length, 3)
+        assert.strictEqual(client.getClientId().split('/').length, 3)
+      })
+      it('should give two clients two secrets', () => {
+        const options = { broker: 'mqtt://broker', domain: 'test.vrpc' }
+        const a = new VrpcClient(options)
+        const b = new VrpcClient(options)
+        assert.notStrictEqual(a.getConnectionId(), b.getConnectionId())
       })
     })
     context('when two clients share one identity', () => {
@@ -158,8 +169,21 @@ describe('vrpc-client', () => {
       it('should use the custom MQTT client id', () => {
         assert.equal(client._client.options.clientId, 'myMqttClientId')
       })
+      it('should carry it in the connection id', () => {
+        assert(client.getConnectionId().startsWith('test.vrpc/myMqttClientId/'))
+      })
       it('should end', async () => {
         await client.end()
+      })
+    })
+    context('when constructed with an mqtt client id that is no plain topic segment', () => {
+      it('should refuse it', () => {
+        for (const mqttClientId of ['a/b', 'a+b', 'a#', '']) {
+          assert.throws(
+            () => new VrpcClient({ broker: 'mqtt://broker', domain: 'test.vrpc', mqttClientId }),
+            /mqttClientId/
+          )
+        }
       })
     })
   })

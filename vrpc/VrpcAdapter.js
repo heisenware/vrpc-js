@@ -9,11 +9,9 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
       _______\//\\\_______\/\\\______\//\\\_\/\\\_______________\////\\\\\\\\\_
        ________\///________\///________\///__\///___________________\/////////__
 
-
 Non-intrusively adapts code and provides access in form of asynchronous remote
 procedure calls (RPC).
 Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc)
-
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 Copyright (c) 2018 - 2022 Dr. Burkhard C. Heisen <burkhard.heisen@heisenware.com>.
@@ -419,16 +417,45 @@ class VrpcAdapter {
     return this._mustTrackClient
   }
 
+  /**
+   * Refuses a request on an isolated instance that belongs to another
+   * connection. An isolated instance created over the wire remembers the
+   * connection that created it (the request's sender) and answers that
+   * connection alone; one the agent created itself has no owner and is
+   * open. The agent's own housekeeping passes as VrpcAdapter.LOCAL_SENDER,
+   * which no wire message can carry.
+   */
+  static _assertOwner (entry, json, instanceId) {
+    if (!entry || !entry.isIsolated || entry.owner === undefined) return
+    if (json.s === VrpcAdapter.LOCAL_SENDER || json.s === entry.owner) return
+    throw new Error(
+      `Instance '${instanceId}' is isolated to another connection`
+    )
+  }
+
   static _handleCreateIsolated (json) {
     let instance
     try {
       const className = json.c
       const [instanceId, ...args] = json.a
+      const existing = VrpcAdapter._instances.get(instanceId)
+      if (existing) {
+        // an id is never re-homed: a shared instance stays shared, an
+        // isolated one keeps its owner
+        if (!existing.isIsolated) {
+          throw new Error(`Instance '${instanceId}' exists as a shared instance`)
+        }
+        VrpcAdapter._assertOwner(existing, json, instanceId)
+        json.r = instanceId
+        return existing.instance
+      }
       instance = VrpcAdapter._create(className, instanceId, ...args)
       VrpcAdapter._instances.set(instanceId, {
         instance,
         className,
-        isIsolated: true
+        isIsolated: true,
+        // undefined for instances the agent creates itself (open)
+        owner: typeof json.s === 'string' ? json.s : undefined
       })
       VrpcAdapter._emitter.emit('create', {
         args,
@@ -449,6 +476,10 @@ class VrpcAdapter {
     try {
       const className = json.c
       const [instanceId, ...args] = json.a
+      const existing = VrpcAdapter._instances.get(instanceId)
+      if (existing && existing.isIsolated) {
+        throw new Error(`Instance '${instanceId}' exists as an isolated instance`)
+      }
       instance = VrpcAdapter._create(className, instanceId, ...args)
       VrpcAdapter._instances.set(instanceId, {
         instance,
@@ -524,6 +555,7 @@ class VrpcAdapter {
   static _handleDelete (json) {
     try {
       const instance = json.a[0] // first arg is instance to be deleted
+      VrpcAdapter._assertOwner(VrpcAdapter._instances.get(instance), json, instance)
       VrpcAdapter._emitter.emit('beforeDelete', {
         instance,
         className: json.c
@@ -540,6 +572,14 @@ class VrpcAdapter {
   }
 
   static _handleCall (json) {
+    // an isolated instance answers its creating connection only
+    try {
+      VrpcAdapter._assertOwner(VrpcAdapter._instances.get(json.c), json, json.c)
+    } catch (err) {
+      const { message, cause } = err
+      json.e = { message, cause }
+      return
+    }
     // special case: removeAllListeners
     if (json.f === 'removeAllListeners') {
       VrpcAdapter._removeAllListeners(json.a[0], json.s, json.c)
@@ -970,5 +1010,12 @@ VrpcAdapter._blackList = new Set([
   '__lookupGetter__',
   '__lookupSetter__'
 ])
+
+/**
+ * The sender the agent uses for its own housekeeping calls (deleting the
+ * isolated instances of a departed connection). A Symbol: no message from
+ * the wire can carry it, so it can never be claimed remotely.
+ */
+VrpcAdapter.LOCAL_SENDER = Symbol('vrpc.local-sender')
 
 module.exports = VrpcAdapter

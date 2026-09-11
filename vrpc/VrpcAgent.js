@@ -663,7 +663,12 @@ class VrpcAgent extends EventEmitter {
       const entry = this._isolatedInstances.get(connectionId)
       if (entry) {
         entry.forEach(instanceId => {
-          const json = { f: '__delete__', a: [instanceId], r: null }
+          const json = {
+            f: '__delete__',
+            a: [instanceId],
+            r: null,
+            s: VrpcAdapter.LOCAL_SENDER
+          }
           VrpcAdapter._call(json)
           if (json.r) {
             this._log.debug(`Auto-deleted isolated instance: ${instanceId}`)
@@ -718,7 +723,7 @@ class VrpcAgent extends EventEmitter {
     const entryIsolated = this._isolatedInstances.get(clientId)
     if (entryIsolated && entryIsolated.has(instanceId)) {
       entryIsolated.delete(instanceId)
-      if (entryIsolated.length === 0) {
+      if (entryIsolated.size === 0) {
         this._isolatedInstances.delete(clientId)
         this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
         this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
@@ -730,7 +735,7 @@ class VrpcAgent extends EventEmitter {
       if (v.has(instanceId)) {
         found = true
         v.delete(instanceId)
-        if (v.length === 0) {
+        if (v.size === 0) {
           this._sharedInstances.delete(clientId)
           this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
           this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)

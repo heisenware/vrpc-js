@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.9.0] - Sep 11 2026
+
+### Changed
+
+- **The connection id names the connection the broker knows**: it now reads `<domain>/<mqttClientId>/<secret>` instead of `<domain>/<hostname>/<identity>:<n>`. A broker that confines a client to topics under its own mqtt client id thereby keeps every response, event and presence message of a connection private to it, and the random secret makes the sender field of a request impossible to forge by anyone who cannot read those topics. The three-segment layout is kept on purpose: every agent (this one, the C++ and the Python port) recognises a presence message by `__clientInfo__` arriving as the fourth topic token. Agents of any version answer the new id unchanged, and clients of any version keep talking to new agents; the privacy applies per client from the version it upgrades. `getClientId()` and `proxy.vrpcClientId`, the identity-derived id that names the principal, do not change. A connection id no longer equals the client id for clients without an identity.
+- **Isolated instances answer their creating connection only**: an instance created with `__createIsolated__` remembers the sender that created it, and the adapter refuses every call, `removeAllListeners` and `__delete__` on it from any other sender, including one without a sender. An id is never re-homed: re-creating an existing isolated instance from another connection, re-creating it as shared, or creating an existing shared instance as isolated is refused (a shared id used to be silently flipped to isolated by any caller, and vice versa). Instances the agent creates itself through `VrpcAdapter.create()` have no owner and stay open. Agents of older versions do not enforce this.
+- **`mqttClientId` is validated**: it becomes a topic segment, so `+`, `/`, `#` and the empty string are refused like they are for `domain` and `identity`.
+
+### Fixed
+
+- **An agent kept tracking a client after its last instance went**: the per-client bookkeeping tested `.length` on a `Set` and never emptied, so the presence subscription stayed and stale instance ids were retried on the client's offline message.
+
 ## [3.8.3] - Sep 09 2026
 
 ### Fixed

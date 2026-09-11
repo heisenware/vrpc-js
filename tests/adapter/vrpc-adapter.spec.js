@@ -190,6 +190,58 @@ describe('vrpc-adapter', () => {
     })
   })
 
+  describe('isolated instances belong to the connection that created them', () => {
+    const call = json => JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
+    const create = (s, instance = 'iso1') =>
+      call({ c: 'TestClassDoc', f: '__createIsolated__', a: [instance, 11], i: 'i', s })
+    it('creates for its owner and answers the owner', () => {
+      const created = create('conn-A')
+      assert.strictEqual(created.e, undefined)
+      assert.strictEqual(created.r, 'iso1')
+      assert.strictEqual(VrpcAdapter._instances.get('iso1').owner, 'conn-A')
+      const answered = call({ c: 'iso1', f: 'getValue', a: [], i: 'i', s: 'conn-A' })
+      assert.strictEqual(answered.e, undefined)
+      assert.strictEqual(answered.r, 11)
+    })
+    it('refuses every other connection, a missing sender included', () => {
+      for (const s of ['conn-B', undefined, '']) {
+        const json = call({ c: 'iso1', f: 'getValue', a: [], i: 'i', s })
+        assert.strictEqual(json.r, undefined)
+        assert.match(json.e.message, /isolated to another connection/)
+      }
+      const off = call({ c: 'iso1', f: 'removeAllListeners', a: ['value'], i: 'i', s: 'conn-B' })
+      assert.match(off.e.message, /isolated to another connection/)
+    })
+    it('never re-homes an id: re-creating it as another connection or as shared is refused', () => {
+      assert.match(create('conn-B').e.message, /isolated to another connection/)
+      const shared = call({ c: 'TestClassDoc', f: '__createShared__', a: ['iso1'], i: 'i', s: 'conn-B' })
+      assert.match(shared.e.message, /exists as an isolated instance/)
+      // the owner re-creating its own instance gets it back
+      assert.strictEqual(create('conn-A').r, 'iso1')
+      // and a shared id cannot be claimed as isolated by anyone
+      const claim = call({ c: 'TestClassDoc', f: '__createIsolated__', a: ['myInstance1'], i: 'i', s: 'conn-A' })
+      assert.match(claim.e.message, /exists as a shared instance/)
+      assert.strictEqual(VrpcAdapter._instances.get('myInstance1').isIsolated, false)
+    })
+    it('lets only the owner or the agent itself delete it', () => {
+      const foreign = call({ c: 'TestClassDoc', f: '__delete__', a: ['iso1'], i: 'i', s: 'conn-B' })
+      assert.match(foreign.e.message, /isolated to another connection/)
+      assert(VrpcAdapter._instances.has('iso1'))
+      const local = { c: 'TestClassDoc', f: '__delete__', a: ['iso1'], r: null, s: VrpcAdapter.LOCAL_SENDER }
+      VrpcAdapter._call(local)
+      assert.strictEqual(local.r, true)
+      assert(!VrpcAdapter._instances.has('iso1'))
+      create('conn-A', 'iso2')
+      const own = call({ c: 'TestClassDoc', f: '__delete__', a: ['iso2'], i: 'i', s: 'conn-A' })
+      assert.strictEqual(own.r, true)
+    })
+    it('keeps instances the agent created itself open to everyone', () => {
+      assert.strictEqual(VrpcAdapter._instances.get('myInstance3').owner, undefined)
+      const json = call({ c: 'myInstance3', f: 'getValue', a: [], i: 'i', s: 'conn-Z' })
+      assert.strictEqual(json.r, -1)
+    })
+  })
+
   describe('documentation parsing', () => {
     it('should have parsed meta information', () => {
       const meta = VrpcAdapter._getMetaData('TestClassDoc')

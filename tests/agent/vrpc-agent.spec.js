@@ -309,7 +309,12 @@ describe('vrpc-agent', () => {
       // in-process agent a moment to receive and handle it
       await new Promise(resolve => setTimeout(resolve, 200))
       assert(clientGoneSpy.called)
-      assert(clientGoneSpy.calledWith(client2.getClientId()))
+      // the connection that ended, with the identity it belonged to
+      assert(
+        clientGoneSpy.calledWith(client2.getConnectionId(), {
+          clientId: client2.getClientId()
+        })
+      )
     })
   })
   /**********************************
@@ -359,7 +364,11 @@ describe('vrpc-agent', () => {
       assert.strictEqual(tabA.getClientId(), tabB.getClientId())
       assert.notStrictEqual(tabA.getConnectionId(), tabB.getConnectionId())
       assert.strictEqual(tabA.getConnectionId().split('/').length, 3)
-      assert(tabA.getConnectionId().startsWith(tabA.getClientId()))
+      assert(tabA.getConnectionId().startsWith('test.vrpc/'))
+      assert.notStrictEqual(
+        tabA.getConnectionId().split('/')[1],
+        tabB.getConnectionId().split('/')[1]
+      )
       assert.strictEqual(barA.vrpcClientId, barB.vrpcClientId)
       assert.notStrictEqual(barA.vrpcConnectionId, barB.vrpcConnectionId)
     })

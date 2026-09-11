@@ -9,11 +9,9 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
       _______\//\\\_______\/\\\______\//\\\_\/\\\_______________\////\\\\\\\\\_
        ________\///________\///________\///__\///___________________\/////////__
 
-
 Non-intrusively adapts code and provides access in form of asynchronous remote
 procedure calls (RPC).
 Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc)
-
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 Copyright (c) 2018 - 2022 Dr. Burkhard C. Heisen <burkhard.heisen@heisenware.com>.
@@ -113,6 +111,18 @@ class VrpcClient extends EventEmitter {
         'The identity must NOT contain any of those characters: "+", "/", "#", "$"'
       )
     }
+    // mqtt client id sanity check: it becomes the second segment of every
+    // topic this client receives on, so it must be one plain segment
+    if (mqttClientId !== null && mqttClientId !== undefined) {
+      if (typeof mqttClientId !== 'string' || mqttClientId.length === 0) {
+        throw new Error('The mqttClientId must be a non-empty string')
+      }
+      if (mqttClientId.match(/[+/#]/)) {
+        throw new Error(
+          'The mqttClientId must NOT contain any of those characters: "+", "/", "#"'
+        )
+      }
+    }
     this._token = token
     this._username = username
     this._password = password
@@ -128,6 +138,11 @@ class VrpcClient extends EventEmitter {
     this._instance = nanoid(8)
     this._mqttClientId = mqttClientId || this._createMqttClientId()
     this._vrpcClientId = this._createVrpcClientId()
+    // the part of the connection id nobody else can learn: a broker that
+    // confines a client to topics under its own mqtt client id keeps
+    // every response, event and presence message of this connection
+    // private, and a sender field nobody can read cannot be forged
+    this._connectionSecret = nanoid(16)
     this._vrpcConnectionId = this._createVrpcConnectionId()
     this._agents = {}
     this._eventEmitter = new EventEmitter()
@@ -175,7 +190,12 @@ class VrpcClient extends EventEmitter {
    * have distinct connection ids. Agents key all their bookkeeping by it
    * (response routing, event listeners, isolated instances, presence), so
    * one connection ending never disturbs the others of the same identity.
-   * Without an identity the connection id equals the client id.
+   *
+   * It reads `<domain>/<mqttClientId>/<secret>`: the mqtt client id is
+   * what the broker knows this connection by, so a broker can confine the
+   * client to its own topics, and the secret is random per connection, so
+   * nobody who cannot read those topics can impersonate the connection
+   * towards an agent. Treat it as a credential: do not log or share it.
    *
    * @returns {String} connectionId
    */
@@ -866,11 +886,10 @@ class VrpcClient extends EventEmitter {
   }
 
   _createVrpcConnectionId () {
-    // Without an identity the client id already is unique per instance.
-    // With one, the instance token makes every connection of that identity
-    // distinct while keeping the three-segment layout agents parse.
-    if (!this._identity) return this._vrpcClientId
-    return `${this._vrpcClientId}:${this._instance}`
+    // Three segments, always: agents (this one, the C++ and the Python
+    // ports) recognise a presence message by `__clientInfo__` arriving as
+    // the fourth topic token, so the layout is part of the wire format.
+    return `${this._domain}/${this._mqttClientId}/${this._connectionSecret}`
   }
 
   _mqttPublish (topic, message, options) {
@@ -1225,15 +1244,15 @@ class VrpcClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       const handler =
         timer =>
-        (instances, { agent, className }) => {
-          if (instances.includes(instance)) {
-            if (options.agent && agent !== options.agent) return
-            if (options.className && className !== options.className) return
-            clearTimeout(timer)
-            this.removeListener('instanceNew', handler)
-            resolve({ agent, className, instance })
+          (instances, { agent, className }) => {
+            if (instances.includes(instance)) {
+              if (options.agent && agent !== options.agent) return
+              if (options.className && className !== options.className) return
+              clearTimeout(timer)
+              this.removeListener('instanceNew', handler)
+              resolve({ agent, className, instance })
+            }
           }
-        }
       const timer = setTimeout(() => {
         this.removeListener('instanceNew', handler(timer))
         const msg = `Could not find instance: ${instance} (> ${this._timeout} ms)`
@@ -1454,8 +1473,8 @@ class VrpcClient extends EventEmitter {
     return (
       variable &&
       typeof variable === 'object' &&
-      variable.hasOwnProperty('emitter') &&
-      variable.hasOwnProperty('event') &&
+      Object.prototype.hasOwnProperty.call(variable, 'emitter') &&
+      Object.prototype.hasOwnProperty.call(variable, 'event') &&
       typeof variable.emitter === 'object' &&
       typeof variable.emitter.emit === 'function'
     )
