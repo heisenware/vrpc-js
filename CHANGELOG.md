@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.9.1] - Sep 13 2026
+
+### Changed
+
+- **`VrpcPersistor` keeps what it cannot restore**: a record that fails to restore used to be deleted after the retries "to prevent startup loops", which turned a stricter constructor or a class missing from a build into silent data loss. It is now quarantined instead: kept on disk with the error, the time and the number of attempts, reported by `restore()` (which returns `{ restored, quarantined }` and logs a summary), and given exactly one attempt per start, so it heals by itself once the cause is fixed. `status()` lists every record with its mark, `retry(id)` attempts one on request, and `forget(id)` is the only way a record leaves the storage other than the deletion of a live instance. The retry policy for fresh records is configurable (`retries`, `retryDelay`).
+
+### Fixed
+
+- **A constructor that throws is reported, and leaves nothing behind**: `create()` on a client rejected with `[object Object]` when the remote constructor threw, since the error object travelled into `new Error()` unformatted; it now rejects with the constructor's message, prefixed like every other call error, and carries the cause. On the agent the failed creation still ran the success bookkeeping with an undefined instance id: a subscription to `<class>/undefined/+`, a phantom entry in the per-client lifetime tracking, and a class-info publish. A failed creation now logs a warning and does nothing else.
+- **`VrpcPersistor` no longer persists isolated instances**: an isolated instance belongs to the connection that created it and dies with it; restoring it would have resurrected it as an open instance without an owner. The adapter's create event carries `isIsolated`, and the persistor skips those.
+
 ## [3.9.0] - Sep 11 2026
 
 ### Changed
