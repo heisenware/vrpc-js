@@ -9,11 +9,9 @@ __\/\\\_______\/\\\__/\\\///////\\\___\/\\\/////////\\\____/\\\////////__
       _______\//\\\_______\/\\\______\//\\\_\/\\\_______________\////\\\\\\\\\_
        ________\///________\///________\///__\///___________________\/////////__
 
-
 Non-intrusively adapts code and provides access in form of asynchronous remote
 procedure calls (RPC).
 Author: Dr. Burkhard C. Heisen (https://github.com/heisenware/vrpc)
-
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 Copyright (c) 2018 - 2022 Dr. Burkhard C. Heisen <burkhard.heisen@heisenware.com>.
@@ -39,12 +37,22 @@ SOFTWARE.
 
 const VrpcAdapter = require('./VrpcAdapter')
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
 /**
  * Provides a persistence layer for VRPC instances.
  *
  * This class automatically saves the constructor arguments of newly created
- * instances and re-creates them when the application restarts. It also listens
- * for an 'update' event on instances to persist their state after creation.
+ * shared instances and re-creates them when the application restarts. It also
+ * listens for an 'update' event on instances to persist their state after
+ * creation (the event's payload is used as the single constructor argument
+ * upon restoration). Isolated instances belong to the connection that
+ * created them and are never persisted.
+ *
+ * A record that cannot be restored is never deleted: it is quarantined
+ * (marked with the error, kept on disk), retried once per start so it heals
+ * by itself once the cause is fixed, and can be inspected (`status`), retried
+ * (`retry`) or removed on purpose (`forget`).
  *
  * @requires @heisenware/storage - This peer dependency must be installed.
  * Storage 1.x (synchronous constructor) and >= 2.x (async `Storage.open`)
@@ -59,8 +67,16 @@ class VrpcPersistor {
    * @param {VrpcAgent} options.agentInstance The VRPC agent whose instances should be persisted.
    * @param {string} [options.dir] Optional directory for storage. Defaults to a path derived from the agent's name.
    * @param {object} [options.log] Optional logger object (e.g. console) with info, warn, and error methods.
+   * @param {number} [options.retries=5] How often a record that fails on a fresh restore is retried before it is quarantined.
+   * @param {number} [options.retryDelay=1000] Milliseconds between retries, multiplied by the attempt number.
    */
-  constructor ({ agentInstance, dir, log = console }) {
+  constructor ({
+    agentInstance,
+    dir,
+    log = console,
+    retries = 5,
+    retryDelay = 1000
+  }) {
     let Storage
     try {
       Storage = require('@heisenware/storage')
@@ -72,6 +88,8 @@ class VrpcPersistor {
 
     this._agentInstance = agentInstance
     this._log = log
+    this._retries = retries
+    this._retryDelay = retryDelay
 
     this._dir =
       dir ||
@@ -90,79 +108,149 @@ class VrpcPersistor {
   /**
    * Restores all persisted instances from storage.
    *
-   * It attempts to recreate each instance using its saved className and args.
-   * If an instance fails to restore after several retries with exponential backoff,
-   * it is considered "broken" and removed from storage to prevent startup loops.
+   * A record seen for the first time is retried with a growing delay; a
+   * record that still fails is quarantined: it stays on disk, marked with
+   * the error and the number of attempts. A quarantined record gets one
+   * attempt per restore, so it heals on the next start once its cause is
+   * fixed, and never turns a start into a retry storm.
+   *
+   * @returns {Promise<{restored: string[], quarantined: Array<{instance: string, className: string, error: string, attempts: number, since: string}>}>}
    */
   async restore () {
     await this._isInitialized
+    const summary = { restored: [], quarantined: [] }
     const allIds = this._storage.keys()
     if (allIds.length === 0) {
       this._log.info('[VrpcPersistor] No instances to restore.')
-      return
+      return summary
     }
-
     this._log.info(
       `[VrpcPersistor] Found ${allIds.length} persisted instance(s) to restore.`
     )
 
-    let failedIds = []
-    const restorationPromises = allIds.map(async id => {
-      try {
-        const { className, args } = await this._storage.getItem(id)
-        this._log.info(
-          `[VrpcPersistor] Restoring instance: ${id} (${className})`
-        )
-        this._agentInstance.create({ className, args, instance: id })
-      } catch (err) {
+    let failing = []
+    for (const id of allIds) {
+      const record = await this._storage.getItem(id)
+      if (!record || !record.className) {
+        this._log.warn(`[VrpcPersistor] Skipping ${id}: record is missing or broken.`)
+        continue
+      }
+      if (record.restoreError) {
+        // quarantined: one attempt per start
+        const err = this._tryCreate(id, record)
+        if (!err) {
+          summary.restored.push(id)
+          this._log.info(
+            `[VrpcPersistor] Healed ${id} (${record.className}) after ${record.restoreError.attempts} failed attempt(s).`
+          )
+        } else {
+          summary.quarantined.push(await this._quarantine(id, record, err, 1))
+        }
+        continue
+      }
+      this._log.info(`[VrpcPersistor] Restoring instance: ${id} (${record.className})`)
+      const err = this._tryCreate(id, record)
+      if (!err) {
+        summary.restored.push(id)
+      } else {
         this._log.warn(
           `[VrpcPersistor] Could not restore ${id}: ${err.message}. Will retry.`
         )
-        failedIds.push(id)
+        failing.push({ id, record, err })
       }
-    })
-    await Promise.all(restorationPromises)
+    }
 
-    // Retry failed instances
+    // Retry fresh failures with a growing delay
     let trial = 0
-    const MAX_TRIALS = 5
-    while (failedIds.length > 0 && trial++ < MAX_TRIALS) {
+    while (failing.length > 0 && trial++ < this._retries) {
       this._log.info(
-        `[VrpcPersistor] Retrying ${failedIds.length} failed instance(s), attempt ${trial}.`
+        `[VrpcPersistor] Retrying ${failing.length} failed instance(s), attempt ${trial} of ${this._retries}.`
       )
-      await new Promise(resolve => setTimeout(resolve, 1000 * trial)) // Exponential backoff
+      await sleep(this._retryDelay * trial)
       const stillFailing = []
-      for (const id of failedIds) {
-        try {
-          const { className, args } = await this._storage.getItem(id)
-          this._agentInstance.create({ className, args, instance: id })
-          this._log.info(
-            `[VrpcPersistor] Successfully restored ${id} on retry.`
-          )
-        } catch (err) {
-          stillFailing.push(id)
+      for (const entry of failing) {
+        const err = this._tryCreate(entry.id, entry.record)
+        if (!err) {
+          summary.restored.push(entry.id)
+          this._log.info(`[VrpcPersistor] Successfully restored ${entry.id} on retry.`)
+        } else {
+          stillFailing.push({ ...entry, err })
         }
       }
-      failedIds = stillFailing
+      failing = stillFailing
     }
 
-    // Cleanup instances that could not be restored
-    if (failedIds.length > 0) {
-      this._log.warn(
-        '[VrpcPersistor] The following instances could not be restored and will be removed:'
+    for (const { id, record, err } of failing) {
+      summary.quarantined.push(
+        await this._quarantine(id, record, err, 1 + this._retries)
       )
-      const deletionPromises = failedIds.map(id => {
-        this._log.warn(` - ${id}`)
-        return this._storage.removeItem(id)
-      })
-      try {
-        await Promise.all(deletionPromises)
-      } catch (err) {
-        this._log.error(
-          `[VrpcPersistor] Failed to delete broken instances: ${err.message}`
-        )
-      }
     }
+
+    this._log.info(
+      `[VrpcPersistor] Restored ${summary.restored.length} of ${allIds.length} instance(s)` +
+        (summary.quarantined.length > 0
+          ? `, ${summary.quarantined.length} quarantined: ${summary.quarantined
+              .map(x => `${x.instance} (${x.className}): ${x.error}`)
+              .join('; ')}`
+          : '.')
+    )
+    return summary
+  }
+
+  /**
+   * Lists every persisted record with its quarantine mark, if any.
+   *
+   * @returns {Promise<{dir: string, instances: Array<{instance: string, className: string, restoreError: (object|null)}>}>}
+   */
+  async status () {
+    await this._isInitialized
+    const instances = []
+    for (const id of this._storage.keys()) {
+      const record = await this._storage.getItem(id)
+      if (!record) continue
+      instances.push({
+        instance: id,
+        className: record.className,
+        restoreError: record.restoreError || null
+      })
+    }
+    return { dir: this._dir, instances }
+  }
+
+  /**
+   * Attempts one more time to restore a persisted instance (quarantined or
+   * not). A success clears the quarantine mark, a failure updates it.
+   *
+   * @param {string} id The instance id
+   * @returns {Promise<boolean>} true when the instance exists afterwards
+   */
+  async retry (id) {
+    await this._isInitialized
+    const record = await this._storage.getItem(id)
+    if (!record) throw new Error(`Unknown persisted instance: ${id}`)
+    const err = this._tryCreate(id, record)
+    if (!err) {
+      this._log.info(`[VrpcPersistor] Restored ${id} (${record.className}) on request.`)
+      return true
+    }
+    await this._quarantine(id, record, err, 1)
+    return false
+  }
+
+  /**
+   * Removes a persisted record on purpose, the only way a record leaves the
+   * storage other than the deletion of a live instance.
+   *
+   * @param {string} id The instance id
+   * @returns {Promise<boolean>} true
+   */
+  async forget (id) {
+    await this._isInitialized
+    const record = await this._storage.getItem(id)
+    if (!record) throw new Error(`Unknown persisted instance: ${id}`)
+    await this._storage.removeItem(id)
+    this._log.info(`[VrpcPersistor] Forgot ${id} (${record.className}).`)
+    return true
   }
 
   /**
@@ -175,8 +263,15 @@ class VrpcPersistor {
       // after construction must be caught. The operations they trigger wait
       // for the storage layer opened below.
 
-      // Persist new instance creation
-      VrpcAdapter.on('create', async ({ instance, className, args }) => {
+      // Persist new instance creation (a restore passes here too, which
+      // rewrites the record and thereby clears a quarantine mark)
+      VrpcAdapter.on('create', async ({ instance, className, args, isIsolated }) => {
+        if (isIsolated) {
+          this._log.info(
+            `[VrpcPersistor] Not persisting isolated instance: ${instance} (${className})`
+          )
+          return
+        }
         this._log.info(
           `[VrpcPersistor] Persisting new instance: ${instance} (${className})`
         )
@@ -232,6 +327,49 @@ class VrpcPersistor {
       )
       // Propagate the error to fail fast if initialization is not possible
       throw err
+    }
+  }
+
+  /**
+   * Creates the instance from its record; returns the error instead of
+   * throwing (an existing instance counts as success).
+   * @private
+   */
+  _tryCreate (id, { className, args }) {
+    try {
+      this._agentInstance.create({ className, args, instance: id })
+      return null
+    } catch (err) {
+      return err
+    }
+  }
+
+  /**
+   * Marks a record as not restorable and keeps it.
+   * @private
+   */
+  async _quarantine (id, record, err, attempts) {
+    const previous = record.restoreError || { attempts: 0, since: new Date().toISOString() }
+    const restoreError = {
+      message: err.message,
+      at: new Date().toISOString(),
+      since: previous.since,
+      attempts: previous.attempts + attempts
+    }
+    await this._storage.setItem(
+      id,
+      { className: record.className, args: record.args, restoreError },
+      { folder: record.className }
+    )
+    this._log.warn(
+      `[VrpcPersistor] Quarantined ${id} (${record.className}) after ${restoreError.attempts} attempt(s): ${err.message}. The record is kept; fix the cause and restart, or call retry()/forget().`
+    )
+    return {
+      instance: id,
+      className: record.className,
+      error: err.message,
+      attempts: restoreError.attempts,
+      since: restoreError.since
     }
   }
 

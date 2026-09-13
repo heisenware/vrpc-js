@@ -174,4 +174,98 @@ describe('VrpcPersistor', () => {
     }
     agent = newAgent // For cleanup in afterEach
   })
+
+  it('should not persist isolated instances', async () => {
+    new VrpcPersistor({ agentInstance: agent, dir: testDir })
+    const client = new VrpcClient({ domain, broker })
+    await client.connect()
+    await client.create({
+      agent: agentName,
+      className: 'Dummy',
+      instance: 'dummy-isolated',
+      args: [1],
+      isIsolated: true
+    })
+    await client.create({
+      agent: agentName,
+      className: 'Dummy',
+      instance: 'dummy-shared',
+      args: [2]
+    })
+    const storage = await openStorage(testDir)
+    expect(await waitForKey(storage, 'Dummy', 'dummy-shared', true)).to.be.true
+    await sleep()
+    expect(storage.keys('Dummy')).to.not.include('dummy-isolated')
+    await client.end()
+  })
+
+  it('should quarantine a record it cannot restore and keep it on disk', async () => {
+    const storage = await openStorage(testDir)
+    await storage.setItem('ghost-1', { className: 'Nowhere', args: [7] }, { folder: 'Nowhere' })
+    const persistor = new VrpcPersistor({
+      agentInstance: agent,
+      dir: testDir,
+      retries: 2,
+      retryDelay: 10
+    })
+    const summary = await persistor.restore()
+    expect(summary.restored).to.deep.equal([])
+    expect(summary.quarantined).to.have.length(1)
+    expect(summary.quarantined[0]).to.include({ instance: 'ghost-1', className: 'Nowhere', attempts: 3 })
+    expect(summary.quarantined[0].error).to.be.a('string')
+    const record = await storage.getItem('ghost-1')
+    expect(record.args).to.deep.equal([7])
+    expect(record.restoreError.attempts).to.equal(3)
+    expect(record.restoreError.message).to.equal(summary.quarantined[0].error)
+    const status = await persistor.status()
+    expect(status.instances).to.have.length(1)
+    expect(status.instances[0].restoreError.attempts).to.equal(3)
+  })
+
+  it('should give a quarantined record one attempt per start and heal it once its class exists', async () => {
+    const storage = await openStorage(testDir)
+    await storage.setItem(
+      'late-1',
+      { className: 'Late', args: [5], restoreError: { message: 'x', at: 'y', since: 'z', attempts: 3 } },
+      { folder: 'Late' }
+    )
+    const persistor = new VrpcPersistor({ agentInstance: agent, dir: testDir, retries: 2, retryDelay: 10 })
+    const first = await persistor.restore()
+    expect(first.quarantined.map(x => x.instance)).to.deep.equal(['late-1'])
+    expect(first.quarantined[0].attempts).to.equal(4)
+    expect(first.quarantined[0].since).to.equal('z')
+
+    class Late {
+      constructor (value) {
+        this.value = value
+      }
+    }
+    VrpcAdapter.register(Late)
+    const second = await persistor.restore()
+    expect(second.restored).to.deep.equal(['late-1'])
+    expect(second.quarantined).to.deep.equal([])
+    expect(VrpcAdapter.getInstance('late-1').value).to.equal(5)
+    expect(await waitForKey(storage, 'Late', 'late-1', true)).to.be.true
+    await sleep()
+    expect((await storage.getItem('late-1')).restoreError).to.be.undefined
+  })
+
+  it('should retry and forget on request', async () => {
+    const storage = await openStorage(testDir)
+    await storage.setItem('ghost-2', { className: 'Nowhere', args: [] }, { folder: 'Nowhere' })
+    const persistor = new VrpcPersistor({ agentInstance: agent, dir: testDir, retries: 0 })
+    await persistor.restore()
+    expect(await persistor.retry('ghost-2')).to.be.false
+    expect((await storage.getItem('ghost-2')).restoreError.attempts).to.equal(2)
+    let thrown = null
+    try {
+      await persistor.retry('nobody')
+    } catch (err) {
+      thrown = err
+    }
+    expect(thrown.message).to.equal('Unknown persisted instance: nobody')
+    expect(await persistor.forget('ghost-2')).to.be.true
+    expect(storage.keys()).to.not.include('ghost-2')
+    expect((await persistor.status()).instances).to.deep.equal([])
+  })
 })
