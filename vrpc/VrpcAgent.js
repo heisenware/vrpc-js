@@ -614,7 +614,14 @@ class VrpcAgent extends EventEmitter {
       // Intersecting life-cycle functions
       switch (method) {
         case '__createIsolated__': {
-          // TODO handle instantiation errors
+          if (json.e) {
+            // a constructor that threw leaves nothing behind: no instance,
+            // no subscription, no lifetime bookkeeping
+            this._log.warn(
+              `Instantiation of ${className} failed: ${json.e.message}`
+            )
+            break
+          }
           const instanceId = json.r
           // TODO await this
           this._subscribeToMethodsOfNewInstance(className, instanceId)
@@ -622,7 +629,12 @@ class VrpcAgent extends EventEmitter {
           break
         }
         case '__createShared__': {
-          // TODO handle instantiation errors
+          if (json.e) {
+            this._log.warn(
+              `Instantiation of ${className} failed: ${json.e.message}`
+            )
+            break
+          }
           const instanceId = json.r
           if (!this._hasSharedInstance(instanceId)) {
             this._subscribeToMethodsOfNewInstance(className, instanceId)

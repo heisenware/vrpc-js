@@ -1013,7 +1013,11 @@ class VrpcClient extends EventEmitter {
       this._eventEmitter.once(i, ({ e, r }) => {
         clearTimeout(timer)
         if (e) {
-          reject(new Error(e))
+          // the agent answers a throwing constructor with { message, cause }
+          const { message, cause } = VrpcClient._prepareError(e)
+          reject(
+            new Error(`[vrpc ${agent}-${className}-${f}]: ${message}`, { cause })
+          )
         } else {
           const proxy = this._createProxy(agent, className, r)
           resolve(proxy)
