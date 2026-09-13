@@ -61,3 +61,6 @@ typings/
 # custom
 examples/embedded-cpp1/package-lock.json
 examples/embedded-cpp2/package-lock.json
+
+# editor preview caches
+.crossnote/
