@@ -276,6 +276,15 @@ class VrpcAdapter {
    * @param {String} description Parameter description
    * @param {String} [type] Parameter type
    * @param {Any} [default] The default to be injected when not provided
+   * @param {Callback} [callback] The signature of a function-typed
+   * parameter, when a `@callback` typedef of that name documents it
+   */
+
+  /**
+   * @typedef {Object} Callback
+   * @param {String} name Typedef name (the parameter's type)
+   * @param {String} description Callback description
+   * @param {Array.<Param>} params The arguments the function is called with
    */
 
   /**
@@ -341,27 +350,35 @@ class VrpcAdapter {
   static _parseComments (content) {
     const comments = commentParser(content, { assocFunctions: true })
     const meta = {}
+    const paramsOf = tags =>
+      tags
+        .filter(
+          ({ tag }) => tag === 'param' || tag === 'arg' || tag === 'argument'
+        )
+        .map(({ name, optional, description, type, default: defaultValue }) => {
+          return { name, optional, description, type, defaultValue }
+        })
+    // `@callback Name` blocks document the signature of a function-typed
+    // parameter; a parameter whose type names one carries it as `callback`
+    const callbacks = {}
+    comments.forEach(({ tags, description }) => {
+      const typedef = tags && tags.find(({ tag }) => tag === 'callback')
+      if (!typedef || !typedef.name) return
+      callbacks[typedef.name] = {
+        name: typedef.name,
+        description,
+        params: paramsOf(tags)
+      }
+    })
     comments.forEach(({ tags, description, functionName }) => {
+      if (tags && tags.some(({ tag }) => tag === 'callback')) return
       if (functionName) {
         if (tags) {
-          let params = tags.filter(
-            ({ tag }) => tag === 'param' || tag === 'arg' || tag === 'argument'
+          const params = paramsOf(tags).map(param =>
+            callbacks[param.type]
+              ? { ...param, callback: callbacks[param.type] }
+              : param
           )
-          if (params.length > 0) {
-            params = params.map(
-              ({
-                name,
-                optional,
-                description,
-                type,
-                default: defaultValue
-              }) => {
-                return { name, optional, description, type, defaultValue }
-              }
-            )
-          } else {
-            params = []
-          }
           let ret = tags.filter(
             ({ tag }) => tag === 'returns' || tag === 'return'
           )

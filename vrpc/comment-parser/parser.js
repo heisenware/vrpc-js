@@ -219,12 +219,15 @@ function mkextract (opts) {
 
     // if open marker detected and it's not, skip one
     if (startPos !== -1 && line.indexOf(MARKER_START_SKIP) !== startPos) {
-      chunk = []
-      indent = startPos + MARKER_START.length
+      // A block still waiting for its function is followed by another
+      // block: it documents no function (a typedef, a callback) and is
+      // returned as it is - parsed BEFORE the chunk makes way
       if (findMethod) {
         result = parse_block(chunk, opts)
         findMethod = false
       }
+      chunk = []
+      indent = startPos + MARKER_START.length
     }
 
     if (findMethod) {

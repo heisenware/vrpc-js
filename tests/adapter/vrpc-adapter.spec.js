@@ -248,7 +248,8 @@ describe('vrpc-adapter', () => {
       assert.deepEqual(Object.keys(meta), [
         '__createShared__',
         'getValue',
-        'setValue'
+        'setValue',
+        'onChange'
       ])
       assert.deepEqual(meta.__createShared__, {
         description: 'Constructor',
@@ -285,6 +286,45 @@ describe('vrpc-adapter', () => {
           description: 'the updated value',
           type: 'Integer'
         }
+      })
+    })
+
+    it('should resolve @callback typedefs onto function parameters', () => {
+      const meta = VrpcAdapter._getMetaData('TestClassDoc')
+      // the typedef block is not a function of its own
+      assert.strictEqual(meta.ChangeListener, undefined)
+      assert.deepEqual(meta.onChange, {
+        description: 'Subscribes to value changes',
+        params: [
+          {
+            defaultValue: undefined,
+            description: 'Receives every change',
+            name: 'listener',
+            optional: false,
+            type: 'ChangeListener',
+            callback: {
+              name: 'ChangeListener',
+              description: 'Called on every change of the value',
+              params: [
+                {
+                  defaultValue: undefined,
+                  description: 'The new value',
+                  name: 'value',
+                  optional: false,
+                  type: 'Integer'
+                },
+                {
+                  defaultValue: undefined,
+                  description: 'The value before',
+                  name: 'previous',
+                  optional: false,
+                  type: 'Integer'
+                }
+              ]
+            }
+          }
+        ],
+        ret: { description: 'true', type: 'Boolean' }
       })
     })
   })
