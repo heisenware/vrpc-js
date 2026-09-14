@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.10.0] - Sep 14 2026
+
+### Added
+
+- **`@callback` typedefs reach the reflection**: a documentation block `@callback Name` with `@param` lines describes the signature of a function-typed parameter. `_parseComments` collects these blocks and attaches them to every parameter whose type names one, as `param.callback = { name, description, params }`, so a client knows what a listener is called with. A typedef block is never reported as a function of its own.
+
+### Fixed
+
+- **The comment parser dropped a documentation block followed by another block**: with `assocFunctions`, a block still waiting for its function was parsed only after its chunk had been reset, so any block not directly above a function (a typedef, a class comment followed by a method comment) vanished from the result.
+
 ## [3.9.1] - Sep 13 2026
 
 ### Changed
