@@ -262,7 +262,11 @@ class VrpcAgent extends EventEmitter {
    */
   create ({ className, instance = nanoid(8), args = [], isIsolated = false }) {
     const obj = VrpcAdapter.create({ className, instance, args, isIsolated })
-    if (!this._hasSharedInstance(instance)) {
+    // An agent that is not served yet only collects: once the connection
+    // stands, the connect handler subscribes every adapter instance and
+    // publishes every class info, so a caller may build its full state
+    // before going online and "online" then means "complete"
+    if (this._client && !this._hasSharedInstance(instance)) {
       this._subscribeToMethodsOfNewInstance(className, instance)
       this._publishClassInfoMessage(className)
       this._publishClassInfoConciseMessage(className)
