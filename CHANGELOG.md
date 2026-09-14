@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.10.1] - Sep 14 2026
+
+### Fixed
+
+- **`VrpcAgent.create()` works before `serve()`**: creating an instance on an agent that was not served yet threw, since the announcement (method-topic subscription, class-info publish) reached for the MQTT client that only `serve()` creates. An unserved agent now only collects: the connect handler already subscribes every adapter instance and publishes every class info once the connection stands. A process may therefore build its complete state first and go online afterwards, so that "online" means "complete" for every client that lists its instances.
+
 ## [3.10.0] - Sep 14 2026
 
 ### Added
