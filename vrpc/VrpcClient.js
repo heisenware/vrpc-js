@@ -68,7 +68,7 @@ class VrpcClient extends EventEmitter {
    * @param {Boolean} [options.bestEffort=true] If true, message will be sent with best effort, i.e. no caching if offline
    * @param {String} [options.mqttClientId='<generated()>'] Explicitly sets the mqtt client id
    * @param {String} [options.identity] Explicitly sets a vrpc client identity
-   * @param {String} [options.keepalive] Sets the MQTT keepalive interval (in seconds)
+   * @param {String} [options.keepalive] Sets the MQTT keepalive interval (in seconds). In browsers the ping runs on a Web Worker timer, so a hidden tab keeps its session
    * @param {Boolean} [options.requiresSchema=false] If true, any available schema information is shipped
    * @example
    * const client = new VrpcClient({
@@ -231,6 +231,9 @@ class VrpcClient extends EventEmitter {
       clientId: this._mqttClientId,
       rejectUnauthorized: false,
       connectTimeout: this._timeout,
+      // a refused CONNACK is retried like any other failed attempt (see
+      // VrpcAgent): whoever wants a refusal to be final ends the client
+      reconnectOnConnackError: true,
       will: {
         topic: `${this._vrpcConnectionId}/__clientInfo__`,
         payload: JSON.stringify({

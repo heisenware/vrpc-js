@@ -5,6 +5,14 @@ module.exports = {
   mode: 'production',
   entry: './index-browser.js',
   resolve: {
+    // mqtt >= 5 answers a browser `require('mqtt')` with its global-variable
+    // bundle (dist/mqtt.min.js), which exports nothing to a module system;
+    // the ESM bundle is the one made for bundlers and carries the Web
+    // Worker keepalive timer - reached through the shim (see mqtt-browser.js)
+    alias: {
+      mqtt$: path.resolve(__dirname, 'mqtt-browser.js'),
+      'mqtt-esm$': path.resolve(__dirname, 'node_modules/mqtt/dist/mqtt.esm.js')
+    },
     fallback: {
       os: require.resolve('os-browserify/browser'),
       crypto: require.resolve('crypto-browserify'),

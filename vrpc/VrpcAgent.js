@@ -187,6 +187,10 @@ class VrpcAgent extends EventEmitter {
       password,
       keepalive: 30,
       connectTimeout: 10 * 1000,
+      // a refused CONNACK is retried like any other failed attempt: an
+      // authorization service that is briefly away refuses, too, and an
+      // agent must come back when it does (mqtt >= 5 stops otherwise)
+      reconnectOnConnackError: true,
       clientId: this._mqttClientId,
       rejectUnauthorized: false,
       will: {
