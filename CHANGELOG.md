@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.11.1] - Sep 16 2026
+
+### Fixed
+
+- **The browser client no longer times out its own healthy session in a background tab**: 3.11.0 moved the ping onto a Web Worker timer, and the broker kept the session, but the client still parsed every incoming packet through `process.nextTick`, and the polyfill behind it schedules with `setTimeout(fn, 0)`. One such tick issued from a deeply nested page timer (any application page has intervals) is aligned to Chrome's one-wake-up-per-minute rule and parks the whole nextTick queue, ping responses included, so the client's own keepalive timeout closed a session the broker was happy with, about every one to two minutes. The browser build now bundles the library's Node build on its own polyfills, with a `process.nextTick` that runs as a microtask, which no tab state throttles. The SOCKS transport, Node-only, stays out of the bundle. Proven with a simulation of the browser's timer rules: the 3.11.0 bundle reconnects after 48 seconds, this one keeps its connection.
+
 ## [3.11.0] - Sep 16 2026
 
 ### Changed
