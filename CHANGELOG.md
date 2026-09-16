@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.11.0] - Sep 16 2026
+
+### Changed
+
+- **The browser client's keepalive survives a background tab**: the MQTT library moves from 4.3 to 5.16, whose keepalive runs on a Web Worker timer in browsers. A page timer is throttled once its tab is hidden (Chrome aligns wake-ups to one per minute after five minutes), so the ping of a background tab arrived late and the broker dropped the session about once a minute: a will, a reconnect and a full re-subscribe each time, and every isolated instance of the connection gone with it. A worker timer is not throttled, so a hidden tab keeps its session. Nothing changes for Node, where the library uses the native timer as before. The MQTT surface vrpc uses is unchanged: options, events, the `code` of a refused connection (4, 5) and its message. One default of the new library is overridden: it stops reconnecting after a refused CONNACK, while an agent or client of vrpc keeps retrying as before (`reconnectOnConnackError`) - an authorization service that is briefly away refuses too, and whoever wants a refusal to be final ends the client.
+
 ## [3.10.1] - Sep 14 2026
 
 ### Fixed
