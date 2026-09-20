@@ -28,6 +28,8 @@ functions as provided through native addons.</p>
 <dd></dd>
 <dt><a href="#Param">Param</a> : <code>Object</code></dt>
 <dd></dd>
+<dt><a href="#Callback">Callback</a> : <code>Object</code></dt>
+<dd></dd>
 <dt><a href="#Ret">Ret</a> : <code>Object</code></dt>
 <dd></dd>
 </dl>
@@ -277,6 +279,7 @@ Agent capable of making existing code available to remote control by clients.
         * ["clientGone"](#VrpcAgent+event_clientGone)
     * _static_
         * [.fromCommandline(defaults)](#VrpcAgent.fromCommandline) ⇒ <code>Agent</code>
+        * [._tlsOptions()](#VrpcAgent._tlsOptions)
 
 
 * * *
@@ -299,6 +302,7 @@ Constructs an agent instance
     - [.bestEffort] <code>String</code> <code> = true</code> - If true, message will be sent with best effort, i.e. no caching if offline
     - [.version] <code>String</code> <code> = &#x27;&#x27;</code> - The (user-defined) version of this agent
     - [.mqttClientId] <code>String</code> <code> = &#x27;&lt;generated()&gt;&#x27;</code> - Explicitly set the mqtt client id.
+    - [.tls] <code>Object</code> - TLS settings for a secure broker: `{ ca, rejectUnauthorized }`. Without it the broker's certificate is not verified (the historical behaviour); with `ca` the broker must present a chain the given certificates anchor.
 
 **Example**  
 ```js
@@ -487,6 +491,16 @@ const agent = VrpcAgent.fromCommandline()
 
 * * *
 
+<a name="VrpcAgent._tlsOptions"></a>
+
+### VrpcAgent.\_tlsOptions()
+The TLS part of the MQTT options: verification off when nothing was
+given (as it always was), the given anchors otherwise.
+
+**Kind**: static method of [<code>VrpcAgent</code>](#VrpcAgent)  
+
+* * *
+
 <a name="VrpcClient"></a>
 
 ## VrpcClient ⇐ <code>EventEmitter</code>
@@ -498,33 +512,36 @@ functions as provided through one or more (distributed) agents.
 
 * [VrpcClient](#VrpcClient) ⇐ <code>EventEmitter</code>
     * [new VrpcClient(options)](#new_VrpcClient_new)
-    * [.getClientId()](#VrpcClient+getClientId) ⇒ <code>String</code>
-    * [.getConnectionId()](#VrpcClient+getConnectionId) ⇒ <code>String</code>
-    * [.connect()](#VrpcClient+connect) ⇒ <code>Promise</code>
-    * [.create(options)](#VrpcClient+create) ⇒ <code>Promise.&lt;Proxy&gt;</code>
-    * [.getInstance(instance, [options])](#VrpcClient+getInstance) ⇒ <code>Promise.&lt;Proxy&gt;</code>
-    * [.delete(instance, [options])](#VrpcClient+delete) ⇒ <code>Promise.&lt;Boolean&gt;</code>
-    * [.callStatic(options)](#VrpcClient+callStatic) ⇒ <code>Promise.&lt;Any&gt;</code>
-    * [.callAll(options)](#VrpcClient+callAll) ⇒ <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code>
-    * [.getSystemInformation()](#VrpcClient+getSystemInformation) ⇒ <code>Object</code>
-    * [.getAvailableAgents([options])](#VrpcClient+getAvailableAgents) ⇒ <code>Array</code>
-    * [.getAvailableClasses([options])](#VrpcClient+getAvailableClasses) ⇒ <code>Array</code>
-    * [.getAvailableInstances([options])](#VrpcClient+getAvailableInstances) ⇒ <code>Array</code>
-    * [.getAvailableMemberFunctions([options])](#VrpcClient+getAvailableMemberFunctions) ⇒ <code>Array</code>
-    * [.getAvailableStaticFunctions([options])](#VrpcClient+getAvailableStaticFunctions) ⇒ <code>Array</code>
-    * [.reconnectWithToken(token, [options])](#VrpcClient+reconnectWithToken) ⇒ <code>Promise</code>
-    * [.unregisterAgent(agent)](#VrpcClient+unregisterAgent) ⇒ <code>Promise.&lt;Boolean&gt;</code>
-    * [.end()](#VrpcClient+end) ⇒ <code>Promise</code>
-    * ["agent" (info)](#VrpcClient+event_agent)
-    * ["class" (info)](#VrpcClient+event_class)
-    * ["instanceNew" (addedInstances, info)](#VrpcClient+event_instanceNew)
-    * ["instanceGone" (removedInstances, info)](#VrpcClient+event_instanceGone)
-    * ["connect"](#VrpcClient+event_connect)
-    * ["reconnect"](#VrpcClient+event_reconnect)
-    * ["close"](#VrpcClient+event_close)
-    * ["offline"](#VrpcClient+event_offline)
-    * ["error"](#VrpcClient+event_error)
-    * ["end"](#VrpcClient+event_end)
+    * _instance_
+        * [.getClientId()](#VrpcClient+getClientId) ⇒ <code>String</code>
+        * [.getConnectionId()](#VrpcClient+getConnectionId) ⇒ <code>String</code>
+        * [.connect()](#VrpcClient+connect) ⇒ <code>Promise</code>
+        * [.create(options)](#VrpcClient+create) ⇒ <code>Promise.&lt;Proxy&gt;</code>
+        * [.getInstance(instance, [options])](#VrpcClient+getInstance) ⇒ <code>Promise.&lt;Proxy&gt;</code>
+        * [.delete(instance, [options])](#VrpcClient+delete) ⇒ <code>Promise.&lt;Boolean&gt;</code>
+        * [.callStatic(options)](#VrpcClient+callStatic) ⇒ <code>Promise.&lt;Any&gt;</code>
+        * [.callAll(options)](#VrpcClient+callAll) ⇒ <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code>
+        * [.getSystemInformation()](#VrpcClient+getSystemInformation) ⇒ <code>Object</code>
+        * [.getAvailableAgents([options])](#VrpcClient+getAvailableAgents) ⇒ <code>Array</code>
+        * [.getAvailableClasses([options])](#VrpcClient+getAvailableClasses) ⇒ <code>Array</code>
+        * [.getAvailableInstances([options])](#VrpcClient+getAvailableInstances) ⇒ <code>Array</code>
+        * [.getAvailableMemberFunctions([options])](#VrpcClient+getAvailableMemberFunctions) ⇒ <code>Array</code>
+        * [.getAvailableStaticFunctions([options])](#VrpcClient+getAvailableStaticFunctions) ⇒ <code>Array</code>
+        * [.reconnectWithToken(token, [options])](#VrpcClient+reconnectWithToken) ⇒ <code>Promise</code>
+        * [.unregisterAgent(agent)](#VrpcClient+unregisterAgent) ⇒ <code>Promise.&lt;Boolean&gt;</code>
+        * [.end()](#VrpcClient+end) ⇒ <code>Promise</code>
+        * ["agent" (info)](#VrpcClient+event_agent)
+        * ["class" (info)](#VrpcClient+event_class)
+        * ["instanceNew" (addedInstances, info)](#VrpcClient+event_instanceNew)
+        * ["instanceGone" (removedInstances, info)](#VrpcClient+event_instanceGone)
+        * ["connect"](#VrpcClient+event_connect)
+        * ["reconnect"](#VrpcClient+event_reconnect)
+        * ["close"](#VrpcClient+event_close)
+        * ["offline"](#VrpcClient+event_offline)
+        * ["error"](#VrpcClient+event_error)
+        * ["end"](#VrpcClient+event_end)
+    * _static_
+        * [._tlsOptions()](#VrpcClient._tlsOptions)
 
 
 * * *
@@ -552,6 +569,7 @@ NOTE: Each instance creates its own physical connection to the broker.
     - [.identity] <code>String</code> - Explicitly sets a vrpc client identity
     - [.keepalive] <code>String</code> - Sets the MQTT keepalive interval (in seconds). In browsers the ping runs on a Web Worker timer, so a hidden tab keeps its session
     - [.requiresSchema] <code>Boolean</code> <code> = false</code> - If true, any available schema information is shipped
+    - [.tls] <code>Object</code> - TLS settings for a secure broker: `{ ca, rejectUnauthorized }`. Without it the broker's certificate is not verified (the historical behaviour); with `ca` the broker must present a chain the given certificates anchor.
 
 **Example**  
 ```js
@@ -1072,6 +1090,16 @@ mqtt.Client#end(), this event is emitted once the callback returns.
 
 * * *
 
+<a name="VrpcClient._tlsOptions"></a>
+
+### VrpcClient.\_tlsOptions()
+The TLS part of the MQTT options: verification off when nothing was
+given (as it always was), the given anchors otherwise.
+
+**Kind**: static method of [<code>VrpcClient</code>](#VrpcClient)  
+
+* * *
+
 <a name="VrpcNative"></a>
 
 ## VrpcNative
@@ -1194,6 +1222,21 @@ Associates meta data to any function
 - description <code>String</code> - Parameter description
 - [type] <code>String</code> - Parameter type
 - [default] <code>Any</code> - The default to be injected when not provided
+- [callback] [<code>Callback</code>](#Callback) - The signature of a function-typed
+parameter, when a `@callback` typedef of that name documents it
+
+
+* * *
+
+<a name="Callback"></a>
+
+## Callback : <code>Object</code>
+**Kind**: global typedef  
+**Params**
+
+- name <code>String</code> - Typedef name (the parameter's type)
+- description <code>String</code> - Callback description
+- params [<code>Array.&lt;Param&gt;</code>](#Param) - The arguments the function is called with
 
 
 * * *

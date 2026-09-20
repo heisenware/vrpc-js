@@ -75,6 +75,7 @@ class VrpcClient extends EventEmitter {
    *   domain: 'vrpc',
    *   broker: 'mqtts://broker.hivemq.com:8883'
    * })
+   * @param {Object} [obj.tls] TLS settings for a secure broker: `{ ca, rejectUnauthorized }`. Without it the broker's certificate is not verified (the historical behaviour); with `ca` the broker must present a chain the given certificates anchor.
    */
   constructor ({
     token,
@@ -89,7 +90,8 @@ class VrpcClient extends EventEmitter {
     mqttClientId = null,
     identity = null,
     keepalive = 30,
-    requiresSchema = false
+    requiresSchema = false,
+    tls = null
   } = {}) {
     super()
     // domain sanity check
@@ -137,6 +139,7 @@ class VrpcClient extends EventEmitter {
 
     this._instance = nanoid(8)
     this._mqttClientId = mqttClientId || this._createMqttClientId()
+    this._tls = tls
     this._vrpcClientId = this._createVrpcClientId()
     // the part of the connection id nobody else can learn: a broker that
     // confines a client to topics under its own mqtt client id keeps
@@ -204,6 +207,17 @@ class VrpcClient extends EventEmitter {
   }
 
   /**
+   * The TLS part of the MQTT options: verification off when nothing was
+   * given (as it always was), the given anchors otherwise.
+   */
+  static _tlsOptions (tls) {
+    if (!tls) return { rejectUnauthorized: false }
+    const options = { rejectUnauthorized: tls.rejectUnauthorized !== false }
+    if (tls.ca) options.ca = tls.ca
+    return options
+  }
+
+  /**
    * Actually connects to the MQTT broker.
    *
    * @emits connected
@@ -229,7 +243,7 @@ class VrpcClient extends EventEmitter {
       clean: true,
       keepalive: this._keepalive,
       clientId: this._mqttClientId,
-      rejectUnauthorized: false,
+      ...VrpcClient._tlsOptions(this._tls),
       connectTimeout: this._timeout,
       // a refused CONNACK is retried like any other failed attempt (see
       // VrpcAgent): whoever wants a refusal to be final ends the client

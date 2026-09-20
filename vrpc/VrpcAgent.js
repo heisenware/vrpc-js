@@ -102,6 +102,7 @@ class VrpcAgent extends EventEmitter {
    * @param {String} [obj.bestEffort=true] If true, message will be sent with best effort, i.e. no caching if offline
    * @param {String} [obj.version=''] The (user-defined) version of this agent
    * @param {String} [obj.mqttClientId='<generated()>'] Explicitly set the mqtt client id.
+   * @param {Object} [obj.tls] TLS settings for a secure broker: `{ ca, rejectUnauthorized }`. Without it the broker's certificate is not verified (the historical behaviour); with `ca` the broker must present a chain the given certificates anchor.
    *
    * @example
    * const agent = new Agent({
@@ -119,7 +120,8 @@ class VrpcAgent extends EventEmitter {
     log = 'console',
     bestEffort = true,
     version = '',
-    mqttClientId = null
+    mqttClientId = null,
+    tls = null
   } = {}) {
     super()
     this._validateDomain(domain)
@@ -132,6 +134,7 @@ class VrpcAgent extends EventEmitter {
     this._broker = broker
     this._qos = bestEffort ? 0 : 1
     this._version = version
+    this._tls = tls
     this._mqttClientId =
       mqttClientId || `va3${VrpcAgent._createHash(this._domain + this._agent)}`
     if (log === 'console') {
@@ -192,7 +195,7 @@ class VrpcAgent extends EventEmitter {
       // agent must come back when it does (mqtt >= 5 stops otherwise)
       reconnectOnConnackError: true,
       clientId: this._mqttClientId,
-      rejectUnauthorized: false,
+      ...VrpcAgent._tlsOptions(this._tls),
       will: {
         topic: `${this._baseTopic}/__agentInfo__`,
         payload: this._createAgentInfoPayload({ status: 'offline' }),
@@ -295,6 +298,17 @@ class VrpcAgent extends EventEmitter {
       (hash2 >>> 0).toString(16).padStart(8, '0')
 
     return token.slice(0, length)
+  }
+
+  /**
+   * The TLS part of the MQTT options: verification off when nothing was
+   * given (as it always was), the given anchors otherwise.
+   */
+  static _tlsOptions (tls) {
+    if (!tls) return { rejectUnauthorized: false }
+    const options = { rejectUnauthorized: tls.rejectUnauthorized !== false }
+    if (tls.ca) options.ca = tls.ca
+    return options
   }
 
   static _generateAgentName () {
