@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.12.0] - Sep 19 2026
+
+### Added
+
+- **Agents and clients can verify the broker's certificate**: a `tls` option on `VrpcAgent` and `VrpcClient`, `{ ca, rejectUnauthorized }`, goes into the MQTT connection. Without it nothing changes: the certificate is not verified, as it never was. With `ca` the broker must present a chain the given certificates anchor, which is what a native agent built by the Heisenware platform does with the platform's certificate baked into its build - the same anchor its update download verifies (heisenware-cloud #1477).
+
 ## [3.11.1] - Sep 16 2026
 
 ### Fixed
