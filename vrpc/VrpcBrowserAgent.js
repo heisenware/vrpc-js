@@ -71,6 +71,11 @@ class VrpcAgent extends EventEmitter {
     // maps clientId to instanceId
     this._isolatedInstances = new Map()
     this._sharedInstances = new Map()
+    // counts the connections: an announcement belongs to the connection
+    // that prepared it (see _handleConnect)
+    this._connectGeneration = 0
+    // connected, request topics subscribed and info announced
+    this._serving = false
 
     // Handle the internal error event in case the user forgot to implement it
     this.on('error', err => {
@@ -90,8 +95,9 @@ class VrpcAgent extends EventEmitter {
    * If the connection could not be established because of authorization
    * failure, the 'error' event will be emitted.
    *
-   * @return {Promise} Resolves once connected or explicitly ended, never
-   * rejects
+   * @return {Promise} Resolves once the agent serves - connected, its
+   * request topics subscribed and its info announced - or once it was
+   * explicitly ended before that, never rejects
    */
   async serve () {
     let username = this._username
@@ -226,7 +232,11 @@ class VrpcAgent extends EventEmitter {
     )
   }
 
-  _mqttSubscribe (topic, options) {
+  /**
+   * Subscribes topic(s); `onSettled` is called once the broker has
+   * answered (granted, refused or failed alike).
+   */
+  _mqttSubscribe (topic, options, onSettled) {
     this._client.subscribe(
       topic,
       { qos: this._qos, ...options },
@@ -269,6 +279,7 @@ class VrpcAgent extends EventEmitter {
             this._log.debug(`Already subscribed to topic '${topic}'`)
           }
         }
+        if (onSettled) onSettled()
       }
     )
   }
@@ -303,12 +314,16 @@ class VrpcAgent extends EventEmitter {
     return VrpcAdapter._getMetaData(className)
   }
 
+  /**
+   * Resolves once the agent serves (its own 'connect' event: connected,
+   * request topics subscribed, info announced), or once it was ended.
+   */
   async _ensureConnected () {
     return new Promise(resolve => {
-      if (this._client.connected) {
+      if (this._serving) {
         resolve()
       } else {
-        this._client.once('connect', resolve)
+        this.once('connect', resolve)
         // Will be triggered if the user called 'agent.end()'
         this.once('end', resolve)
       }
@@ -347,33 +362,56 @@ class VrpcAgent extends EventEmitter {
     return str
   }
 
+  /**
+   * Serve first, announce second - the twin of VrpcAgent._handleConnect:
+   * every request topic (statics, the methods of every existing instance)
+   * is subscribed before the agent and class info go out, and they go out
+   * once the broker has answered every subscription. A client acts on the
+   * announcement at once; a request published before the broker routes
+   * the topic is lost (QoS 0) and only times out on the caller's side.
+   */
   _handleConnect () {
     this._log.info('[OK]')
+    const generation = ++this._connectGeneration
+    const batches = []
     try {
-      const topics = this._generateTopics()
-      if (topics.length > 0) this._mqttSubscribe(topics)
+      const statics = this._generateTopics()
+      if (statics.length > 0) batches.push(statics)
     } catch (err) {
       this._log.error(
         err,
         `Problem during initial topic subscription: ${err.message}`
       )
     }
-    // Publish agent online
-    this._publishAgentInfoMessage()
-
-    // Publish class information
-    const classes = this._getClasses()
-    classes.forEach(className => {
-      this._publishClassInfoMessage(className)
-    })
-    // Register all pre-existing instances
+    // all pre-existing instances
     for (const [
       instanceId,
       { className }
     ] of VrpcAdapter._instances.entries()) {
-      this._subscribeToMethodsOfNewInstance(className, instanceId)
+      batches.push(this._methodsTopic(className, instanceId))
     }
-    this.emit('connect')
+    let pending = batches.length
+    const announce = () => {
+      // a connection that ended meanwhile announces nothing: the next
+      // one prepares and announces itself
+      if (generation !== this._connectGeneration) return
+      this._publishAgentInfoMessage()
+      for (const className of this._getClasses()) {
+        this._publishClassInfoMessage(className)
+      }
+      this._serving = true
+      this.emit('connect')
+    }
+    if (pending === 0) {
+      announce()
+      return
+    }
+    for (const topic of batches) {
+      this._mqttSubscribe(topic, undefined, () => {
+        pending -= 1
+        if (pending === 0) announce()
+      })
+    }
   }
 
   _publishAgentInfoMessage () {
@@ -592,14 +630,19 @@ class VrpcAgent extends EventEmitter {
     return true
   }
 
+  /** The request topics of one instance: every method of it. */
+  _methodsTopic (className, instance) {
+    return `${this._baseTopic}/${className}/${instance}/+`
+  }
+
   _subscribeToMethodsOfNewInstance (className, instance) {
-    const topic = `${this._baseTopic}/${className}/${instance}/+`
+    const topic = this._methodsTopic(className, instance)
     this._mqttSubscribe(topic)
     this._log.debug(`Subscribed to new topic after instantiation: ${topic}`)
   }
 
   _unsubscribeMethodsOfDeletedInstance (className, instance) {
-    const topic = `${this._baseTopic}/${className}/${instance}/+`
+    const topic = this._methodsTopic(className, instance)
     this._mqttUnsubscribe(topic)
     this._log.debug(`Unsubscribed from topic after deletion: ${topic}`)
   }
@@ -614,6 +657,8 @@ class VrpcAgent extends EventEmitter {
   }
 
   _handleClose () {
+    // the next connection prepares and announces itself afresh
+    this._serving = false
     this.emit('close')
   }
 

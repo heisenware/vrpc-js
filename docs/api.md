@@ -329,8 +329,9 @@ If the connection could not be established because of authorization
 failure, the 'error' event will be emitted.
 
 **Kind**: instance method of [<code>VrpcAgent</code>](#VrpcAgent)  
-**Returns**: <code>Promise</code> - Resolves once connected or explicitly ended, never
-rejects  
+**Returns**: <code>Promise</code> - Resolves once the agent serves - connected, its
+request topics subscribed and its info announced - or once it was
+explicitly ended before that, never rejects  
 
 * * *
 

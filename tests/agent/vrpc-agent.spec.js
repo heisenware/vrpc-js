@@ -258,6 +258,102 @@ describe('vrpc-agent', () => {
       })
     })
   })
+  /***************************
+   * serving before announcing *
+   ***************************/
+  describe('serving before announcing', () => {
+    // A request published against an announced instance before its topic
+    // is subscribed is lost (QoS 0): the announcement must wait for the
+    // broker's answer to every subscription, statics and instances alike.
+    it('should subscribe the request topics of every existing instance before it announces itself', () => {
+      const agent = new VrpcAgent({
+        domain: 'test.vrpc',
+        agent: 'agent-order',
+        username: 'does',
+        password: 'not exist',
+        bestEffort: true
+      })
+      // collected before the connection exists (3.10.1)
+      agent.create({ className: 'Foo', instance: 'foo-served-first' })
+      const events = []
+      const subacks = []
+      agent._client = {
+        subscribe: (topic, options, callback) => {
+          const topics = Array.isArray(topic) ? topic : [topic]
+          events.push(`subscribe ${topics.join(',')}`)
+          subacks.push(() =>
+            callback(
+              null,
+              topics.map(x => ({ topic: x, qos: options.qos }))
+            )
+          )
+        },
+        publish: (topic, message, options, callback) => {
+          events.push(`publish ${topic}`)
+          if (callback) callback()
+        }
+      }
+      const connectSpy = sinon.spy()
+      agent.on('connect', connectSpy)
+      try {
+        agent._handleConnect()
+        // every request topic is asked for, nothing is announced yet
+        assert(
+          events.includes(
+            'subscribe test.vrpc/agent-order/Foo/foo-served-first/+'
+          )
+        )
+        assert(events.every(x => x.startsWith('subscribe')))
+        assert(connectSpy.notCalled)
+        // the broker answers all but one subscription: still silent
+        while (subacks.length > 1) subacks.shift()()
+        assert(events.every(x => x.startsWith('subscribe')))
+        assert(connectSpy.notCalled)
+        // the last answer: agent and class info go out, then 'connect'
+        subacks.shift()()
+        assert(events.includes('publish test.vrpc/agent-order/__agentInfo__'))
+        assert(
+          events.includes('publish test.vrpc/agent-order/Foo/__classInfo__')
+        )
+        assert(connectSpy.calledOnce)
+      } finally {
+        agent.off('connect', connectSpy)
+        VrpcAdapter.delete('foo-served-first')
+      }
+    })
+    it('should let a connection that ended meanwhile announce nothing', () => {
+      const agent = new VrpcAgent({
+        domain: 'test.vrpc',
+        agent: 'agent-order',
+        username: 'does',
+        password: 'not exist',
+        bestEffort: true
+      })
+      const events = []
+      const subacks = []
+      agent._client = {
+        subscribe: (topic, options, callback) => {
+          const topics = Array.isArray(topic) ? topic : [topic]
+          subacks.push(() =>
+            callback(
+              null,
+              topics.map(x => ({ topic: x, qos: options.qos }))
+            )
+          )
+        },
+        publish: topic => events.push(`publish ${topic}`)
+      }
+      agent._handleConnect()
+      const first = subacks.splice(0)
+      // the connection dropped and came back: a second preparation
+      agent._handleConnect()
+      const second = subacks.splice(0)
+      first.forEach(x => x())
+      assert.strictEqual(events.length, 0)
+      second.forEach(x => x())
+      assert(events.includes('publish test.vrpc/agent-order/__agentInfo__'))
+    })
+  })
   /**************************
    * signalling client gone *
    **************************/
