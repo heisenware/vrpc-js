@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.12.1] - Sep 22 2026
+
+### Fixed
+
+- **An agent serves before it announces**: on every connection the agent subscribed its static request topics, published its agent and class info, and only then subscribed the method topics of the instances it already held, one subscription per instance. A client that waited for the agent acted on the announcement at once, and its first request into an instance reached the broker before the instance's topic was subscribed; with QoS 0 that request was lost for good and the caller saw only a timeout. This was the fate of the first call into a backend that came online after the client waiting for it - an application deployed for the first time, a restarted backend with clients open, all the worse behind a broker that asks an authorization service about every subscription. Now every request topic, statics and the methods of every existing instance, is subscribed first, and the agent and class info go out once the broker has answered every subscription. The Node and the browser agent alike; the agent's `connect` event follows the announcement as before, and `serve()` now resolves on that event - once the agent serves, not merely once the socket is up - so whatever a process does after `await agent.serve()` finds its agent reachable.
+
 ## [3.12.0] - Sep 19 2026
 
 ### Added
