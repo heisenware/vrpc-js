@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.13.0] - Sep 30 2026
+
+### Added
+
+- **A delete disposes its instance**: JavaScript has no destructor, and a deleted instance used to lose only its name - an object running a clock or holding a connection went on running. A delete now calls the ECMAScript dispose protocol, `instance[Symbol.asyncDispose]()` or else `instance[Symbol.dispose]()`, and a remote delete answers once an asynchronous dispose has settled, so a create of the same name right after it never meets a port or a session the old object still holds. A dispose that fails or outlasts `VrpcAdapter.DISPOSE_TIMEOUT` (10 s) is reported with the new adapter event `disposeFailed`, which the agent logs; the delete still answers `true`. Symbol-keyed methods are never remote methods, so a delete is the only way to dispose. On runtimes without the dispose symbols (Node before 18.18 / 20.4) VRPC installs Node's own stand-ins from the symbol registry. See docs/protocol.md, "Ending an instance".
+
+### Fixed
+
+- **A deleted instance no longer speaks on the bus**: `_delete` meant to free an EventEmitter's listeners but tested the registry record instead of the object, so it never did; it forgot its own bookkeeping and left every listener it had attached on the object. A deleted instance whose clock kept running therefore went on publishing its events - and since a client that re-subscribes a re-created name gets the same event topic, each delete and re-create added one more series of events to the living subscription (heisenware-cloud #1705). A delete now takes back every listener the adapter attached, and every listener and callback remembers the object it was made for and stays silent once that object is no longer the live instance of its name - whatever the class does with its listeners.
+- **Every delete door ends an instance the same way**: an in-process `VrpcAdapter.delete(object)` only dropped the name, and the auto-delete of an isolated instance whose connection went offline kept the instance's request-topic subscription and announced its delete without a class name. All doors - remote, isolated auto-delete, in-process by name or by object - now run the one teardown, in the Node and the browser adapter alike.
+- **The persistor no longer resurrects a deleted instance**: its `update` listener outlived the delete, and an `update` from the deleted object rewrote the record, so the instance came back with the next start. The listener is dropped on delete and ignores any object that is no longer the live instance of its name.
+- **A client that subscribed one event several times leaves nothing behind when it goes**: it was listed once per subscription and its going removed one entry, so the listeners stayed attached. Its going now ends all of its subscriptions, one detach per attachment. Several subscriptions with one callback still fire several times (EventEmitter semantics, unchanged).
+- **What a client deleted is gone for it at once**: a client learned of a deleted instance only from the agent's class info, which travels on another topic than the delete's answer. A broker need not keep their order, and on a clustered one the answer could come first - a `getInstance` right after `await delete()` then still found the instance and returned a proxy to nothing (a flaky test on the public broker showed it). A successful delete now takes the instance off the client's view right away, as the class info would: listing, `instanceGone`, cached subscriptions; the class info that follows finds nothing left to remove.
+- **A call into an unknown instance registers no listener**: the arguments of a call were unwrapped before its context was checked, so a subscription to a name that did not exist yet left a registration behind. The context is checked first now; the error is the same.
+- **A comment above a Symbol-keyed method documents nothing else**: the comment parser binds a JSDoc block to the next line that looks like `name(`. A method with a computed key (`async [Symbol.asyncDispose] ()`) does not look like that, so its block landed on the first call inside its body and replaced that function's documentation (a dispose whose body starts with `this.stop()` redocumented `stop`). The block now documents the computed-key member and nothing else.
+- **The browser adapter hands a class a listener, not `null`**: a callback-style subscription (`onTick(listener)`) with an event id already registered got `null`. It now gets the listener, as in the Node adapter.
+
 ## [3.12.1] - Sep 22 2026
 
 ### Fixed
