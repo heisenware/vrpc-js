@@ -46,6 +46,7 @@ communication.
     * _instance_
         * ["create"](#VrpcAdapter+event_create)
         * ["delete"](#VrpcAdapter+event_delete)
+        * ["disposeFailed"](#VrpcAdapter+event_disposeFailed)
     * _static_
         * [.LOCAL_SENDER](#VrpcAdapter.LOCAL_SENDER)
         * [.addPluginPath(dirPath, [maxLevel])](#VrpcAdapter.addPluginPath)
@@ -57,6 +58,9 @@ communication.
         * [.getAvailableClasses()](#VrpcAdapter.getAvailableClasses) ⇒ <code>Array.&lt;String&gt;</code>
         * [.getAvailableInstances(className)](#VrpcAdapter.getAvailableInstances) ⇒ <code>Array.&lt;String&gt;</code>
         * [._assertOwner()](#VrpcAdapter._assertOwner)
+        * [._end()](#VrpcAdapter._end) ⇒ <code>Object</code>
+        * [._dispose()](#VrpcAdapter._dispose) ⇒ <code>Promise</code> \| <code>null</code>
+        * [._speaksFor()](#VrpcAdapter._speaksFor)
 
 
 * * *
@@ -94,6 +98,27 @@ Emitted on deletion of shared instance
 | --- | --- | --- |
 | className | <code>String</code> | The class name of the deleted instance |
 | instance | <code>String</code> | The instance name |
+
+
+* * *
+
+<a name="VrpcAdapter+event_disposeFailed"></a>
+
+### "disposeFailed"
+Event 'disposeFailed'
+
+Emitted when the dispose method of a deleted instance throws, rejects or
+does not settle within VrpcAdapter.DISPOSE_TIMEOUT. The instance is gone
+regardless.
+
+**Kind**: event emitted by [<code>VrpcAdapter</code>](#VrpcAdapter)  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| className | <code>String</code> | The class name of the deleted instance |
+| instance | <code>String</code> | The instance name |
+| error | <code>Error</code> | What went wrong |
 
 
 * * *
@@ -193,7 +218,10 @@ be visible only to the client who created it
 <a name="VrpcAdapter.delete"></a>
 
 ### VrpcAdapter.delete(instance) ⇒ <code>Boolean</code>
-Deletes an instance
+Deletes an instance: its name is free at once, the adapter takes back
+every listener it attached, and the object releases what it runs
+through its `[Symbol.asyncDispose]` or `[Symbol.dispose]` method, which
+runs in the background here (a remote delete answers once it settled).
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Returns**: <code>Boolean</code> - True in case of success, false otherwise  
@@ -251,6 +279,51 @@ connection that created it (the request's sender) and answers that
 connection alone; one the agent created itself has no owner and is
 open. The agent's own housekeeping passes as VrpcAdapter.LOCAL_SENDER,
 which no wire message can carry.
+
+**Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
+
+* * *
+
+<a name="VrpcAdapter._end"></a>
+
+### VrpcAdapter.\_end() ⇒ <code>Object</code>
+Ends an instance - the one teardown behind every door (a remote delete,
+the auto-delete of an isolated instance whose client went, an
+in-process delete). Node has no destructor, so an object that runs a
+clock or holds a connection lives on as long as anything reaches it;
+ending it takes three steps:
+1. its name is free at once: no call reaches the object any more;
+2. the adapter takes back every listener it attached (its listeners are
+   silent from now on anyway, see _generateListener);
+3. the object releases what it runs through the ECMAScript dispose
+   protocol, `[Symbol.asyncDispose]` or else `[Symbol.dispose]`.
+
+**Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
+**Returns**: <code>Object</code> - `{ ended, disposed }`: whether the name was known, and
+a promise when an asynchronous dispose is under way (it never rejects)  
+
+* * *
+
+<a name="VrpcAdapter._dispose"></a>
+
+### VrpcAdapter.\_dispose() ⇒ <code>Promise</code> \| <code>null</code>
+Runs the object's dispose method. A dispose that fails or outlasts
+VrpcAdapter.DISPOSE_TIMEOUT is reported (event 'disposeFailed') and
+never thrown: the instance is gone either way.
+
+**Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
+**Returns**: <code>Promise</code> \| <code>null</code> - Settles when an asynchronous dispose is done  
+
+* * *
+
+<a name="VrpcAdapter._speaksFor"></a>
+
+### VrpcAdapter.\_speaksFor()
+Whether the object under `instanceId` is still the one the adapter saw
+when it built a listener or a callback for it: a deleted instance never
+speaks on the bus again (#1705), even when its class kept the listener
+or its clock kept running. A static context (a class name) has no
+object and always speaks.
 
 **Kind**: static method of [<code>VrpcAdapter</code>](#VrpcAdapter)  
 
@@ -520,6 +593,7 @@ functions as provided through one or more (distributed) agents.
         * [.create(options)](#VrpcClient+create) ⇒ <code>Promise.&lt;Proxy&gt;</code>
         * [.getInstance(instance, [options])](#VrpcClient+getInstance) ⇒ <code>Promise.&lt;Proxy&gt;</code>
         * [.delete(instance, [options])](#VrpcClient+delete) ⇒ <code>Promise.&lt;Boolean&gt;</code>
+        * [._forgetInstance()](#VrpcClient+_forgetInstance)
         * [.callStatic(options)](#VrpcClient+callStatic) ⇒ <code>Promise.&lt;Any&gt;</code>
         * [.callAll(options)](#VrpcClient+callAll) ⇒ <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code>
         * [.getSystemInformation()](#VrpcClient+getSystemInformation) ⇒ <code>Object</code>
@@ -737,6 +811,17 @@ client information, or provide an object with explicit meta data.
     - .className <code>String</code> - Name of the instance's class
     - .agent <code>String</code> - Agent name. If not provided class default is used as priority hit
 
+
+* * *
+
+<a name="VrpcClient+_forgetInstance"></a>
+
+### vrpcClient.\_forgetInstance()
+Takes an instance off this client's view of its agent, the way a class
+info without it does: listing, instanceGone, cached subscriptions. A
+class info that arrives later finds nothing left to remove.
+
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 
 * * *
 

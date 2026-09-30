@@ -287,6 +287,38 @@ Those are the function to manage the lifetime of the remotely created objects:
 
 all of them use double underscores both as prefix and as postfix.
 
+### Ending an instance
+
+JavaScript has no destructor: an object that runs a clock or holds a
+connection lives on as long as anything reaches it, and forgetting its name
+is not enough. A delete therefore ends an instance in three steps, the same
+for every door (`__delete__`, the auto-delete of an isolated instance whose
+connection went offline, `VrpcAdapter.delete()` in-process):
+
+1. The name is free at once: no call reaches the object any more, and a
+   create of the same name makes a new object.
+2. The adapter takes back every listener it attached to the object. Its
+   listeners and callbacks remember the object they were made for and stay
+   silent once it is no longer the live instance of its name - a deleted
+   object never publishes again, even when its class kept a listener.
+3. The object releases what it runs through the ECMAScript dispose
+   protocol: `instance[Symbol.asyncDispose]()` or, without it,
+   `instance[Symbol.dispose]()`. A class that opens anything - a clock, a
+   socket, a session, a port, a device - implements one of them. Symbol-keyed
+   methods are never remote methods: a delete is the only way to dispose.
+
+A remote delete answers once an asynchronous dispose has settled (a promise
+answer, see below), so a create right after the delete never meets a port
+or a session the old object still holds. A dispose that throws, rejects or
+takes longer than `VrpcAdapter.DISPOSE_TIMEOUT` (10 s) is reported with the
+adapter event `disposeFailed` - the agent logs it - and the delete still
+answers `true`: the instance is gone either way.
+
+Runtimes before Node 18.18 / 20.4 have no dispose symbols. VRPC installs
+Node's own stand-ins (`Symbol.for('nodejs.dispose')`,
+`Symbol.for('nodejs.asyncDispose')`) when it loads; class files defined
+after that meet the adapter on the same symbols.
+
 ### Intercepting promises
 
 The adapter will intercept all remotified functions that return a *promise*.

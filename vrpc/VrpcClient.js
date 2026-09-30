@@ -546,7 +546,27 @@ class VrpcClient extends EventEmitter {
     const topic = `${this._domain}/${agent}/${className}/__static__/__delete__`
     this._mqttPublish(topic, JSON.stringify(json))
     delete this._proxies[`${agent}/${className}/${instance}`]
-    return this._handleAgentAnswer(json, agent)
+    const deleted = await this._handleAgentAnswer(json, agent)
+    // the answer and the class info that no longer lists the instance
+    // travel on different topics, and a broker need not keep their order:
+    // what this client deleted is gone for it at once
+    if (deleted === true) this._forgetInstance({ agent, className, instance })
+    return deleted
+  }
+
+  /**
+   * Takes an instance off this client's view of its agent, the way a class
+   * info without it does: listing, instanceGone, cached subscriptions. A
+   * class info that arrives later finds nothing left to remove.
+   */
+  _forgetInstance ({ agent, className, instance }) {
+    const info = this._agents[agent] && this._agents[agent].classes[className]
+    if (!info || !Array.isArray(info.instances)) return
+    if (!info.instances.includes(instance)) return
+    info.instances = info.instances.filter(x => x !== instance)
+    const domain = this._domain
+    this.emit('instanceGone', [instance], { domain, agent, className })
+    this._clearCachedSubscriptions({ lostInstance: instance, agent, className })
   }
 
   /**

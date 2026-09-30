@@ -43,6 +43,17 @@ const commentParser = require('./comment-parser')
 const EventEmitter = require('events')
 const { nanoid } = require('nanoid')
 
+// Node before 18.18 / 20.4 has no dispose symbols, and a class's
+// [Symbol.asyncDispose]() would become a method named 'undefined'. Node's
+// own stand-ins live in the symbol registry, so a class file and the adapter
+// meet on one symbol whichever of them installs it first.
+if (typeof Symbol.dispose !== 'symbol') {
+  Symbol.dispose = Symbol.for('nodejs.dispose')
+}
+if (typeof Symbol.asyncDispose !== 'symbol') {
+  Symbol.asyncDispose = Symbol.for('nodejs.asyncDispose')
+}
+
 /**
  * Generates an adapter layer for existing code and enables further VRPC-based
  * communication.
@@ -197,7 +208,10 @@ class VrpcAdapter {
   }
 
   /**
-   * Deletes an instance
+   * Deletes an instance: its name is free at once, the adapter takes back
+   * every listener it attached, and the object releases what it runs
+   * through its `[Symbol.asyncDispose]` or `[Symbol.dispose]` method, which
+   * runs in the background here (a remote delete answers once it settled).
    *
    * @param {String|Object} instance Instance (name or object itself) to be deleted
    * @returns {Boolean} True in case of success, false otherwise
@@ -208,10 +222,7 @@ class VrpcAdapter {
     }
     if (typeof instance === 'object') {
       for (const [k, v] of VrpcAdapter._instances) {
-        if (v.instance === instance) {
-          VrpcAdapter._instances.delete(k)
-          return true
-        }
+        if (v.instance === instance) return VrpcAdapter._delete(k)
       }
       return false
     }
@@ -577,11 +588,17 @@ class VrpcAdapter {
         instance,
         className: json.c
       })
-      json.r = VrpcAdapter._delete(instance)
+      const { ended, disposed } = VrpcAdapter._end(instance)
       VrpcAdapter._emitter.emit('delete', {
         instance,
         className: json.c
       })
+      // a delete answers once the object released what it runs, so that a
+      // constructor right after it never meets a port or a session the old
+      // object still holds; the agent's own housekeeping awaits no answer
+      if (disposed && json.s !== VrpcAdapter.LOCAL_SENDER) {
+        VrpcAdapter._handlePromise(json, disposed.then(() => ended))
+      } else json.r = ended
     } catch (err) {
       const { message, cause } = err
       json.e = { message, cause }
@@ -602,6 +619,15 @@ class VrpcAdapter {
       VrpcAdapter._removeAllListeners(json.a[0], json.s, json.c)
       json.r = true
       return
+    }
+    // an unknown context fails before its arguments are unwrapped: a
+    // listener registered for a name that does not exist would outlive the
+    // failed call and pass for attached once the name is created
+    if (
+      !VrpcAdapter._functionRegistry.has(json.c) &&
+      !VrpcAdapter._instances.has(json.c)
+    ) {
+      throw new Error(`Could not find context: ${json.c}`)
     }
     const unwrapped = VrpcAdapter._unwrapArguments(json)
     // special case: removing a listener the adapter does not hold (the
@@ -671,33 +697,115 @@ class VrpcAdapter {
   }
 
   static _delete (instanceId) {
+    return VrpcAdapter._end(instanceId).ended
+  }
+
+  /**
+   * Ends an instance - the one teardown behind every door (a remote delete,
+   * the auto-delete of an isolated instance whose client went, an
+   * in-process delete). Node has no destructor, so an object that runs a
+   * clock or holds a connection lives on as long as anything reaches it;
+   * ending it takes three steps:
+   * 1. its name is free at once: no call reaches the object any more;
+   * 2. the adapter takes back every listener it attached (its listeners are
+   *    silent from now on anyway, see _generateListener);
+   * 3. the object releases what it runs through the ECMAScript dispose
+   *    protocol, `[Symbol.asyncDispose]` or else `[Symbol.dispose]`.
+   *
+   * @returns {Object} `{ ended, disposed }`: whether the name was known, and
+   * a promise when an asynchronous dispose is under way (it never rejects)
+   */
+  static _end (instanceId) {
     const entry = VrpcAdapter._instances.get(instanceId)
-    if (entry) {
-      // in case the instance was an EventEmitter, free all registered listeners
-      if (VrpcAdapter._isFunction(entry.removeAllListeners)) {
-        entry.removeAllListeners()
-      }
-      delete VrpcAdapter._listeners[instanceId]
-      VrpcAdapter._instances.delete(instanceId)
-      return true
+    if (!entry) return { ended: false, disposed: null }
+    VrpcAdapter._instances.delete(instanceId)
+    VrpcAdapter._detachListeners(instanceId, entry.instance)
+    return { ended: true, disposed: VrpcAdapter._dispose(instanceId, entry) }
+  }
+
+  static _detachListeners (instanceId, instance) {
+    const registrations = VrpcAdapter._listeners[instanceId]
+    delete VrpcAdapter._listeners[instanceId]
+    if (!registrations || !VrpcAdapter._isFunction(instance.removeListener)) {
+      return
     }
-    return false
+    for (const { event, listener, clients } of Object.values(registrations)) {
+      try {
+        VrpcAdapter._removeTimes(instance, event, listener, clients.length)
+      } catch (err) {
+        // a class whose removeListener fails keeps a silent listener
+      }
+    }
+  }
+
+  // a subscription repeated n times may hold n attachments of one listener
+  // (EventEmitter semantics): each removeListener takes one of them
+  static _removeTimes (instance, event, listener, times) {
+    for (let n = 0; n < Math.max(1, times); n++) {
+      instance.removeListener(event, listener)
+    }
+  }
+
+  /**
+   * Runs the object's dispose method. A dispose that fails or outlasts
+   * VrpcAdapter.DISPOSE_TIMEOUT is reported (event 'disposeFailed') and
+   * never thrown: the instance is gone either way.
+   *
+   * @returns {Promise|null} Settles when an asynchronous dispose is done
+   */
+  static _dispose (instanceId, { instance, className }) {
+    const fail = error =>
+      VrpcAdapter._emitter.emit('disposeFailed', {
+        instance: instanceId,
+        className,
+        error
+      })
+    let result
+    try {
+      if (VrpcAdapter._isFunction(instance[Symbol.asyncDispose])) {
+        result = instance[Symbol.asyncDispose]()
+      } else if (VrpcAdapter._isFunction(instance[Symbol.dispose])) {
+        result = instance[Symbol.dispose]()
+      }
+    } catch (err) {
+      fail(err)
+      return null
+    }
+    if (!VrpcAdapter._isPromise(result)) return null
+    let timer
+    const bound = new Promise(resolve => {
+      timer = setTimeout(() => {
+        fail(
+          new Error(
+            `dispose did not settle within ${VrpcAdapter.DISPOSE_TIMEOUT} ms`
+          )
+        )
+        resolve()
+      }, VrpcAdapter.DISPOSE_TIMEOUT)
+    })
+    const settled = result.then(
+      () => {},
+      err => fail(err)
+    )
+    return Promise.race([settled, bound]).then(() => clearTimeout(timer))
   }
 
   static _unregisterClient (clientId) {
     Object.entries(VrpcAdapter._listeners).forEach(([ik, iv]) => {
       Object.entries(iv).forEach(([ek, ev]) => {
-        const { clients, listener, event } = ev
-        const index = clients.indexOf(clientId)
-        if (index !== -1) {
-          clients.splice(index, 1)
-          if (clients.length === 0) {
-            const instance = VrpcAdapter.getInstance(ik)
-            if (instance && instance.removeListener) {
-              instance.removeListener(event, listener)
-            }
-            delete VrpcAdapter._listeners[ik][ek]
+        const { listener, event } = ev
+        // a client is listed once per subscription: its going ends them all
+        const remaining = ev.clients.filter(x => x !== clientId)
+        const gone = ev.clients.length - remaining.length
+        if (gone === 0) return
+        ev.clients = remaining
+        if (remaining.length === 0) {
+          const entry = VrpcAdapter._instances.get(ik)
+          const instance = entry && entry.instance
+          if (instance && instance.removeListener) {
+            VrpcAdapter._removeTimes(instance, event, listener, gone)
           }
+          delete VrpcAdapter._listeners[ik][ek]
         }
       })
     })
@@ -774,8 +882,27 @@ class VrpcAdapter {
     return unwrapped
   }
 
+  /**
+   * Whether the object under `instanceId` is still the one the adapter saw
+   * when it built a listener or a callback for it: a deleted instance never
+   * speaks on the bus again (#1705), even when its class kept the listener
+   * or its clock kept running. A static context (a class name) has no
+   * object and always speaks.
+   */
+  static _speaksFor (instanceId) {
+    const entry = VrpcAdapter._instances.get(instanceId)
+    if (!entry) return () => true
+    const { instance } = entry
+    return () => {
+      const live = VrpcAdapter._instances.get(instanceId)
+      return live !== undefined && live.instance === instance
+    }
+  }
+
   static _generateCallback ({ eventId, clientId, instanceId, isCallAll }) {
+    const speaks = VrpcAdapter._speaksFor(instanceId)
     return (...innerArgs) => {
+      if (!speaks()) return
       // "callAll" event notifications expect the instanceId as first argument
       const a = isCallAll ? [instanceId, ...innerArgs] : [...innerArgs]
       VrpcAdapter._callback({ a, s: clientId, i: eventId })
@@ -820,7 +947,9 @@ class VrpcAdapter {
   }
 
   static _generateListener ({ eventId, instanceId, isCallAll }) {
+    const speaks = VrpcAdapter._speaksFor(instanceId)
     return (...innerArgs) => {
+      if (!speaks()) return
       const a = isCallAll ? [instanceId, ...innerArgs] : [...innerArgs]
       VrpcAdapter._callback({ a, i: eventId })
     }
@@ -1003,12 +1132,28 @@ class VrpcAdapter {
  * @property {String} instance The instance name
  */
 
+/**
+ * Event 'disposeFailed'
+ *
+ * Emitted when the dispose method of a deleted instance throws, rejects or
+ * does not settle within VrpcAdapter.DISPOSE_TIMEOUT. The instance is gone
+ * regardless.
+ *
+ * @event VrpcAdapter#disposeFailed
+ * @type {Object}
+ * @property {String} className The class name of the deleted instance
+ * @property {String} instance The instance name
+ * @property {Error} error What went wrong
+ */
+
 // Initialize static members
 VrpcAdapter._functionRegistry = new Map()
 VrpcAdapter._instances = new Map()
 VrpcAdapter._emitter = new EventEmitter()
 VrpcAdapter._correlationId = 0
 VrpcAdapter._listeners = {}
+// the longest a delete waits for the dispose method of its instance
+VrpcAdapter.DISPOSE_TIMEOUT = 10000
 VrpcAdapter._blackList = new Set([
   'caller',
   'callee',

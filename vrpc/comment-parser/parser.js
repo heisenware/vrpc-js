@@ -230,6 +230,17 @@ function mkextract (opts) {
       indent = startPos + MARKER_START.length
     }
 
+    // a member with a computed key ([Symbol.asyncDispose]) names no remote
+    // function: the block documents it and nothing else - without this it
+    // landed on the first call in the member's body
+    if (
+      findMethod &&
+      /^\s*(static\s+)?(async\s+)?\*?\s*((get|set)\s+)?\[[^\]]+\]\s*\(/.test(line)
+    ) {
+      result = parse_block(chunk, opts)
+      findMethod = false
+    }
+
     if (findMethod) {
       const ret = line.match(/\s*function\s+(\w+)\s*\(/) ||
         line.match(/\s*(\w+)\s*=?\s*\(/)

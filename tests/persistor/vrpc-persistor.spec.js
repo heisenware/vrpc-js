@@ -1,4 +1,5 @@
 const { expect } = require('chai')
+const EventEmitter = require('events')
 const os = require('os')
 const path = require('path')
 const fs = require('fs-extra')
@@ -39,6 +40,14 @@ class Dummy {
   }
 }
 
+// An EventEmitter whose 'update' re-persists its constructor arguments
+class Updating extends EventEmitter {
+  constructor (value) {
+    super()
+    this._value = value
+  }
+}
+
 describe('VrpcPersistor', () => {
   let agent
   let testDir
@@ -50,6 +59,7 @@ describe('VrpcPersistor', () => {
 
   before(() => {
     VrpcAdapter.register(Dummy)
+    VrpcAdapter.register(Updating)
   })
 
   beforeEach(async () => {
@@ -132,6 +142,22 @@ describe('VrpcPersistor', () => {
     await client.end()
     expect(await waitForKey(storage, 'Dummy', 'dummy-3', false)).to.be.true
   })
+  it('should not rewrite the record of a deleted instance that still emits update (#1705)', async () => {
+    new VrpcPersistor({ agentInstance: agent, dir: testDir })
+    agent.create({ className: 'Updating', instance: 'updating-1', args: [1] })
+    const orphan = VrpcAdapter.getInstance('updating-1')
+    const storage = await openStorage(testDir)
+    expect(await waitForKey(storage, 'Updating', 'updating-1', true)).to.be.true
+
+    VrpcAdapter._call({ c: 'Updating', f: '__delete__', a: ['updating-1'], s: 'test' })
+    expect(await waitForKey(storage, 'Updating', 'updating-1', false)).to.be.true
+
+    orphan.emit('update', 2)
+    await sleep()
+    expect(storage.keys('Updating')).to.not.include('updating-1')
+    expect(orphan.listenerCount('update')).to.equal(0)
+  })
+
   it('should handle restoring a large number of instances', async function () {
     // The budget is dominated by the broker round trip of the agent restart
     // below, not by the persistor: a public broker can take >10 s per connect

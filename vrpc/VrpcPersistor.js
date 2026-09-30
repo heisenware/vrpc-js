@@ -98,6 +98,8 @@ class VrpcPersistor {
         .replace(/[^a-zA-Z0-9]/g, '-')}`
 
     this._storage = null
+    // the 'update' listener on each persisted instance, dropped on delete
+    this._updateListeners = new Map()
     this._isInitialized = this._init(Storage)
 
     this._log.info(
@@ -282,7 +284,11 @@ class VrpcPersistor {
           const obj = VrpcAdapter.getInstance(instance)
           // Ensure the object is an event emitter
           if (obj && typeof obj.on === 'function') {
-            obj.on('update', data => {
+            const listener = data => {
+              // a deleted object never rewrites the record of its name
+              // (#1705): an in-process delete announces nothing
+              const live = VrpcAdapter._instances.get(instance)
+              if (!live || live.instance !== obj) return
               this._log.info(
                 `[VrpcPersistor] Persisting update for: ${instance} (${className})`
               )
@@ -293,7 +299,9 @@ class VrpcPersistor {
                   `[VrpcPersistor] Failed persisting update of ${instance} (${className}): ${err.message}`
                 )
               )
-            })
+            }
+            obj.on('update', listener)
+            this._updateListeners.set(instance, { obj, listener })
           }
         } catch (err) {
           this._log.warn(
@@ -304,6 +312,11 @@ class VrpcPersistor {
 
       // Persist instance deletion
       VrpcAdapter.on('delete', ({ instance, className }) => {
+        const update = this._updateListeners.get(instance)
+        if (update) {
+          this._updateListeners.delete(instance)
+          update.obj.removeListener('update', update.listener)
+        }
         this._log.info(
           `[VrpcPersistor] Deleting persisted instance: ${instance} (${className})`
         )

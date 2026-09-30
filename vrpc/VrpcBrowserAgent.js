@@ -68,6 +68,13 @@ class VrpcAgent extends EventEmitter {
     }
     this._baseTopic = `${this._domain}/${this._agent}`
     VrpcAdapter.onCallback(this._handleVrpcCallback.bind(this))
+    // a deleted instance whose dispose failed is gone anyway: say why
+    this._handleDisposeFailed = ({ instance, className, error }) =>
+      this._log.warn(
+        error,
+        `Dispose of deleted instance ${className}::${instance} failed: ${error.message}`
+      )
+    VrpcAdapter.on('disposeFailed', this._handleDisposeFailed)
     // maps clientId to instanceId
     this._isolatedInstances = new Map()
     this._sharedInstances = new Map()
@@ -146,6 +153,7 @@ class VrpcAgent extends EventEmitter {
    * @returns {Promise} Resolves when disconnected and ended
    */
   async end ({ unregister = false } = {}) {
+    VrpcAdapter.off('disposeFailed', this._handleDisposeFailed)
     try {
       if (!this._client || !this._client.connected) {
         this.emit('end')
@@ -542,7 +550,9 @@ class VrpcAgent extends EventEmitter {
       const entry = this._isolatedInstances.get(connectionId)
       if (entry) {
         entry.forEach(instanceId => {
+          const known = VrpcAdapter._instances.get(instanceId)
           const json = {
+            c: known && known.className,
             f: '__delete__',
             a: [instanceId],
             r: null,
@@ -550,6 +560,8 @@ class VrpcAgent extends EventEmitter {
           }
           VrpcAdapter._call(json)
           if (json.r) {
+            // gone like a remote delete: no request topic outlives it
+            this._unsubscribeMethodsOfDeletedInstance(known.className, instanceId)
             this._log.debug(`Auto-deleted isolated instance: ${instanceId}`)
           }
         })
