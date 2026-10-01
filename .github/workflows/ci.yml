@@ -14,6 +14,7 @@ jobs:
       - uses: actions/checkout@master
       - run: npm install
       - run: npm run test:adapter
+      - run: npm run test:reconnect
       - run: npm run test:agent
       - run: npm run test:client
       - run: npm run test:persistor

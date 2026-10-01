@@ -603,6 +603,7 @@ functions as provided through one or more (distributed) agents.
         * [.getAvailableMemberFunctions([options])](#VrpcClient+getAvailableMemberFunctions) ⇒ <code>Array</code>
         * [.getAvailableStaticFunctions([options])](#VrpcClient+getAvailableStaticFunctions) ⇒ <code>Array</code>
         * [.reconnectWithToken(token, [options])](#VrpcClient+reconnectWithToken) ⇒ <code>Promise</code>
+        * [.updateCredentials(credentials)](#VrpcClient+updateCredentials)
         * [.unregisterAgent(agent)](#VrpcClient+unregisterAgent) ⇒ <code>Promise.&lt;Boolean&gt;</code>
         * [.end()](#VrpcClient+end) ⇒ <code>Promise</code>
         * ["agent" (info)](#VrpcClient+event_agent)
@@ -695,12 +696,22 @@ towards an agent. Treat it as a credential: do not log or share it.
 
 <a name="VrpcClient+connect"></a>
 
-### vrpcClient.connect() ⇒ <code>Promise</code>
+### vrpcClient.connect([options]) ⇒ <code>Promise</code>
 Actually connects to the MQTT broker.
+
+A refused connection is retried with a growing wait (doubling up to
+30 s, back to the start once connected), and every refusal is emitted
+as 'error', so a caller can renew its credentials (see
+updateCredentials).
 
 **Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise</code> - Resolves once connected within [timeout], rejects otherwise  
 **Emits**: <code>event:connected</code>  
+**Params**
+
+- [options] <code>Object</code>
+    - [.keepTrying] <code>Boolean</code> <code> = false</code> - If true, a connection that is not made within [timeout] still rejects the returned promise, but keeps trying until end() and emits 'connect' once it stands, and a further connect({ keepTrying: true }) while it is trying waits for it instead of opening a second connection. If false (the default), nothing changes: the client gives up at the timeout and must be connected again.
+
 **Example**  
 ```js
 try {
@@ -986,6 +997,28 @@ Reconnects to the broker by using a different token
 - token <code>String</code> - Access token
 - [options] <code>Object</code>
     - .agent <code>String</code> - Agent name. If not provided class default is used
+
+
+* * *
+
+<a name="VrpcClient+updateCredentials"></a>
+
+### vrpcClient.updateCredentials(credentials)
+Replaces the credentials the connection logs in with
+
+The broker checks credentials when a connection is made: a live
+connection carries on undisturbed, and the next one - after a network
+loss, a broker restart - logs in with these. A connection that is
+being refused right now tries again with them within a second,
+instead of waiting out its back-off.
+
+**Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
+**Params**
+
+- credentials <code>Object</code> - Only the given fields change
+    - [.username] <code>String</code> - MQTT username
+    - [.password] <code>String</code> - MQTT password (if no token is used)
+    - [.token] <code>String</code> - Access token
 
 
 * * *

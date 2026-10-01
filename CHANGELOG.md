@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.14.0] - Oct 1 2026
+
+### Added
+
+- **New credentials reach a live connection**: `client.updateCredentials({ username, password, token })` replaces what the connection logs in with, without a reconnect. The broker checks credentials when a connection is made, so a working session carries on and the next connection - after a network loss, a broker restart - uses the new ones; a connection that is being refused right now tries them within a second. A host renews an expiring access token this way instead of tearing its client down and racing a fresh one through its first connect (heisenware-cloud #1738).
+- **A client can keep trying past its connect timeout**: `client.connect({ keepTrying: true })` still rejects when no connection stands within `timeout`, so the caller can show it, but the client goes on trying until `end()` and emits `connect` once it is through. A further `connect({ keepTrying: true })` on a client that is still trying waits for it instead of starting another connection under the same client id. Opt-in: without the flag `connect()` behaves exactly as before and gives up at the timeout.
+
+### Fixed
+
+- **A refused connection backs off** (#74): a refused CONNACK was retried every second for as long as the client or agent lived, and an authorization service that blocks a client id after a number of refusals blocked it - and kept blocking it, so even valid credentials arriving later met the block. Every refusal now doubles the wait, up to 30 s; a successful connect starts over at the base period; the refusal is still emitted as `error`. A transient refusal (an authorization service restarting) heals within seconds, a stale credential costs a few dozen attempts per ten minutes instead of six hundred. mqtt.js arms its reconnect timer once per outage, so the back-off re-arms it through its internal `_clearReconnect`; a future mqtt.js without it falls back to applying the new period from the next outage on.
+- **A client given up at its connect timeout stays given up**: the workaround for mqtt.js's `client disconnecting` error (mqtt.js #1284) reset the flag and reconnected whatever client the failed publish or subscribe went through - also one that vrpc itself was ending at the connect timeout. Any RPC in that moment revived the abandoned connection, which then went on knocking with its old credentials, next to its successor and under the same client id. The workaround now leaves alone every client that was ended on purpose (connect timeout, `end()`, `reconnectWithToken`) or has been replaced since, and a subscribe on such a client rejects instead of hanging.
+- **An agent ended while it is not connected stops trying**: `agent.end()` returned early when the agent was not connected and left the mqtt client retrying in the background - a refused agent ended by its host knocked on for ever. It is ended now; the agent's `end` event follows once.
+
 ## [3.13.0] - Sep 30 2026
 
 ### Added

@@ -40,8 +40,13 @@ const { nanoid } = require('nanoid')
 const mqtt = require('mqtt')
 const EventEmitter = require('events')
 const SubscribeRetrier = require('./SubscribeRetrier')
+const ReconnectBackoff = require('./ReconnectBackoff')
 
 const VRPC_PROTOCOL_VERSION = 3
+
+// mqtt clients this client ended on purpose: the 'client disconnecting'
+// workaround must never revive one of them
+const ENDED = new WeakSet()
 
 /**
  * Client capable of creating proxy objects and remotely calling
@@ -220,7 +225,19 @@ class VrpcClient extends EventEmitter {
   /**
    * Actually connects to the MQTT broker.
    *
+   * A refused connection is retried with a growing wait (doubling up to
+   * 30 s, back to the start once connected), and every refusal is emitted
+   * as 'error', so a caller can renew its credentials (see
+   * updateCredentials).
+   *
    * @emits connected
+   * @param {Object} [options]
+   * @param {Boolean} [options.keepTrying=false] If true, a connection that
+   * is not made within [timeout] still rejects the returned promise, but
+   * keeps trying until end() and emits 'connect' once it stands, and a
+   * further connect({ keepTrying: true }) while it is trying waits for it
+   * instead of opening a second connection. If false (the default), nothing
+   * changes: the client gives up at the timeout and must be connected again.
    * @returns {Promise} Resolves once connected within [timeout], rejects otherwise
    * @example
    * try {
@@ -229,14 +246,14 @@ class VrpcClient extends EventEmitter {
    *   console.error(`Could not connect because: ${err.message}`)
    * }
    */
-  async connect () {
+  async connect ({ keepTrying = false } = {}) {
     if (this._client && this._client.connected) return
-    let username = this._username
-    let password = this._password
-    if (this._token) {
-      username = username || this._generateUserName()
-      password = this._token
+    // keepTrying: a connection that is still trying is waited for, never
+    // doubled (without it, connect() behaves as it always did)
+    if (keepTrying && this._client && !ENDED.has(this._client)) {
+      return this._awaitConnect(this._client, { keepTrying })
     }
+    const { username, password } = this._credentials()
     const options = {
       username,
       password,
@@ -264,6 +281,7 @@ class VrpcClient extends EventEmitter {
     })
 
     this._client = mqtt.connect(this._broker, options)
+    this._backoff = new ReconnectBackoff(this._client)
 
     // Persistent lifecycle handlers
     this._client.on('offline', () => {
@@ -393,23 +411,76 @@ class VrpcClient extends EventEmitter {
       }
     })
 
+    return this._awaitConnect(this._client, { keepTrying })
+  }
+
+  _awaitConnect (client, { keepTrying }) {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         // This will run only if the 'connect' event isn't fired in time.
+        const error = new Error(
+          `Connection trial timed out (> ${this._timeout} ms)`
+        )
+        if (keepTrying) {
+          // the client keeps trying in the background, until end()
+          client.removeListener('connect', onConnect)
+          reject(error)
+          return
+        }
         // We explicitly end the client to stop it from retrying in the background.
-        this._client.end(true, () => {
-          reject(
-            new Error(`Connection trial timed out (> ${this._timeout} ms)`)
-          )
-        })
+        VrpcClient._endMqtt(client, true, {}, () => reject(error))
       }, this._timeout)
 
-      this._client.once('connect', () => {
+      const onConnect = () => {
         // If we connect successfully, clear the timeout and resolve the promise.
         clearTimeout(timeout)
         resolve()
-      })
+      }
+      client.once('connect', onConnect)
     })
+  }
+
+  /**
+   * Replaces the credentials the connection logs in with
+   *
+   * The broker checks credentials when a connection is made: a live
+   * connection carries on undisturbed, and the next one - after a network
+   * loss, a broker restart - logs in with these. A connection that is
+   * being refused right now tries again with them within a second,
+   * instead of waiting out its back-off.
+   *
+   * @param {Object} credentials Only the given fields change
+   * @param {String} [credentials.username] MQTT username
+   * @param {String} [credentials.password] MQTT password (if no token is used)
+   * @param {String} [credentials.token] Access token
+   */
+  updateCredentials ({ username, password, token } = {}) {
+    if (username !== undefined) this._username = username
+    if (password !== undefined) this._password = password
+    if (token !== undefined) this._token = token
+    if (!this._client || ENDED.has(this._client)) return
+    const credentials = this._credentials()
+    for (const key of ['username', 'password']) {
+      if (credentials[key] === undefined) delete this._client.options[key]
+      else this._client.options[key] = credentials[key]
+    }
+    this._backoff.hurry()
+  }
+
+  // what the broker sees: a token rides as the password
+  _credentials () {
+    let username = this._username
+    let password = this._password
+    if (this._token) {
+      username = username || this._generateUserName()
+      password = this._token
+    }
+    return { username, password }
+  }
+
+  static _endMqtt (client, force, options, callback) {
+    ENDED.add(client)
+    client.end(force, options, callback)
   }
 
   /**
@@ -815,7 +886,10 @@ class VrpcClient extends EventEmitter {
     this._token = token
     this._agent = agent
     if (this._client) {
-      await new Promise(resolve => this._client.end(false, {}, resolve))
+      const client = this._client
+      await new Promise(resolve =>
+        VrpcClient._endMqtt(client, false, {}, resolve)
+      )
     }
     return this.connect()
   }
@@ -862,7 +936,9 @@ class VrpcClient extends EventEmitter {
     this.removeAllListeners()
     const client = this._client
     this._client = null // Prevent race conditions during shutdown
-    return new Promise(resolve => client.end(false, {}, resolve))
+    return new Promise(resolve =>
+      VrpcClient._endMqtt(client, false, {}, resolve)
+    )
   }
 
   // Private functions
@@ -929,8 +1005,16 @@ class VrpcClient extends EventEmitter {
     return `${this._domain}/${this._mqttClientId}/${this._connectionSecret}`
   }
 
+  // The 'client disconnecting' workaround below revives a client mqtt.js
+  // left half-closed, never one that was ended on purpose (a connect
+  // timeout, end(), reconnectWithToken) or has been replaced since
+  _isRevivable (client) {
+    return client === this._client && !ENDED.has(client)
+  }
+
   _mqttPublish (topic, message, options) {
-    this._client.publish(
+    const client = this._client
+    client.publish(
       topic,
       message,
       { qos: this._qos, ...options },
@@ -939,13 +1023,16 @@ class VrpcClient extends EventEmitter {
           this._log.warn(
             `Could not publish MQTT message because: ${err.message}`
           )
-          if (err.message === 'client disconnecting') {
+          if (
+            err.message === 'client disconnecting' &&
+            this._isRevivable(client)
+          ) {
             // This most certainly relates to a bug in MQTT.js (#1284)
             this._log.error(`Failed to publish, because: ${err.message}`)
             this.emit('error', err)
             this._log.info('Forcing reconnect now...')
-            this._client.disconnecting = false
-            this._client.reconnect()
+            client.disconnecting = false
+            client.reconnect()
           }
         }
       }
@@ -953,8 +1040,9 @@ class VrpcClient extends EventEmitter {
   }
 
   async _mqttSubscribe (topic, options) {
+    const client = this._client
     return new Promise((resolve, reject) => {
-      this._client.subscribe(
+      client.subscribe(
         topic,
         { qos: this._qos, ...options },
         (err, granted) => {
@@ -962,15 +1050,20 @@ class VrpcClient extends EventEmitter {
             this._log.warn(
               `Could not subscribe to topic(s): '${topic}', because: ${err.message}`
             )
-            if (err.message === 'client disconnecting') {
+            if (
+              err.message === 'client disconnecting' &&
+              this._isRevivable(client)
+            ) {
               // This most certainly relates to a bug in MQTT.js (#1284)
               const msg = `Failed to subscribe, because: ${err.message}`
               this._log.error(msg)
               this.emit('error', err)
               this._log.info('Forcing reconnect now...')
-              this._client.disconnecting = false
-              this._client.reconnect()
+              client.disconnecting = false
+              client.reconnect()
               reject(new Error(msg))
+            } else if (err.message === 'client disconnecting') {
+              reject(err)
             }
           } else {
             const topicArray = Array.isArray(topic) ? topic : [topic]

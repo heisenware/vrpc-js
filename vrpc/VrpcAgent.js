@@ -7,6 +7,7 @@ const EventEmitter = require('events')
 const jsonStringifySafe = require('json-stringify-safe')
 const VrpcAdapter = require('./VrpcAdapter')
 const SubscribeRetrier = require('./SubscribeRetrier')
+const ReconnectBackoff = require('./ReconnectBackoff')
 
 const VRPC_PROTOCOL_VERSION = 3
 
@@ -221,6 +222,8 @@ class VrpcAgent extends EventEmitter {
     this._log.info(`Broker : ${this._broker}`)
     this._log.info('Connecting to MQTT server...')
     this._client = mqtt.connect(this._broker, this._options)
+    // a refused agent knocks less and less often, not once a second
+    this._backoff = new ReconnectBackoff(this._client)
     this._client.on('connect', this._handleConnect.bind(this))
     this._client.on('reconnect', this._handleReconnect.bind(this))
     this._client.on('error', this._handleError.bind(this))
@@ -243,7 +246,15 @@ class VrpcAgent extends EventEmitter {
     this._subscribeRetrier.cancel()
     try {
       if (!this._client || !this._client.connected) {
-        this.emit('end')
+        // a client that is still trying (refused, broker away) stops
+        // trying: end() is how a refusal becomes final
+        // (its 'end' is forwarded as the agent's)
+        if (this._client) {
+          const client = this._client
+          await new Promise(resolve => client.end(true, {}, resolve))
+        } else {
+          this.emit('end')
+        }
         return
       }
       const agentTopic = `${this._baseTopic}/__agentInfo__`
