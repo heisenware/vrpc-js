@@ -3,8 +3,9 @@ const { VrpcClient } = require('vrpc')
 async function main () {
   // create a remote client
   const client = new VrpcClient({
-    domain: 'vrpc',
-    agent: '<yourBarAgent>'
+    domain: process.env.VRPC_DOMAIN || 'vrpc',
+    agent: process.env.VRPC_AGENT || '<yourBarAgent>',
+    broker: process.env.VRPC_BROKER // the default broker when not set
   })
 
   // connect it
@@ -21,7 +22,7 @@ async function main () {
   const bar = await client.create({ className: 'Bar' })
 
   // register an event listener
-  await bar.vrpcOn('onRemove', what =>
+  await bar.onRemove(what =>
     console.log(` - Oh, the ${what.name} went empty!`)
   )
 

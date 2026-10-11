@@ -42,7 +42,10 @@ const EventEmitter = require('events')
 const SubscribeRetrier = require('./SubscribeRetrier')
 const ReconnectBackoff = require('./ReconnectBackoff')
 
-const VRPC_PROTOCOL_VERSION = 3
+const VRPC_PROTOCOL_VERSION = 4
+
+// a function declared `@returns {Registration}` (or a promise of one)
+const DECLARED_REGISTRATION = /^(Promise\.?<\s*)?Registration\s*>?$/
 
 // mqtt clients this client ended on purpose: the 'client disconnecting'
 // workaround must never revive one of them
@@ -159,21 +162,36 @@ class VrpcClient extends EventEmitter {
     this._client = null
     this._cachedSubscriptions = {}
     this._proxies = {}
-    // refused subscriptions (SUBACK qos=128) are retried until granted
-    this._subscribeRetrier = new SubscribeRetrier({
-      subscribe: (topics, options) => this._mqttSubscribe(topics, options).catch(() => {}),
-      log: this._log
-    })
-    this._callbackIds = new WeakMap()
+    // `<agent>/<class>/<instance>` -> the isolated instances this connection
+    // created (no class info lists them)
+    this._ownIsolated = new Map()
+    // callback -> Map(subscription identity -> topic), see _subscriptionTopic
+    this._subscriptionTopics = new WeakMap()
+    this._subscriptionCount = 0
     this._emitterListener = new WeakMap()
     this._pendingSubscriptions = new Map()
     this._pendingUnsubscriptions = new Map()
+    // agents this client declares its subscriptions to again once they
+    // announce themselves: after this client's own reconnect, and after the
+    // agent's loss (the loss heals)
+    this._redeclare = new Set()
+    // agent -> withdrawals that could not be sent yet ({ sub, context })
+    this._pendingWithdrawals = new Map()
+    // the client's own inbox is subscribed (answers can arrive)
+    this._inboxReady = false
+    // labels callbacks carry towards the agent's list of registrations
+    this._subscriberLabels = new WeakMap()
     if (log === 'console') {
       this._log = console
       this._log.debug = () => {}
     } else {
       this._log = log
     }
+    // refused subscriptions are retried until granted
+    this._subscribeRetrier = new SubscribeRetrier({
+      subscribe: (topics, options) => this._mqttSubscribe(topics, options).catch(() => {}),
+      log: this._log
+    })
   }
 
   /**
@@ -289,6 +307,9 @@ class VrpcClient extends EventEmitter {
       // Clear the cache to ensure a fresh state upon reconnection
       this._agents = {}
       this._proxies = {}
+      // the agents delete this connection's isolated instances once its
+      // will is out
+      this._ownIsolated.clear()
       this.emit('offline')
     })
 
@@ -306,6 +327,14 @@ class VrpcClient extends EventEmitter {
     })
 
     this._client.on('connect', async () => {
+      // the subscriptions this client holds are declared again, to every
+      // agent announcing protocol 4, once the inbox stands (an agent that
+      // saw this connection go has withdrawn them; one that did not keeps
+      // them, declaring again is a no-op there)
+      this._inboxReady = false
+      for (const sub of Object.values(this._cachedSubscriptions)) {
+        this._redeclare.add(sub.agent)
+      }
       // forward the good news
       this.emit('connect')
       // everything is subscribed afresh below: pending retries are moot
@@ -325,6 +354,13 @@ class VrpcClient extends EventEmitter {
         }
         // Single wildcard catches BOTH RPC responses (length 3) AND events (length 4)
         await this._mqttSubscribe(`${this._vrpcConnectionId}/#`)
+        this._inboxReady = true
+        for (const agent of Array.from(this._redeclare)) {
+          this._redeclareTo(agent)
+        }
+        for (const agent of Array.from(this._pendingWithdrawals.keys())) {
+          this._flushWithdrawals(agent)
+        }
 
         // Re-subscribe to all cached event topics
         this._log.debug('Restoring event subscriptions after reconnect...')
@@ -351,13 +387,20 @@ class VrpcClient extends EventEmitter {
         }
         // AgentInfo message
         if (klass === '__agentInfo__') {
-          const { status, hostname, version } = JSON.parse(message.toString())
+          const { status, hostname, version, v } = JSON.parse(
+            message.toString()
+          )
           this._createIfNotExist(agent)
           this._agents[agent].status = status
           this._agents[agent].hostname = hostname
           this._agents[agent].version = version
+          // the agent's protocol version (undefined before 3)
+          this._agents[agent].v = v
           if (status === 'offline') {
-            this._clearCachedSubscriptions({ lostAgent: agent })
+            this._loseAgent(agent, v)
+          } else {
+            this._redeclareTo(agent)
+            this._flushWithdrawals(agent)
           }
           this.emit('agent', { domain, agent, status, hostname, version })
           // ClassInfo message
@@ -401,8 +444,8 @@ class VrpcClient extends EventEmitter {
           })
           // RPC message
         } else {
-          const { i, a, e, r } = JSON.parse(message.toString())
-          this._eventEmitter.emit(i, { a, e, r })
+          const { i, a, e, r, u, end } = JSON.parse(message.toString())
+          this._eventEmitter.emit(i, { a, e, r, u, end })
         }
       } catch (err) {
         this._log.error(
@@ -554,6 +597,14 @@ class VrpcClient extends EventEmitter {
       v: VRPC_PROTOCOL_VERSION
     }
     const proxy = await this._getProxy(agent, className, json)
+    // no class info lists an isolated instance: its creator remembers it
+    if (isIsolated) {
+      this._ownIsolated.set(`${agent}/${className}/${instance}`, {
+        agent,
+        className,
+        instance
+      })
+    }
     if (instance && cacheProxy) {
       this._proxies[`${agent}/${className}/${instance}`] = {
         agent,
@@ -618,6 +669,9 @@ class VrpcClient extends EventEmitter {
     this._mqttPublish(topic, JSON.stringify(json))
     delete this._proxies[`${agent}/${className}/${instance}`]
     const deleted = await this._handleAgentAnswer(json, agent)
+    if (deleted === true) {
+      this._ownIsolated.delete(`${agent}/${className}/${instance}`)
+    }
     // the answer and the class info that no longer lists the instance
     // travel on different topics, and a broker need not keep their order:
     // what this client deleted is gone for it at once
@@ -675,6 +729,7 @@ class VrpcClient extends EventEmitter {
       v: VRPC_PROTOCOL_VERSION
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/${functionName}`
+    this._declare(json, topic)
     await this._waitUntilClassIsOnline(agent, className)
     this._mqttPublish(topic, JSON.stringify(json))
     return this._handleAgentAnswer(json, agent)
@@ -718,37 +773,342 @@ class VrpcClient extends EventEmitter {
       v: VRPC_PROTOCOL_VERSION
     }
     if (agent === '*') {
-      const result = []
-      const agents = this.getAvailableAgents()
-      for (const agent of agents) {
-        const topic = `${this._domain}/${agent}/${className}/__static__/__callAll__`
-        const wrapped = await this._wrapArguments({
-          agent,
-          className,
-          functionName,
-          args
-        })
-        if (!wrapped) continue // using cache
-        json.a = [functionName, ...wrapped]
-        await this._waitUntilClassIsOnline(agent, className)
-        this._mqttPublish(topic, JSON.stringify(json))
-        const tmp = await this._handleAgentAnswer(json, agent)
-        result.push(...tmp)
-      }
-      return result
+      // every online agent that offers the class, all at once; an agent that
+      // fails as a whole answers an error for each of its instances, as one
+      // failing instance does, and the others' answers stand
+      const agents = this.getAvailableAgents().filter(
+        name => this._agents[name].classes[className]
+      )
+      const answers = await Promise.all(
+        agents.map(name =>
+          this.callAll({ className, functionName, args, agent: name }).then(
+            result => result || [],
+            err =>
+              this.getAvailableInstances({ className, agent: name }).map(
+                id => ({ id, err: { message: err.message } })
+              )
+          )
+        )
+      )
+      return answers.flat()
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/__callAll__`
     const wrapped = await this._wrapArguments({
       agent,
       className,
       functionName,
-      args
+      args,
+      isCallAll: true
     })
     if (!wrapped) return // using cache
     json.a = [functionName, ...wrapped]
+    this._declare(json, topic)
     await this._waitUntilClassIsOnline(agent, className)
     this._mqttPublish(topic, JSON.stringify(json))
     return this._handleAgentAnswer(json, agent)
+  }
+
+  /**
+   * Withdraws subscriptions.
+   *
+   * A subscription is what an event function call (or `on`) declared with a
+   * callback: one per target, function, arguments and callback, named by
+   * its subscription id (see getSubscriptions). Withdrawing it stops its events at once, and
+   * every agent holding it is told by id - however it was declared (a proxy,
+   * callStatic, callAll on one agent or on all of them). The agent releases
+   * the registration when the last subscription leaves.
+   *
+   * With `instance`, only what is held on that instance is withdrawn: a
+   * subscription declared there ends, and a callAll subscription - one id
+   * on every instance of its class - stops at that instance alone while
+   * the others keep delivering. The client remembers such a withdrawal and
+   * applies it again after its own reconnect, until the subscription is
+   * declared anew (a declaration names what is wanted now).
+   *
+   * Agents before protocol 4 cannot withdraw by id: an `on` subscription is
+   * removed there as before (removeListener), an `on<Name>` one through its
+   * `off<Name>` twin when the class has one; anything else ends locally
+   * (a callAll subscription withdrawn at one instance stops delivering its
+   * events there).
+   *
+   * @param {String|Array.<String>|Function|Object} target A subscription id
+   * (or several), a callback (all its subscriptions), or an
+   * `{ emitter, event }` contract (all of its subscriptions)
+   * @param {Object} [options]
+   * @param {String} [options.instance] Withdraw at this instance only
+   * @returns {Promise<Boolean>} true if anything was withdrawn
+   */
+  async unsubscribe (target, { instance } = {}) {
+    const all = Object.values(this._cachedSubscriptions)
+    let subs
+    if (typeof target === 'string' || Array.isArray(target)) {
+      const ids = Array.isArray(target) ? target : [target]
+      subs = ids
+        .map(id =>
+          this._cachedSubscriptions[id.startsWith('__e__') ? id.slice(5) : id]
+        )
+        .filter(Boolean)
+    } else if (this._isFunction(target)) {
+      subs = all.filter(sub => sub.callback === target)
+    } else if (this._isEmitter(target)) {
+      const callback = this._emitterCallback(target, { readOnly: true })
+      subs = callback ? all.filter(sub => sub.callback === callback) : []
+    } else {
+      throw new Error(
+        'unsubscribe expects a subscription id, a callback or an { emitter, event } contract'
+      )
+    }
+    // at one instance: a callAll subscription stops there, one declared on
+    // that instance ends, any other is not held there
+    const atInstance = []
+    if (instance !== undefined && instance !== null) {
+      atInstance.push(...subs.filter(sub => sub.callAll))
+      subs = subs.filter(sub => !sub.callAll && sub.instance === instance)
+    }
+    if (subs.length === 0 && atInstance.length === 0) return false
+    // no event reaches the consumer from here on
+    subs.forEach(sub => this._dropSubscription(sub))
+    atInstance.forEach(sub => sub.withdrawn.add(instance))
+    const byAgent = new Map()
+    const entries = (agent, sub, context) => {
+      if (!byAgent.has(agent)) byAgent.set(agent, [])
+      byAgent.get(agent).push({ sub, context })
+    }
+    for (const sub of subs) entries(sub.agent, sub)
+    for (const sub of atInstance) entries(sub.agent, sub, instance)
+    const sends = []
+    for (const [agent, agentEntries] of byAgent) {
+      sends.push(this._withdrawAt(agent, agentEntries))
+    }
+    await Promise.allSettled(sends)
+    return true
+  }
+
+  /**
+   * Withdraws subscriptions at their agent: at once when the agent is online
+   * and this client connected, else as soon as both are again - an agent
+   * that only lost its connection still holds them.
+   *
+   * @param {String} agent
+   * @param {Array.<Object>} entries `{ sub, context }`, context (an
+   * instance) for a withdrawal at one instance only
+   */
+  _withdrawAt (agent, entries) {
+    const info = this._agents[agent]
+    if (!this._isConnected() || !info || info.status !== 'online') {
+      const pending = this._pendingWithdrawals.get(agent) || []
+      pending.push(...entries)
+      this._pendingWithdrawals.set(agent, pending)
+      return Promise.resolve()
+    }
+    if (info.v >= 4) return this._sendUnsubscribe(agent, entries)
+    // an older agent cannot withdraw at one instance: local only
+    return Promise.allSettled(
+      entries
+        .filter(({ context }) => context === undefined)
+        .map(({ sub }) => this._sendLegacyRemoval(sub))
+    )
+  }
+
+  // sends the withdrawals an agent missed, once it and this client are online
+  _flushWithdrawals (agent) {
+    const pending = this._pendingWithdrawals.get(agent)
+    const info = this._agents[agent]
+    if (!pending || !this._isConnected() || !info || info.status !== 'online') {
+      return
+    }
+    this._pendingWithdrawals.delete(agent)
+    this._withdrawAt(agent, pending)
+  }
+
+  /**
+   * An agent went offline: a loss, not an end. Its subscriptions are lost
+   * until it serves again; an agent of protocol 4 gets them declared again
+   * then (the loss heals - one that kept them changes nothing). Towards an
+   * older agent a declaration again would register the handler twice: its
+   * subscriptions are dropped, as they always were.
+   */
+  _loseAgent (agent, v) {
+    if (!(v >= 4)) {
+      this._redeclare.delete(agent)
+      this._clearCachedSubscriptions({ lostAgent: agent })
+      return
+    }
+    this._redeclare.add(agent)
+    for (const sub of Object.values(this._cachedSubscriptions)) {
+      if (sub.agent !== agent || sub.lost) continue
+      sub.lost = true
+      sub.confirmed = false
+      this.emit('lost', sub.id, 'agentOffline', this._subscriptionInfo(sub))
+    }
+  }
+
+  /**
+   * Lists the subscriptions this client holds.
+   *
+   * @param {Object} [filter]
+   * @param {Function|Object} [filter.callback] Only the subscriptions of this
+   * callback, or of this `{ emitter, event }` contract
+   * @returns {Array.<Object>} `{ id, agent, className, instance,
+   * functionName, event, callAll, confirmed, lost }` per subscription;
+   * `confirmed` once a protocol-4 agent answered that it holds it, `lost`
+   * while its agent is offline (it is declared again once the agent is back)
+   */
+  getSubscriptions ({ callback } = {}) {
+    if (callback && this._isEmitter(callback)) {
+      callback = this._emitterCallback(callback, { readOnly: true })
+      if (!callback) return []
+    }
+    return Object.values(this._cachedSubscriptions)
+      .filter(sub => !callback || sub.callback === callback)
+      .map(sub => ({
+        id: sub.id,
+        ...this._subscriptionInfo(sub),
+        confirmed: sub.confirmed,
+        lost: sub.lost
+      }))
+  }
+
+  /**
+   * Gives the subscriptions of a callback a label, which agents list with
+   * their registrations (`__registrations__`), e.g. who listens.
+   *
+   * @param {Function|Object} callback The callback, or an `{ emitter, event }`
+   * contract (labelled before or after it subscribes)
+   * @param {String} label The label (sent with every declaration)
+   */
+  setSubscriberLabel (callback, label) {
+    if (this._isEmitter(callback)) callback = this._emitterCallback(callback)
+    this._subscriberLabels.set(callback, label)
+  }
+
+  /**
+   * Lists the registrations of an instance (or, without an instance, the
+   * static ones of a class): function, arguments, subscriptions with their
+   * labels, events and events per second. Needs a protocol-4 agent.
+   *
+   * @param {Object} options
+   * @param {String} options.className Class name
+   * @param {String} [options.instance] Instance name
+   * @param {String} [options.agent] Agent name. If not provided class default is used
+   * @returns {Promise<Array.<Object>>} The registrations
+   */
+  async getRegistrations ({ className, instance, agent = this._agent } = {}) {
+    return this._callProtocol({ className, instance, agent }, '__registrations__', [])
+  }
+
+  /**
+   * Ends a registration for all its subscriptions; each subscriber learns
+   * that it ended and by whom ('ended' event). Needs a protocol-4 agent.
+   *
+   * @param {Object} options
+   * @param {String} options.className Class name
+   * @param {String} [options.instance] Instance name (static registration without)
+   * @param {String} [options.agent] Agent name. If not provided class default is used
+   * @param {String} options.functionName The event function
+   * @param {Array} [options.args] Its arguments without the handlers, as listed
+   * @param {String} [options.by] Who ends it, told to every subscriber
+   * @returns {Promise<Boolean>} Whether such a registration existed
+   */
+  async endRegistration ({
+    className,
+    instance,
+    agent = this._agent,
+    functionName,
+    args = [],
+    by = null
+  } = {}) {
+    return this._callProtocol({ className, instance, agent }, '__end__', [
+      functionName,
+      args,
+      by
+    ])
+  }
+
+  async _callProtocol ({ className, instance, agent }, f, a) {
+    if (!this._isConnected()) {
+      throw new Error('Client is not connected')
+    }
+    if (instance && (!agent || agent === '*' || !className)) {
+      const data = await this._getInstanceData(instance, { agent, className })
+      agent = data.agent
+      className = data.className
+    }
+    if (!agent || agent === '*') throw new Error('Agent must be specified')
+    await this._waitUntilClassIsOnline(agent, className)
+    if (!(this._agents[agent].v >= 4)) {
+      throw new Error(`Agent "${agent}" does not speak protocol 4`)
+    }
+    const json = {
+      c: instance || className,
+      f,
+      a,
+      i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+      s: this._vrpcConnectionId,
+      v: VRPC_PROTOCOL_VERSION
+    }
+    const topic = `${this._domain}/${agent}/${className}/${instance || '__static__'}/${f}`
+    this._mqttPublish(topic, JSON.stringify(json))
+    return this._handleAgentAnswer(json, agent)
+  }
+
+  // withdraws by id on a protocol-4 agent, wherever it holds them (or, with
+  // a context, at that instance only)
+  async _sendUnsubscribe (agent, entries) {
+    const className = entries[0].sub.className
+    const json = {
+      c: className,
+      f: '__unsubscribe__',
+      a: entries.map(({ sub, context }) =>
+        context === undefined ? sub.id : { id: sub.id, context }
+      ),
+      i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+      s: this._vrpcConnectionId,
+      v: VRPC_PROTOCOL_VERSION
+    }
+    const topic = `${this._domain}/${agent}/${className}/__static__/__unsubscribe__`
+    this._mqttPublish(topic, JSON.stringify(json))
+    try {
+      await this._handleAgentAnswer(json, agent)
+    } catch (err) {
+      this._log.debug(`Withdrawing subscriptions failed: ${err.message}`)
+    }
+  }
+
+  // an agent before protocol 4: removeListener, or the class's off twin
+  async _sendLegacyRemoval (sub) {
+    if (sub.callAll || !sub.instance) return
+    let f
+    let a
+    if (sub.functionName === 'on' || sub.functionName === 'addListener') {
+      f = 'removeListener'
+      a = [sub.event, sub.id]
+    } else {
+      const twin = sub.functionName.replace(/^on(?=[A-Z])/, 'off')
+      const info =
+        this._agents[sub.agent] &&
+        this._agents[sub.agent].classes[sub.className]
+      const functions = info ? info.memberFunctions.map(this._stripSignature) : []
+      if (twin === sub.functionName || !functions.includes(twin)) return
+      if (!sub.declaration) return
+      f = twin
+      a = sub.declaration.a
+    }
+    const json = {
+      c: sub.instance,
+      f,
+      a,
+      i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+      s: this._vrpcConnectionId,
+      v: VRPC_PROTOCOL_VERSION
+    }
+    const topic = `${this._domain}/${sub.agent}/${sub.className}/${sub.instance}/${f}`
+    this._mqttPublish(topic, JSON.stringify(json))
+    try {
+      await this._handleAgentAnswer(json, sub.agent)
+    } catch (err) {
+      this._log.debug(`Removing a subscription failed: ${err.message}`)
+    }
   }
 
   /**
@@ -906,8 +1266,10 @@ class VrpcClient extends EventEmitter {
       this._mqttPublish(agentTopic, null, { retain: true })
       const classes = this.getAvailableClasses({ agent, mustBeOnline: false })
       for (const className of classes) {
-        const classTopic = `${this._domain}/${agent}/${className}/__classInfo__`
-        this._mqttPublish(classTopic, null, { retain: true })
+        for (const info of ['__classInfo__', '__classInfoConcise__']) {
+          const classTopic = `${this._domain}/${agent}/${className}/${info}`
+          this._mqttPublish(classTopic, null, { retain: true })
+        }
       }
       // Synchronize local cache
       delete this._agents[agent]
@@ -934,6 +1296,11 @@ class VrpcClient extends EventEmitter {
     )
     this._eventEmitter.removeAllListeners()
     this.removeAllListeners()
+    // the agents withdraw what this connection held: nothing to declare
+    // again, nothing left to withdraw
+    this._cachedSubscriptions = {}
+    this._redeclare.clear()
+    this._pendingWithdrawals.clear()
     const client = this._client
     this._client = null // Prevent race conditions during shutdown
     return new Promise(resolve =>
@@ -966,13 +1333,6 @@ class VrpcClient extends EventEmitter {
     return this._client && this._client.connected
   }
 
-  _getCallbackId (callback, { readOnly = false } = {}) {
-    if (!this._callbackIds.has(callback)) {
-      if (readOnly) return null
-      this._callbackIds.set(callback, nanoid(8))
-    }
-    return this._callbackIds.get(callback)
-  }
 
   _generateUserName () {
     return `${this._domain}:client@${os.hostname()}-${os.platform()}-js`
@@ -1045,31 +1405,36 @@ class VrpcClient extends EventEmitter {
       client.subscribe(
         topic,
         { qos: this._qos, ...options },
-        (err, granted) => {
-          if (err) {
+        (subscribeError, subs) => {
+          const { refused, granted, error } = SubscribeRetrier.outcome(
+            subscribeError,
+            subs
+          )
+          if (error) {
             this._log.warn(
-              `Could not subscribe to topic(s): '${topic}', because: ${err.message}`
+              `Could not subscribe to topic(s): '${topic}', because: ${error.message}`
             )
             if (
-              err.message === 'client disconnecting' &&
+              error.message === 'client disconnecting' &&
               this._isRevivable(client)
             ) {
               // This most certainly relates to a bug in MQTT.js (#1284)
-              const msg = `Failed to subscribe, because: ${err.message}`
+              const msg = `Failed to subscribe, because: ${error.message}`
               this._log.error(msg)
-              this.emit('error', err)
+              this.emit('error', error)
               this._log.info('Forcing reconnect now...')
               client.disconnecting = false
               client.reconnect()
               reject(new Error(msg))
-            } else if (err.message === 'client disconnecting') {
-              reject(err)
+            } else {
+              // the connection broke under the subscribe: the next connect
+              // subscribes everything afresh
+              reject(error)
             }
           } else {
+            let err
             const topicArray = Array.isArray(topic) ? topic : [topic]
-            const erroneousGranted = granted
-              .filter(x => x.qos === 128)
-              .map(x => x.topic)
+            const erroneousGranted = refused
             if (erroneousGranted.length > 0) {
               err = new Error(
                 `Could not subscribe all ${topicArray.length} topic(s) but got error qos=128 on following ${erroneousGranted.length} topic(s): ${erroneousGranted}`
@@ -1080,9 +1445,7 @@ class VrpcClient extends EventEmitter {
               this.emit('error', err)
               this._subscribeRetrier.schedule(erroneousGranted, options)
             }
-            this._subscribeRetrier.granted(
-              granted.filter(x => x.qos !== 128).map(x => x.topic)
-            )
+            this._subscribeRetrier.granted(granted.map(x => x.topic))
             const reducedQos = granted.filter(x => x.qos < this._qos)
             if (reducedQos.length > 0) {
               err = new Error(
@@ -1099,7 +1462,7 @@ class VrpcClient extends EventEmitter {
               this._log.warn(err.message)
               this.emit('error', err)
             }
-            if (granted.length === 0) {
+            if (granted.length === 0 && refused.length === 0) {
               this._log.debug(`Already subscribed to: ${topic}`)
             }
             resolve()
@@ -1160,15 +1523,19 @@ class VrpcClient extends EventEmitter {
     if (this._hasClassOnline(agent, className)) return
     return new Promise((resolve, reject) => {
       let timer = null
+      // the class info and the agent info travel on topics of their own and
+      // may come in either order: each of them can complete the picture
       const checkClass = () => {
         if (this._hasClassOnline(agent, className)) {
           if (timer) clearTimeout(timer)
           this.removeListener('class', checkClass)
+          this.removeListener('agent', checkClass)
           resolve()
         }
       }
       timer = setTimeout(() => {
         this.removeListener('class', checkClass)
+        this.removeListener('agent', checkClass)
         reject(
           new Error(
             `Connection to class "${className}" on agent "${agent}" and domain "${this._domain}" timed out (> ${this._timeout} ms)`
@@ -1176,6 +1543,7 @@ class VrpcClient extends EventEmitter {
         )
       }, this._timeout)
       this.on('class', checkClass)
+      this.on('agent', checkClass)
     })
   }
 
@@ -1214,23 +1582,18 @@ class VrpcClient extends EventEmitter {
             throw new Error('VRPC does not support removing all listeners')
           }
 
-          const obsoleteTopics = Object.keys(this._cachedSubscriptions).filter(
-            topic => {
-              const sub = this._cachedSubscriptions[topic]
-              return sub.instance === instance && sub.event === eventName
-            }
-          )
-
-          obsoleteTopics.forEach(topic => {
-            const id = `__e__${topic}`
-            const sub = this._cachedSubscriptions[topic]
-
-            sub.listeners.forEach(({ handler }) => {
-              this._eventEmitter.removeListener(id, handler)
-            })
-
-            delete this._cachedSubscriptions[topic]
-          })
+          // this client's subscriptions of that event on this instance end;
+          // a protocol-4 agent withdraws exactly those, never touching the
+          // emitter's other listeners
+          Object.values(this._cachedSubscriptions)
+            .filter(
+              sub =>
+                sub.agent === agent &&
+                sub.className === className &&
+                sub.instance === instance &&
+                sub.event === eventName
+            )
+            .forEach(sub => this._dropSubscription(sub))
           try {
             const json = {
               c: instance,
@@ -1276,6 +1639,7 @@ class VrpcClient extends EventEmitter {
             s: this._vrpcConnectionId,
             v: VRPC_PROTOCOL_VERSION
           }
+          this._declare(json, `${targetTopic}/${functionName}`)
           this._mqttPublish(
             `${targetTopic}/${functionName}`,
             JSON.stringify(json)
@@ -1311,6 +1675,7 @@ class VrpcClient extends EventEmitter {
             s: this._vrpcConnectionId,
             v: VRPC_PROTOCOL_VERSION
           }
+          this._declare(json, `${targetTopic}/${functionName}`)
           this._mqttPublish(
             `${targetTopic}/${functionName}`,
             JSON.stringify(json)
@@ -1322,22 +1687,37 @@ class VrpcClient extends EventEmitter {
           )
         }
       }
-      proxy.vrpcOff = functionName => {
-        const topic = `${this._domain}/${agent}/${className}/${instance}-${functionName}`
-        const id = `__e__${topic}`
-        this._eventEmitter.removeAllListeners(id)
+      // withdraws this client's subscriptions of a function on this instance
+      proxy.vrpcOff = async functionName => {
+        const ids = Object.values(this._cachedSubscriptions)
+          .filter(
+            sub =>
+              sub.agent === agent &&
+              sub.className === className &&
+              sub.instance === instance &&
+              sub.functionName === functionName
+          )
+          .map(sub => sub.id)
+        if (ids.length === 0) return false
+        return this.unsubscribe(ids)
       }
     }
     return proxy
   }
 
-  async _handleAgentAnswer ({ i, c, f }, agent) {
+  async _handleAgentAnswer ({ i, c, f, a }, agent) {
     return new Promise((resolve, reject) => {
       const msg = `Function call "${c}::${f}()" on agent "${agent}" timed out (> ${this._timeout} ms)`
       const timer = setTimeout(() => {
         this._eventEmitter.removeAllListeners(i)
         reject(new Error(msg))
       }, this._timeout)
+      // a protocol-4 agent that answers a declaring call without an error
+      // holds every subscription the call carried
+      const confirm = () => {
+        const info = this._agents[agent]
+        if (info && info.v >= 4) this._confirmSubscriptions(a)
+      }
       this._eventEmitter.once(i, data => {
         clearTimeout(timer)
         if (data.e) {
@@ -1356,10 +1736,12 @@ class VrpcClient extends EventEmitter {
                   new Error(`[vrpc ${agent}-${c}-${f}]: ${message}`, { cause })
                 )
               } else {
+                confirm()
                 resolve(promiseData.r)
               }
             })
           } else {
+            confirm()
             resolve(ret)
           }
         }
@@ -1396,51 +1778,111 @@ class VrpcClient extends EventEmitter {
     })
   }
 
+  /**
+   * Whether a function is an event function: declared `@returns
+   * {Registration}` (when the class info carries meta data), else named `on`
+   * followed by a capital letter. The prefixes `notify`, `monitor` and
+   * `signal` still count (deprecated, gone in 4.0).
+   */
+  _isEventFunction (agent, className, functionName) {
+    const info =
+      this._agents[agent] &&
+      this._agents[agent].classes &&
+      this._agents[agent].classes[className]
+    const meta = info && info.meta && info.meta[functionName]
+    const type = meta && meta.ret && meta.ret.type
+    if (typeof type === 'string' && DECLARED_REGISTRATION.test(type.trim())) {
+      return true
+    }
+    if (/^on[A-Z]/.test(functionName)) return true
+    return /^(notify|monitor|signal)/.test(functionName)
+  }
+
   async _wrapArguments ({
     agent,
     className,
     instance,
     proxyId,
     functionName,
-    args
+    args,
+    isCallAll = false
   }) {
     const wrapped = []
 
-    // Heuristic for continuous event emitters and their removal
-    const isContinuousEmitter = /^(on|notify|monitor|signal)/.test(functionName)
+    const isEventFunction = this._isEventFunction(
+      agent,
+      className,
+      functionName
+    )
+    // continuous removers (legacy): withdraw the callback's subscription
     const isContinuousRemover = /^(off|remove|unmonitor|unsignal)/.test(
       functionName
     )
+    const isEmitterRemover =
+      (functionName === 'off' || functionName === 'removeListener') &&
+      typeof args[0] === 'string'
 
     for (const [i, x] of args.entries()) {
-      if (this._isFunction(x)) {
-        const callback = x
+      const isEmitterContract = this._isEmitter(x)
+      if (this._isFunction(x) || isEmitterContract) {
+        const removes =
+          !isEventFunction &&
+          ((isEmitterRemover && i === 1) || isContinuousRemover)
+        const callback = isEmitterContract
+          ? this._emitterCallback(x, { readOnly: removes })
+          : x
         if (
-          functionName === 'vrpcOn' ||
-          (functionName === 'on' && i === 1 && typeof args[0] === 'string') ||
-          isContinuousEmitter
+          !removes &&
+          (isEmitterContract ||
+            functionName === 'vrpcOn' ||
+            ((functionName === 'on' || functionName === 'addListener') &&
+              i === 1 &&
+              typeof args[0] === 'string') ||
+            isEventFunction)
         ) {
           const event = typeof args[0] === 'string' ? args[0] : functionName
+          // vrpcOn names the event function first
+          const isVrpcOn = functionName === 'vrpcOn'
           const id = await this._onRemoteEvent({
             agent,
             className,
             instance,
             event,
-            callback
+            callback,
+            functionName: isVrpcOn ? args[0] : functionName,
+            args: isVrpcOn ? args.slice(1) : args,
+            position: isVrpcOn ? i - 1 : i,
+            isCallAll
           })
           wrapped.push(id)
           continue
-        } else if (
-          ((functionName === 'off' || functionName === 'removeListener') &&
-            i === 1 &&
-            typeof args[0] === 'string') ||
-          isContinuousRemover
-        ) {
-          const id = await this._offRemoteEvent({ callback })
-          if (
-            !id &&
-            (functionName === 'off' || functionName === 'removeListener')
-          ) {
+        } else if (removes) {
+          const subs = callback
+            ? this._offRemoteEvent({
+              agent,
+              className,
+              instance,
+              isCallAll,
+              functionName,
+              args,
+              position: i,
+              callback
+            })
+            : []
+          if (subs.length > 0) {
+            const info = this._agents[agent]
+            if (info && info.v >= 4) {
+              // protocol 4 withdraws by id and never calls the class's
+              // remover: handled here
+              await this._withdrawAt(agent, subs.map(sub => ({ sub })))
+              return null
+            }
+            // an agent before protocol 4 knows only the remover call, which
+            // carries the id (further subscriptions end locally)
+            wrapped.push(subs[0].id)
+            continue
+          }
+          if (functionName === 'off' || functionName === 'removeListener') {
             // Nothing of ours to remove - the subscription was already
             // dropped (the instance or its agent went away and the cache
             // was cleared, or the listener was never registered). Sending
@@ -1448,43 +1890,21 @@ class VrpcClient extends EventEmitter {
             // its EventEmitter rejects. Handled locally: nothing to do.
             return null
           }
-          wrapped.push(id || null)
-          continue
-        } else {
-          // Regular function callback (can be static or member function)
-          const remoteId = proxyId || `${agent}-${className}`
-          const id = `__f__${remoteId}-${functionName}-${i}-${
-            this._invokeId++ % Number.MAX_SAFE_INTEGER
-          }`
-          wrapped.push(id)
-          this._eventEmitter.once(id, ({ a }) => x.apply(null, a))
-          continue
-        }
-      }
-
-      // special case of an EventEmitter provided as argument
-      if (this._isEmitter(x)) {
-        const { emitter, event } = x
-        let callback = (...args) => emitter.emit(event, ...args)
-        if (this._emitterListener.has(emitter)) {
-          const eventMap = this._emitterListener.get(emitter)
-          if (eventMap.has(event)) {
-            callback = eventMap.get(event)
-          } else {
-            eventMap.set(event, callback)
+          // no subscription of this callback: an { emitter, event }
+          // contract stays empty, a function is a plain callback after all
+          // (removeItem(id, done))
+          if (isEmitterContract) {
+            wrapped.push(null)
+            continue
           }
-        } else {
-          this._emitterListener.set(emitter, new Map([[event, callback]]))
         }
-
-        const id = await this._onRemoteEvent({
-          agent,
-          className,
-          instance,
-          event,
-          callback
-        })
+        // Regular function callback (can be static or member function)
+        const remoteId = proxyId || `${agent}-${className}`
+        const id = `__f__${remoteId}-${functionName}-${i}-${
+          this._invokeId++ % Number.MAX_SAFE_INTEGER
+        }`
         wrapped.push(id)
+        this._eventEmitter.once(id, ({ a }) => callback.apply(null, a))
         continue
       }
       // default behavior is to not touch
@@ -1493,98 +1913,363 @@ class VrpcClient extends EventEmitter {
     return wrapped
   }
 
-  async _onRemoteEvent ({ agent, className, instance, event, callback }) {
-    const callbackId = this._getCallbackId(callback)
-
-    // Generate a short, sanitized hash
-    const hashInput = `${agent}-${className}-${
-      instance || '__static__'
-    }-${event}-${callbackId}`
-    const topicId = VrpcClient._createHash(hashInput, 12)
-
-    // Route directly to the client's single event inbox wildcard
-    const topic = `${this._vrpcConnectionId}/${topicId}`
-    const id = `__e__${topic}`
-
-    const handler = ({ a }) => callback.apply(null, a)
-
-    // Only bind to the actual emitter on the first registration
-    if (this._eventEmitter.listenerCount(id) === 0) {
-      this._eventEmitter.on(id, handler)
+  // the one callback standing for an { emitter, event } contract
+  _emitterCallback ({ emitter, event }, { readOnly = false } = {}) {
+    let eventMap = this._emitterListener.get(emitter)
+    if (eventMap && eventMap.has(event)) return eventMap.get(event)
+    if (readOnly) return null
+    const callback = (...args) => emitter.emit(event, ...args)
+    if (!eventMap) {
+      eventMap = new Map()
+      this._emitterListener.set(emitter, eventMap)
     }
+    eventMap.set(event, callback)
+    return callback
+  }
 
-    if (!this._cachedSubscriptions[topic]) {
-      // Store metadata explicitly
-      this._cachedSubscriptions[topic] = {
-        agent,
-        className,
-        instance,
-        event,
-        listeners: [{ callback, handler }]
+  /**
+   * What a subscription is to the agent: its function (`addListener` is
+   * `on`) and arguments compared by value, the callback's own position
+   * named and other callbacks marked. Two subscriptions of one callback
+   * differ in it whenever the agent keeps them apart, so their ids differ:
+   * an id names one registration per instance.
+   */
+  _subscriptionKey (functionName, args, position) {
+    const func = functionName === 'addListener' ? 'on' : functionName
+    const marked = args.map((x, i) => {
+      if (i === position) return '\u0000vrpc-self'
+      if (this._isFunction(x) || this._isEmitter(x)) return '\u0000vrpc-callback'
+      return x
+    })
+    return `${func}\u0000${VrpcClient._canonical(marked)}`
+  }
+
+  // arguments compared by value: equal JSON once object keys are sorted
+  static _canonical (value) {
+    const sortKeys = x => {
+      if (Array.isArray(x)) return x.map(sortKeys)
+      if (x && typeof x === 'object' && x.constructor === Object) {
+        const sorted = {}
+        for (const key of Object.keys(x).sort()) sorted[key] = sortKeys(x[key])
+        return sorted
       }
-    } else {
-      this._cachedSubscriptions[topic].listeners.push({ callback, handler })
+      return x
     }
+    return JSON.stringify(sortKeys(value))
+  }
 
+  // the event function a remover undoes: off/removeListener -> on,
+  // offValue -> onValue, unmonitorX -> monitorX
+  static _twinOf (functionName) {
+    if (functionName === 'off' || functionName === 'removeListener') return 'on'
+    return functionName.replace(/^(off|un)(?=[A-Za-z])/, m =>
+      m === 'off' ? 'on' : ''
+    )
+  }
+
+  // what a subscription is, but its callback: target and subscription key
+  static _identity ({ agent, className, instance, isCallAll, key }) {
+    return JSON.stringify([agent, className, instance || null, !!isCallAll, key])
+  }
+
+  /**
+   * The topic a subscription's events arrive on; its id is `__e__<topic>`.
+   * One per identity (target, function, arguments and callback), counted,
+   * not hashed: two identities never share one. An identity keeps its
+   * topic while its callback lives, so a subscription declared again after
+   * a loss has the id an agent may still hold (which then changes
+   * nothing); a withdrawn one gets a fresh id when declared anew (see
+   * _dropSubscription), so a late withdrawal never meets the new one.
+   */
+  _subscriptionTopic (callback, identity, { readOnly = false } = {}) {
+    let topics = this._subscriptionTopics.get(callback)
+    if (!topics) {
+      if (readOnly) return null
+      topics = new Map()
+      this._subscriptionTopics.set(callback, topics)
+    }
+    let topic = topics.get(identity)
+    if (!topic && !readOnly) {
+      // routed by the client's single event inbox wildcard
+      topic = `${this._vrpcConnectionId}/s${(this._subscriptionCount++).toString(36)}`
+      topics.set(identity, topic)
+    }
+    return topic || null
+  }
+
+  /**
+   * A subscription: one per target, function, arguments and callback, held
+   * once however often it is declared (the agent keeps it as a set member,
+   * too).
+   */
+  async _onRemoteEvent ({
+    agent,
+    className,
+    instance,
+    event,
+    callback,
+    functionName,
+    args,
+    position,
+    isCallAll = false
+  }) {
+    const identity = VrpcClient._identity({
+      agent,
+      className,
+      instance,
+      isCallAll,
+      key: this._subscriptionKey(functionName, args, position)
+    })
+    const topic = this._subscriptionTopic(callback, identity)
+    const id = `__e__${topic}`
+    if (this._cachedSubscriptions[topic]) return id
+    const sub = {
+      id,
+      identity,
+      agent,
+      className,
+      instance,
+      event,
+      functionName,
+      callAll: isCallAll,
+      callback,
+      handler: null,
+      declaration: null,
+      confirmed: false,
+      // its agent went offline: declared again once it is back
+      lost: false,
+      // callAll: the instances it was withdrawn at (unsubscribe's instance)
+      withdrawn: new Set()
+    }
+    // an ended notice carries `end` and never reaches the callback; a
+    // callAll event names its instance first
+    sub.handler = ({ a, end }) => {
+      if (end) {
+        this._handleEnded(topic, end)
+        return
+      }
+      if (sub.withdrawn.size > 0 && Array.isArray(a) && sub.withdrawn.has(a[0])) {
+        return
+      }
+      callback.apply(null, a)
+    }
+    this._eventEmitter.on(id, sub.handler)
+    this._cachedSubscriptions[topic] = sub
     return id
   }
 
-  async _offRemoteEvent ({ callback }) {
-    const callbackId = this._getCallbackId(callback, { readOnly: true })
-    if (!callbackId) return null
+  /**
+   * The subscriptions a remover call names, withdrawn locally: the one its
+   * arguments name (offValue(1, cb) undoes onValue(1, cb)), else all of the
+   * callback's subscriptions of that function on the target (offValue(cb)
+   * after onValue(1, cb) and onValue(2, cb)), or of any function when the
+   * remover names none the client knows.
+   */
+  _offRemoteEvent ({
+    agent,
+    className,
+    instance,
+    isCallAll,
+    functionName,
+    args,
+    position,
+    callback
+  }) {
+    const twin = VrpcClient._twinOf(functionName)
+    const exact = this._subscriptionTopic(
+      callback,
+      VrpcClient._identity({
+        agent,
+        className,
+        instance,
+        isCallAll,
+        key: this._subscriptionKey(twin, args, position)
+      }),
+      { readOnly: true }
+    )
+    let subs = exact && this._cachedSubscriptions[exact]
+      ? [this._cachedSubscriptions[exact]]
+      : []
+    if (subs.length === 0) {
+      const ofCallback = Object.values(this._cachedSubscriptions).filter(
+        sub =>
+          sub.callback === callback &&
+          sub.agent === agent &&
+          sub.className === className &&
+          sub.instance === instance &&
+          sub.callAll === !!isCallAll
+      )
+      const ofTwin = ofCallback.filter(
+        sub =>
+          (sub.functionName === 'addListener' ? 'on' : sub.functionName) ===
+          twin
+      )
+      subs = ofTwin.length > 0 ? ofTwin : ofCallback
+    }
+    subs.forEach(sub => this._dropSubscription(sub))
+    return subs
+  }
 
-    let foundId = null
-    const topics = Object.keys(this._cachedSubscriptions)
-
-    topics.forEach(topic => {
-      const id = `__e__${topic}`
-      const sub = this._cachedSubscriptions[topic]
-
-      const index = sub.listeners.findIndex(x => x.callback === callback)
-
-      if (index !== -1) {
-        // Decrease the "reference count" by removing one instance
-        sub.listeners.splice(index, 1)
-
-        // Only remove from the local event emitter if NO references remain
-        if (sub.listeners.length === 0) {
-          delete this._cachedSubscriptions[topic]
-
-          // Cleanly wipe all listeners for this specific id
-          this._eventEmitter.removeAllListeners(id)
-        }
-        foundId = id
+  /**
+   * Ends a subscription locally: no event reaches its callback any more. A
+   * withdrawn or ended subscription also gives up its id (declared anew, it
+   * gets a fresh one); a lost one keeps it (`forget: false`), so declaring
+   * it again matches what an agent that went away and came back still
+   * holds.
+   */
+  _dropSubscription (sub, { forget = true } = {}) {
+    this._eventEmitter.removeListener(sub.id, sub.handler)
+    const topic = sub.id.slice(5)
+    if (this._cachedSubscriptions[topic] === sub) {
+      delete this._cachedSubscriptions[topic]
+    }
+    if (forget) {
+      const topics = this._subscriptionTopics.get(sub.callback)
+      if (topics && topics.get(sub.identity) === topic) {
+        topics.delete(sub.identity)
       }
-    })
-    return foundId
+    }
+  }
+
+  /**
+   * Remembers the call that declared a subscription (to declare it again
+   * after a reconnect) and sends the subscriber labels along.
+   */
+  _declare (json, topic) {
+    const labels = {}
+    let labelled = false
+    for (const arg of json.a) {
+      if (typeof arg !== 'string' || !arg.startsWith('__e__')) continue
+      const sub = this._cachedSubscriptions[arg.slice(5)]
+      if (!sub) continue
+      sub.declaration = { topic, c: json.c, f: json.f, a: json.a }
+      // a declaration names what is wanted now: earlier withdrawals at
+      // single instances are over
+      sub.withdrawn.clear()
+      const label = this._subscriberLabels.get(sub.callback)
+      if (label !== undefined) {
+        labels[arg] = label
+        labelled = true
+      }
+    }
+    if (labelled) {
+      json.l = labels
+      for (const id of Object.keys(labels)) {
+        const sub = this._cachedSubscriptions[id.slice(5)]
+        if (sub && sub.declaration) sub.declaration.l = labels
+      }
+    }
+  }
+
+  // marks the subscriptions among a declaring call's arguments as held
+  _confirmSubscriptions (args) {
+    if (!Array.isArray(args)) return
+    for (const arg of args) {
+      const sub =
+        typeof arg === 'string' &&
+        arg.startsWith('__e__') &&
+        this._cachedSubscriptions[arg.slice(5)]
+      if (sub) sub.confirmed = true
+    }
+  }
+
+  // declares every subscription held towards an agent again (protocol 4)
+  _redeclareTo (agent) {
+    if (!this._inboxReady || !this._redeclare.has(agent)) return
+    const info = this._agents[agent]
+    if (!info || info.status !== 'online') return
+    this._redeclare.delete(agent)
+    if (!(info.v >= 4)) return // an older agent learns nothing new
+    const declarations = new Map()
+    for (const sub of Object.values(this._cachedSubscriptions)) {
+      if (sub.agent !== agent || !sub.declaration) continue
+      const { topic, a } = sub.declaration
+      const key = `${topic}\u0000${JSON.stringify(a)}`
+      if (!declarations.has(key)) {
+        declarations.set(key, { declaration: sub.declaration, subs: [] })
+      }
+      declarations.get(key).subs.push(sub)
+    }
+    for (const { declaration, subs } of declarations.values()) {
+      const { topic, c, f, a, l } = declaration
+      const json = {
+        c,
+        f,
+        a,
+        i: `${this._instance}-${this._invokeId++ % Number.MAX_SAFE_INTEGER}`,
+        s: this._vrpcConnectionId,
+        v: VRPC_PROTOCOL_VERSION
+      }
+      if (l) json.l = l
+      this._mqttPublish(topic, JSON.stringify(json))
+      this._handleAgentAnswer(json, agent).then(
+        () => {
+          const entries = []
+          for (const sub of subs) {
+            if (this._cachedSubscriptions[sub.id.slice(5)] !== sub) continue
+            // a lost subscription is back
+            if (sub.lost) {
+              sub.lost = false
+              this.emit('healed', sub.id, this._subscriptionInfo(sub))
+            }
+            // what was withdrawn at single instances stays withdrawn there
+            for (const context of sub.withdrawn) entries.push({ sub, context })
+          }
+          if (entries.length > 0) return this._sendUnsubscribe(agent, entries)
+        },
+        err => {
+          for (const sub of subs) {
+            if (this._cachedSubscriptions[sub.id.slice(5)] !== sub) continue
+            this._dropSubscription(sub, { forget: false })
+            this.emit('lost', sub.id, err.message, this._subscriptionInfo(sub))
+          }
+        }
+      )
+    }
+  }
+
+  _subscriptionInfo (sub) {
+    return {
+      agent: sub.agent,
+      className: sub.className,
+      instance: sub.instance,
+      functionName: sub.functionName,
+      event: sub.event,
+      callAll: sub.callAll
+    }
+  }
+
+  // the agent ended a registration this subscription was part of
+  _handleEnded (topic, end) {
+    const sub = this._cachedSubscriptions[topic]
+    if (!sub) return
+    const info = {
+      ...this._subscriptionInfo(sub),
+      context: end.context,
+      failed: !!end.failed
+    }
+    // a callAll subscription lives on at the other instances
+    if (!sub.callAll) this._dropSubscription(sub)
+    this.emit('ended', sub.id, end.reason, end.by, info)
   }
 
   _clearCachedSubscriptions ({ lostAgent, lostInstance, agent, className }) {
-    const obsoleteTopics = Object.keys(this._cachedSubscriptions).filter(
-      topic => {
-        const sub = this._cachedSubscriptions[topic]
-        if (lostAgent !== undefined) return sub.agent === lostAgent
-        // Instance ids are unique per agent only: a twin of the same id on
-        // another agent (a deployed app next to its builder) keeps its
-        // subscriptions when this one goes
-        return (
-          sub.instance === lostInstance &&
-          sub.agent === agent &&
-          sub.className === className
-        )
-      }
-    )
-
-    obsoleteTopics.forEach(topic => {
-      const id = `__e__${topic}`
-      this._log.debug(`Clearing subscriptions for obsolete topic: ${topic}`)
-      const sub = this._cachedSubscriptions[topic]
-
-      sub.listeners.forEach(({ handler }) => {
-        this._eventEmitter.removeListener(id, handler)
-      })
-
-      delete this._cachedSubscriptions[topic]
+    const obsolete = Object.values(this._cachedSubscriptions).filter(sub => {
+      if (lostAgent !== undefined) return sub.agent === lostAgent
+      // Instance ids are unique per agent only: a twin of the same id on
+      // another agent (a deployed app next to its builder) keeps its
+      // subscriptions when this one goes
+      return (
+        sub.instance === lostInstance &&
+        sub.agent === agent &&
+        sub.className === className
+      )
+    })
+    const reason = lostAgent !== undefined ? 'agentOffline' : 'instanceGone'
+    obsolete.forEach(sub => {
+      this._log.debug(`Clearing subscription for obsolete topic: ${sub.id}`)
+      this._dropSubscription(sub, { forget: false })
+      this.emit('lost', sub.id, reason, this._subscriptionInfo(sub))
     })
   }
 
@@ -1615,6 +2300,8 @@ class VrpcClient extends EventEmitter {
   }
 
   async _getInstanceData (instance, options) {
+    const own = this._findOwnIsolated(instance, options)
+    if (own) return own
     const instanceData = this._getInstanceFromCache(instance, options)
     if (!instanceData) {
       if (options.noWait) {
@@ -1623,6 +2310,17 @@ class VrpcClient extends EventEmitter {
       return this._waitForInstance(instance, options)
     }
     return instanceData
+  }
+
+  // an isolated instance this connection created, when it is the one match
+  _findOwnIsolated (instance, { agent, className } = {}) {
+    const hits = Array.from(this._ownIsolated.values()).filter(
+      x =>
+        x.instance === instance &&
+        (!agent || agent === '*' || x.agent === agent) &&
+        (!className || x.className === className)
+    )
+    return hits.length === 1 ? { agent: hits[0].agent, className: hits[0].className } : null
   }
 
   _cachedProxy (instance, { agent, className } = {}) {
@@ -1738,6 +2436,55 @@ class VrpcClient extends EventEmitter {
  * @param {String} info.domain - Domain name
  * @param {String} info.agent - Agent name
  * @param {String} info.className - Class name
+ */
+
+/**
+ * Event 'ended'
+ *
+ * Emitted when a registration a subscription held ended for a reason the
+ * subscriber did not cause: its source ended it, or a member did
+ * (`endRegistration`). The subscription is gone; it never reaches the
+ * callback. A callAll subscription lives on at its other instances.
+ *
+ * @event VrpcClient#ended
+ *
+ * @param {String} id - The subscription id
+ * @param {String} reason - Why it ended (an error message when it failed)
+ * @param {String|null} by - Who ended it (`'source'`, or what the member said)
+ * @param {Object} info - The subscription (agent, className, instance,
+ * functionName, event, callAll), `context` (the instance or class) and
+ * `failed`
+ */
+
+/**
+ * Event 'lost'
+ *
+ * Emitted when a subscription is lost: its agent went offline
+ * (`'agentOffline'`), its instance went away (`'instanceGone'`), or a
+ * declaration again failed (the error's message). A subscription on an agent
+ * of protocol 4 that went offline is declared again once the agent is back
+ * ('healed'); every other lost subscription is gone, and declaring it again
+ * is the consumer's.
+ *
+ * @event VrpcClient#lost
+ *
+ * @param {String} id - The subscription id
+ * @param {String} reason - `'agentOffline'`, `'instanceGone'` or an error message
+ * @param {Object} info - The subscription (agent, className, instance,
+ * functionName, event, callAll)
+ */
+
+/**
+ * Event 'healed'
+ *
+ * Emitted when a subscription lost with its agent is back: the agent serves
+ * again and holds it.
+ *
+ * @event VrpcClient#healed
+ *
+ * @param {String} id - The subscription id
+ * @param {Object} info - The subscription (agent, className, instance,
+ * functionName, event, callAll)
  */
 
 /**

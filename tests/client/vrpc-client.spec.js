@@ -249,7 +249,6 @@ describe('vrpc-client', () => {
           className: 'Foo',
           instances: [],
           memberFunctions: [
-            'constructor',
             'increment',
             'reset',
             'callback',
@@ -258,21 +257,14 @@ describe('vrpc-client', () => {
             'onValue',
             'onCheckCallbackIdentity',
             'circularJson',
-            'setMaxListeners',
-            'getMaxListeners',
-            'emit',
+            // an EventEmitter publishes subscribing, withdrawing and once,
+            // never emit or Node's internals (#1837)
             'addListener',
             'on',
-            'prependListener',
             'once',
-            'prependOnceListener',
             'removeListener',
             'off',
-            'removeAllListeners',
-            'listeners',
-            'rawListeners',
-            'listenerCount',
-            'eventNames'
+            'removeAllListeners'
           ],
           // FIXME: Think about hiding the VRPC injected __<function>__ already here
           staticFunctions: [
@@ -280,13 +272,7 @@ describe('vrpc-client', () => {
             'staticResolvePromise',
             'staticRejectPromise',
             'staticCallback',
-            'once',
-            'on',
-            'getEventListeners',
-            'EventEmitter',
-            'setMaxListeners',
-            'init',
-            'listenerCount',
+            // EventEmitter's own statics are no longer published (#1837)
             '__createIsolated__',
             '__createShared__',
             '__callAll__',
@@ -419,10 +405,10 @@ describe('vrpc-client', () => {
         })
         assert.strictEqual(instances.length, 0)
       })
-      // FIXME Explicit deletion of isolated proxies is not yet implemented
-      it.skip('should delete the isolated instances', async () => {
-        const result1 = await client.delete(proxy1)
-        const result2 = await client.delete(proxy2)
+      // no class info lists them: the client remembers what it created
+      it('should delete the isolated instances', async () => {
+        const result1 = await client.delete(proxy1.vrpcInstanceId)
+        const result2 = await client.delete(proxy2.vrpcInstanceId)
         assert.strictEqual(result1, true)
         assert.strictEqual(result2, true)
       })
@@ -470,7 +456,6 @@ describe('vrpc-client', () => {
           className: 'Foo',
           instances: ['instance1'],
           memberFunctions: [
-            'constructor',
             'increment',
             'reset',
             'callback',
@@ -479,21 +464,14 @@ describe('vrpc-client', () => {
             'onValue',
             'onCheckCallbackIdentity',
             'circularJson',
-            'setMaxListeners',
-            'getMaxListeners',
-            'emit',
+            // an EventEmitter publishes subscribing, withdrawing and once,
+            // never emit or Node's internals (#1837)
             'addListener',
             'on',
-            'prependListener',
             'once',
-            'prependOnceListener',
             'removeListener',
             'off',
-            'removeAllListeners',
-            'listeners',
-            'rawListeners',
-            'listenerCount',
-            'eventNames'
+            'removeAllListeners'
           ],
           // FIXME: Think about hiding the VRPC injected __<function>__ already here
           staticFunctions: [
@@ -501,13 +479,7 @@ describe('vrpc-client', () => {
             'staticResolvePromise',
             'staticRejectPromise',
             'staticCallback',
-            'once',
-            'on',
-            'getEventListeners',
-            'EventEmitter',
-            'setMaxListeners',
-            'init',
-            'listenerCount',
+            // EventEmitter's own statics are no longer published (#1837)
             '__createIsolated__',
             '__createShared__',
             '__callAll__',
@@ -702,31 +674,26 @@ describe('vrpc-client', () => {
         emitter.on('boo', booSpy)
         await agent1Foo1.onCheckCallbackIdentity({ emitter, event: 'foo' })
         await new Promise(resolve => setTimeout(resolve, 100))
-        assert(fooSpy.callCount, 1)
+        assert.strictEqual(fooSpy.callCount, 1)
         assert(fooSpy.calledWith('new'))
 
-        // different emitter, same event
+        // one registration per function and arguments (#1837): other
+        // contracts join it, the class is not called again - it greets
+        // only the subscriber present at its one call
         await agent1Foo1.onCheckCallbackIdentity({
           emitter: otherEmitter,
           event: 'foo'
         })
-        await new Promise(resolve => setTimeout(resolve, 100))
-        assert(fooSpy.callCount, 2)
-        assert(fooSpy.calledWith('new'))
-
-        // same emitter, different event
         await agent1Foo1.onCheckCallbackIdentity({ emitter, event: 'boo' })
         await new Promise(resolve => setTimeout(resolve, 100))
-        assert(fooSpy.callCount, 2)
-        assert(booSpy.callCount, 1)
-        assert(booSpy.calledWith('new'))
+        assert.strictEqual(fooSpy.callCount, 1)
+        assert.strictEqual(booSpy.callCount, 0)
 
-        // same emitter, same event
+        // same emitter, same event: the same subscription, nothing new
         await agent1Foo1.onCheckCallbackIdentity({ emitter, event: 'foo' })
         await new Promise(resolve => setTimeout(resolve, 100))
-        assert(fooSpy.callCount, 3)
-        assert(booSpy.callCount, 1)
-        assert(fooSpy.calledWith('existing'))
+        assert.strictEqual(fooSpy.callCount, 1)
+        assert(!fooSpy.calledWith('existing'))
       })
 
       it('should work for asynchronous functions', async () => {
@@ -769,9 +736,10 @@ describe('vrpc-client', () => {
           value.map(({ val }) => val),
           [4, 2]
         )
+        // an instance that succeeded answers no err
         assert.deepStrictEqual(
           value.map(({ err }) => err),
-          [null, null]
+          [undefined, undefined]
         )
         const ids = value.map(({ id }) => id)
         assert(ids.includes('agent1Foo1'))
@@ -787,9 +755,10 @@ describe('vrpc-client', () => {
           value.map(({ val }) => val),
           [3, 3]
         )
+        // an instance that succeeded answers no err
         assert.deepStrictEqual(
           value.map(({ err }) => err),
-          [null, null]
+          [undefined, undefined]
         )
         const ids = value.map(({ id }) => id)
         assert(ids.includes('agent2Foo1'))
@@ -800,9 +769,10 @@ describe('vrpc-client', () => {
           className: 'Foo',
           functionName: 'increment'
         })
+        // an instance that succeeded answers no err
         assert.deepStrictEqual(
           value.map(({ err }) => err),
-          [null, null, null, null]
+          [undefined, undefined, undefined, undefined]
         )
         const ids = value.map(({ id }) => id)
         assert(ids.includes('agent1Foo1'))
@@ -832,9 +802,10 @@ describe('vrpc-client', () => {
           className: 'Foo',
           functionName: 'resolvePromise'
         })
+        // an instance that succeeded answers no err
         assert.deepStrictEqual(
           value.map(({ err }) => err),
-          [null, null, null, null]
+          [undefined, undefined, undefined, undefined]
         )
         const ids = value.map(({ id }) => id)
         assert(ids.includes('agent1Foo1'))
@@ -1016,29 +987,32 @@ describe('vrpc-client', () => {
         assert(valueSpy.calledThrice)
       })
       it('should properly handle multiple "on/off"', async () => {
+        // a subscription is a set member (#1837): declaring it again changes
+        // nothing, withdrawing it once ends it
         const valueSpy = sinon.spy()
         await bar.on('value', valueSpy)
         await bar.on('value', valueSpy)
         await bar.increment()
+        assert.strictEqual(valueSpy.callCount, 1)
+        await bar.increment()
         assert.strictEqual(valueSpy.callCount, 2)
-        await bar.increment()
-        assert.strictEqual(valueSpy.callCount, 4)
         await bar.off('value', valueSpy)
         await bar.increment()
-        assert.strictEqual(valueSpy.callCount, 5)
+        assert.strictEqual(valueSpy.callCount, 2)
         await bar.off('value', valueSpy)
         await bar.increment()
-        assert.strictEqual(valueSpy.callCount, 5)
+        assert.strictEqual(valueSpy.callCount, 2)
       })
       it('should properly handle "removeAllListeners"', async () => {
         const valueSpy = sinon.spy()
         await bar.on('value', valueSpy)
         await bar.on('value', valueSpy)
         await bar.increment()
-        assert.strictEqual(valueSpy.callCount, 2)
+        // one subscription however often declared (#1837)
+        assert.strictEqual(valueSpy.callCount, 1)
         await bar.removeAllListeners('value')
         await bar.increment()
-        assert.strictEqual(valueSpy.callCount, 2)
+        assert.strictEqual(valueSpy.callCount, 1)
       })
     })
     context('multi proxy to single instance', () => {

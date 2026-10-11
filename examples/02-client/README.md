@@ -37,8 +37,9 @@ const { VrpcClient } = require('vrpc')
 async function main() {
   // create a remote client
   const client = new VrpcClient({
-    domain: 'vrpc',
-    agent: `<yourBarAgent>`
+    domain: process.env.VRPC_DOMAIN || 'vrpc',
+    agent: process.env.VRPC_AGENT || '<yourBarAgent>',
+    broker: process.env.VRPC_BROKER // the default broker when not set
   })
 
   // connect it
@@ -55,7 +56,7 @@ async function main() {
   const bar = await client.create({ className: 'Bar' })
 
   // register an event listener
-  await bar.vrpcOn('onRemove', what =>
+  await bar.onRemove(what =>
     console.log(` - Oh, the ${what.name} went empty!`)
   )
 
@@ -107,13 +108,13 @@ main().catch(err => console.log(`An error happened: ${err.message}`))
 
 > **IMPORTANT**
 >
-> Don't forget to replace `<yourBarAgent>` with the name you used while
-> starting the bar agent! See the console output to find it.
+> Tell the client the name of your bar agent - the agent prints it when it
+> starts - either by replacing `<yourBarAgent>` or through `VRPC_AGENT`.
 
 Make sure you have an agent running, then try the client using:
 
 ```bash
-node index.js
+VRPC_AGENT=<yourBarAgent> node index.js
 ```
 
 Convince yourself, that this example works no matter whether you used the C++ or

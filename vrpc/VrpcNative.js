@@ -57,10 +57,15 @@ class VrpcNative {
 
     // register callback handler
     this._adapter.onCallback(data => {
-      // when a javascript VrpcAdapter was used we will receive an object, in
-      // all other cases data will be a string (crossing language boundaries)
-      const json = typeof data === 'string' ? JSON.parse(data) : data
-      this._eventEmitter.emit(json.i, json.a)
+      // the native adapter hands over a string (crossing language
+      // boundaries): a callback or an event `{ a, i }`, or the second answer
+      // of a promise `{ r | e, i }`, which goes on as a whole
+      const json = JSON.parse(data)
+      const { i } = json
+      this._eventEmitter.emit(
+        i,
+        typeof i === 'string' && i.startsWith('__p__') ? json : json.a
+      )
     })
   }
 

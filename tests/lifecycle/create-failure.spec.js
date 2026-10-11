@@ -62,7 +62,6 @@ describe('Failing remote construction', () => {
   it('should leave nothing behind on the agent', async () => {
     expect(VrpcAdapter.getAvailableInstances('Fragile')).to.deep.equal([])
     const phantom = ids => [...ids].some(id => id === undefined || id === null)
-    for (const [, ids] of agent._sharedInstances) expect(phantom(ids)).to.be.false
     for (const [, ids] of agent._isolatedInstances) expect(phantom(ids)).to.be.false
     const topics = Object.keys(agent._client._resubscribeTopics || {})
     expect(topics.some(t => t.includes('/Fragile/undefined/'))).to.be.false

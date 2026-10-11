@@ -3,16 +3,8 @@
 'use strict'
 
 const { ArgumentParser } = require('argparse')
-const crypto = require('crypto')
-const os = require('os')
 const VrpcAgent = require('./VrpcAgent')
 const path = require('path')
-
-function generateAgentName () {
-  const { username } = os.userInfo()
-  const pathId = crypto.createHash('md5').update(path.resolve()).digest('hex').substr(0, 4)
-  return `${username}-${pathId}@${os.hostname()}-${os.platform()}-js`
-}
 
 const parser = new ArgumentParser({
   add_help: true,
@@ -29,9 +21,9 @@ parser.add_argument(
 parser.add_argument(
   ['-a', '--agent'],
   {
-    help: 'Name of the agent for remote addressing',
+    help: 'Name of the agent for remote addressing (default: stable for this installation)',
     type: 'string',
-    default: generateAgentName()
+    default: VrpcAgent._generateAgentName()
   }
 )
 parser.add_argument(
@@ -71,7 +63,7 @@ parser.add_argument(
   {
     help: 'Returns the VRPC version this client was built with.',
     action: 'version',
-    version: 'v2.3.2'
+    version: `v${require('../package.json').version}`
   }
 )
 

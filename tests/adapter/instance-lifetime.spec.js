@@ -202,8 +202,11 @@ for (const [adapterName, Adapter, register] of ADAPTERS) {
       for (const Klass of CLASSES) {
         for (const id of Adapter.getAvailableInstances(Klass.name)) {
           Adapter._instances.delete(id)
-          delete Adapter._listeners[id]
+          Adapter._registrations.forgetContext(id, { release: false })
         }
+        Adapter._registrations.forgetContext(`\u0000${Klass.name}`, {
+          release: false
+        })
         Adapter._functionRegistry.delete(Klass.name)
       }
     })
@@ -371,7 +374,8 @@ for (const [adapterName, Adapter, register] of ADAPTERS) {
         await flush()
         expect(obj.disposed).to.equal(1)
         expect(Adapter.getAvailableInstances('AsyncDisposable')).to.not.include(id)
-        expect(() => call({ c: id, f: 'ping', a: [], s: CLIENT })).to.throw(
+        // answered, not thrown: no caller waits for its timeout
+        expect(call({ c: id, f: 'ping', a: [], s: CLIENT }).e.message).to.match(
           /Could not find context/
         )
         obj.release()

@@ -3,6 +3,7 @@
 /* global describe, it, beforeEach, afterEach */
 const { assert } = require('chai')
 const { VrpcClient, VrpcAgent } = require('../../index')
+const VrpcBrowserAgent = require('../../vrpc/VrpcBrowserAgent')
 const FakeBroker = require('./fakeBroker')
 
 const quiet = { debug () {}, info () {}, warn () {}, error () {} }
@@ -176,39 +177,44 @@ describe('reconnect pacing (vrpc-js#74, heisenware-cloud#1738)', function () {
     })
   })
 
-  describe('a refused agent', () => {
-    let agent
-    beforeEach(async () => {
-      broker = await new FakeBroker({ accept: () => false }).start()
-      agent = new VrpcAgent({
-        broker: broker.url,
-        domain: 'test.vrpc',
-        agent: 'agent1',
-        username: 'does',
-        password: 'not exist',
-        log: quiet
+  for (const [name, Agent] of [
+    ['agent', VrpcAgent],
+    ['browser agent', VrpcBrowserAgent]
+  ]) {
+    describe(`a refused ${name}`, () => {
+      let agent
+      beforeEach(async () => {
+        broker = await new FakeBroker({ accept: () => false }).start()
+        agent = new Agent({
+          broker: broker.url,
+          domain: 'test.vrpc',
+          agent: 'agent1',
+          username: 'does',
+          password: 'not exist',
+          log: quiet
+        })
+        agent.on('error', () => {})
       })
-      agent.on('error', () => {})
-    })
-    afterEach(async () => {
-      await agent.end()
-    })
+      afterEach(async () => {
+        await agent.end()
+      })
 
-    it('waits longer after every refusal', async () => {
-      agent.serve()
-      await sleep(8500)
-      assert.isAtLeast(broker.connects.length, 3, `attempts: ${broker.connects.length}`)
-      assert.isAtMost(broker.connects.length, 5, `attempts: ${broker.connects.length}`)
-    })
+      it('waits longer after every refusal', async () => {
+        agent.serve()
+        await sleep(8500)
+        assert.isAtLeast(broker.connects.length, 3, `attempts: ${broker.connects.length}`)
+        assert.isAtMost(broker.connects.length, 5, `attempts: ${broker.connects.length}`)
+      })
 
-    it('stops trying when ended', async () => {
-      const serving = agent.serve()
-      await until(() => broker.connects.length >= 1, 3000)
-      await agent.end()
-      await serving
-      const attempts = broker.connects.length
-      await sleep(3000)
-      assert.strictEqual(broker.connects.length, attempts)
+      it('stops trying when ended', async () => {
+        const serving = agent.serve()
+        await until(() => broker.connects.length >= 1, 3000)
+        await agent.end()
+        await serving
+        const attempts = broker.connects.length
+        await sleep(3000)
+        assert.strictEqual(broker.connects.length, attempts)
+      })
     })
-  })
+  }
 })

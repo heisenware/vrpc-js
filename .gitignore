@@ -64,3 +64,6 @@ examples/embedded-cpp2/package-lock.json
 
 # editor preview caches
 .crossnote/
+
+# copies the default-name test makes of the package
+tests/agent/.installation-*

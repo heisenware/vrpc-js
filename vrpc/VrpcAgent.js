@@ -2,14 +2,14 @@ const os = require('os')
 const path = require('path')
 const mqtt = require('mqtt')
 const { nanoid } = require('nanoid')
-const { ArgumentParser } = require('argparse')
+const { ArgumentParser, BooleanOptionalAction } = require('argparse')
 const EventEmitter = require('events')
 const jsonStringifySafe = require('json-stringify-safe')
 const VrpcAdapter = require('./VrpcAdapter')
 const SubscribeRetrier = require('./SubscribeRetrier')
 const ReconnectBackoff = require('./ReconnectBackoff')
 
-const VRPC_PROTOCOL_VERSION = 3
+const VRPC_PROTOCOL_VERSION = 4
 
 /**
  * Agent capable of making existing code available to remote control by clients.
@@ -70,8 +70,9 @@ class VrpcAgent extends EventEmitter {
       default: password
     })
     parser.add_argument('--bestEffort', {
-      help: 'Calls function on best-effort. Improves performance but may fail under unstable network connections.',
-      action: 'store_true'
+      help: 'Publishes and subscribes at QoS 0 (the default); --no-bestEffort uses QoS 1, which rides out short connection losses at some cost.',
+      action: BooleanOptionalAction,
+      default: true
     })
     parser.add_argument('-V', '-v', '--userVersion', {
       help: 'User defined agent version. May be checked on the remote side for compatibility checks.',
@@ -82,7 +83,7 @@ class VrpcAgent extends EventEmitter {
     parser.add_argument('--version', {
       help: 'Returns the VRPC version this client was built with.',
       action: 'version',
-      version: 'v2.3.2'
+      version: `v${require('../package.json').version}`
     })
     const args = parser.parse_args()
     return new VrpcAgent(args)
@@ -97,10 +98,12 @@ class VrpcAgent extends EventEmitter {
    * @param {String} [obj.password] MQTT password (if no token is provided)
    * @param {String} [obj.token] Access token
    * @param {String} [obj.domain='vrpc'] The domain under which the agent-provided code is reachable
-   * @param {String} [obj.agent='<user>-<pathId>@<hostname>-<platform>-js'] This agent's name
+   * @param {String} [obj.agent='<user>-<installationId>@<hostname>-<platform>-js'] This agent's name;
+   * the default is stable for the installation (where this vrpc is installed),
+   * however and from wherever the agent is started
    * @param {String} [obj.broker='mqtts://broker.hivemq.com:8883'] Broker url in form: `<scheme>://<host>:<port>`
    * @param {Object} [obj.log=console] Log object (must support debug, info, warn, and error level)
-   * @param {String} [obj.bestEffort=true] If true, message will be sent with best effort, i.e. no caching if offline
+   * @param {Boolean} [obj.bestEffort=true] If true, messages are sent at QoS 0 (best effort), else at QoS 1
    * @param {String} [obj.version=''] The (user-defined) version of this agent
    * @param {String} [obj.mqttClientId='<generated()>'] Explicitly set the mqtt client id.
    * @param {Object} [obj.tls] TLS settings for a secure broker: `{ ca, rejectUnauthorized }`. Without it the broker's certificate is not verified (the historical behaviour); with `ca` the broker must present a chain the given certificates anchor.
@@ -153,9 +156,24 @@ class VrpcAgent extends EventEmitter {
         `Dispose of deleted instance ${className}::${instance} failed: ${error.message}`
       )
     VrpcAdapter.on('disposeFailed', this._handleDisposeFailed)
-    // maps clientId to instanceId
+    // a registration whose release failed is gone from the book anyway
+    this._handleReleaseFailed = ({ context, error, ...rest }) =>
+      this._log.warn(
+        error,
+        `Release of registration ${context}::${rest.function} failed: ${error && error.message}`
+      )
+    VrpcAdapter.on('releaseFailed', this._handleReleaseFailed)
+    // a greeting that failed leaves its subscription in place
+    this._handleGreetFailed = ({ context, error, ...rest }) =>
+      this._log.warn(
+        error,
+        `Greeting of a subscriber to ${context}::${rest.function} failed: ${error && error.message}`
+      )
+    VrpcAdapter.on('greetFailed', this._handleGreetFailed)
+    // connection id -> Set(isolated instance ids it owns)
     this._isolatedInstances = new Map()
-    this._sharedInstances = new Map()
+    // connection ids whose presence is watched (see _watch)
+    this._watched = new Set()
     // refused subscriptions (SUBACK qos=128) are retried until granted
     this._subscribeRetrier = new SubscribeRetrier({
       subscribe: (topics, options) => this._mqttSubscribe(topics, options),
@@ -243,6 +261,8 @@ class VrpcAgent extends EventEmitter {
    */
   async end ({ unregister = false } = {}) {
     VrpcAdapter.off('disposeFailed', this._handleDisposeFailed)
+    VrpcAdapter.off('releaseFailed', this._handleReleaseFailed)
+    VrpcAdapter.off('greetFailed', this._handleGreetFailed)
     this._subscribeRetrier.cancel()
     try {
       if (!this._client || !this._client.connected) {
@@ -264,11 +284,16 @@ class VrpcAgent extends EventEmitter {
         { retain: true }
       )
       if (unregister) {
+        // empty retained messages clear what the broker keeps of this agent
         this._mqttPublish(agentTopic, null, { retain: true })
-        const classes = this._getClasses()
-        for (const className of classes) {
-          const infoTopic = `${this._baseTopic}/${className}/__classInfo__`
-          this._mqttPublish(infoTopic, null, { retain: true })
+        for (const className of this._getClasses()) {
+          for (const info of ['__classInfo__', '__classInfoConcise__']) {
+            this._mqttPublish(
+              `${this._baseTopic}/${className}/${info}`,
+              null,
+              { retain: true }
+            )
+          }
         }
       }
       await new Promise(resolve => this._client.end(false, {}, resolve))
@@ -293,12 +318,13 @@ class VrpcAgent extends EventEmitter {
    * @returns {Object} The real instance (not a proxy!)
    */
   create ({ className, instance = nanoid(8), args = [], isIsolated = false }) {
+    const existed = VrpcAdapter._instances.has(instance)
     const obj = VrpcAdapter.create({ className, instance, args, isIsolated })
     // An agent that is not served yet only collects: once the connection
     // stands, the connect handler subscribes every adapter instance and
     // publishes every class info, so a caller may build its full state
     // before going online and "online" then means "complete"
-    if (this._client && !this._hasSharedInstance(instance)) {
+    if (this._client && !existed) {
       this._subscribeToMethodsOfNewInstance(className, instance)
       this._publishClassInfoMessage(className)
       this._publishClassInfoConciseMessage(className)
@@ -336,10 +362,22 @@ class VrpcAgent extends EventEmitter {
     return options
   }
 
+  /**
+   * The name of an agent nobody named:
+   * `<user>-<installationId>@<hostname>-<platform>-js`. The installation id
+   * stands for where this vrpc is installed (the app's own
+   * `node_modules/vrpc`): the same however and from wherever the agent is
+   * started, different for every installation of a user on a host.
+   */
   static _generateAgentName () {
     const { username } = os.userInfo()
-    const pathId = VrpcAgent._createHash(path.resolve, 4)
-    return `${username}-${pathId}@${os.hostname()}-${os.platform()}-js`
+    const installationId = VrpcAgent._installationId(path.resolve(__dirname, '..'))
+    return `${username}-${installationId}@${os.hostname()}-${os.platform()}-js`
+  }
+
+  // four hex characters standing for an installation directory
+  static _installationId (directory) {
+    return VrpcAgent._createHash(directory, 4)
   }
 
   _generateToken () {
@@ -412,16 +450,19 @@ class VrpcAgent extends EventEmitter {
     this._client.subscribe(
       topic,
       { qos: this._qos, ...options },
-      (err, granted) => {
-        if (err) {
+      (subscribeError, subs) => {
+        const { refused, granted, error } = SubscribeRetrier.outcome(
+          subscribeError,
+          subs
+        )
+        if (error) {
           this._log.warn(
-            `Could not subscribe to topic(s) '${topic}', because: ${err.message}`
+            `Could not subscribe to topic(s) '${topic}', because: ${error.message}`
           )
         } else {
+          let err
           const topicArray = Array.isArray(topic) ? topic : [topic]
-          const erroneousGranted = granted
-            .filter(x => x.qos === 128)
-            .map(x => x.topic)
+          const erroneousGranted = refused
           if (erroneousGranted.length > 0) {
             err = new Error(
               `Could not subscribe all ${topicArray.length} topic(s) but got error qos=128 on following ${erroneousGranted.length} topic(s): ${erroneousGranted}`
@@ -432,9 +473,7 @@ class VrpcAgent extends EventEmitter {
             this.emit('error', err)
             this._subscribeRetrier.schedule(erroneousGranted, options)
           }
-          this._subscribeRetrier.granted(
-            granted.filter(x => x.qos !== 128).map(x => x.topic)
-          )
+          this._subscribeRetrier.granted(granted.map(x => x.topic))
           const reducedQos = granted.filter(x => x.qos < this._qos)
           if (reducedQos.length > 0) {
             err = new Error(
@@ -451,7 +490,7 @@ class VrpcAgent extends EventEmitter {
             this._log.warn(err)
             this.emit('error', err)
           }
-          if (granted.length === 0) {
+          if (granted.length === 0 && refused.length === 0) {
             this._log.debug(`Already subscribed to topic '${topic}'`)
           }
         }
@@ -508,15 +547,23 @@ class VrpcAgent extends EventEmitter {
     })
   }
 
+  /**
+   * Publishes what the adapter sends on its own: a callback or an event
+   * `{ a, i, v }`, the second answer of a promise `{ r | e, i, v }`, an
+   * ended notice `{ i, end, v }`. Events and notices go to the topic their
+   * subscription id names, everything else to the sender.
+   */
   _handleVrpcCallback (json) {
-    const { s, i, r, e, a } = json
+    const { s, i, r, e, a, end } = json
     const topic = i.startsWith('__e__') ? i.slice(5) : s
+    const v = VRPC_PROTOCOL_VERSION
+    let message
+    if (end) message = { i, end, v }
+    else if (a !== undefined) message = { a, i, v }
+    else message = VrpcAgent._answer({ r, e, i })
     try {
       this._log.debug(`Forwarding callback to: ${topic} with payload:`, json)
-      this._mqttPublish(
-        topic,
-        VrpcAgent._stringifySafely({ a, r, e, i, v: VRPC_PROTOCOL_VERSION })
-      )
+      this._mqttPublish(topic, VrpcAgent._stringifySafely(message))
     } catch (err) {
       this._log.warn(
         err,
@@ -525,20 +572,24 @@ class VrpcAgent extends EventEmitter {
     }
   }
 
-  static _stringifySafely (json) {
-    let str
-    const { c, f } = json
+  /**
+   * A message as JSON. Circular structures are cut (json-stringify-safe); a
+   * result JSON cannot carry at all (a BigInt) is answered as an error, and
+   * an event or a callback that cannot travel is dropped (thrown).
+   */
+  static _stringifySafely (message) {
     try {
-      str = jsonStringifySafe(json)
+      return jsonStringifySafe(message)
     } catch (err) {
-      console.error(
-        `Failed serialization of return value for: ${c}::${f}, because: ${err.message}`
-      )
-      json.r = '__vrpc::not-serializable__'
-      str = JSON.stringify(json)
+      if (message.a !== undefined || message.end) throw err
+      return JSON.stringify({
+        e: { message: `The result cannot be encoded as JSON: ${err.message}` },
+        i: message.i,
+        v: message.v
+      })
     }
-    return str
   }
+
 
   /**
    * Serve first, announce second. The request topics - the statics and
@@ -664,19 +715,30 @@ class VrpcAgent extends EventEmitter {
         topics.push(`${this._baseTopic}/${className}/__static__/${func}`)
       })
     })
+    // the subscription protocol (version 4) answers on the static topic of
+    // any class: withdraw by id, list and end registrations
+    for (const func of ['__unsubscribe__', '__registrations__', '__end__']) {
+      topics.push(`${this._baseTopic}/+/__static__/${func}`)
+    }
     return topics
   }
 
   _handleMessage (topic, data) {
+    let json
     try {
-      const json = JSON.parse(data.toString())
+      json = JSON.parse(data.toString())
+    } catch (err) {
+      this._log.warn(`Ignoring a message that is no JSON on: ${topic}`)
+      return
+    }
+    try {
       this._log.debug(`Message arrived with topic: ${topic} and payload:`, json)
       const tokens = topic.split('/')
       const [, , className, instance, method] = tokens
 
       // Special case: clientInfo message
       if (tokens.length === 4 && tokens[3] === '__clientInfo__') {
-        this._handleClientInfoMessage(topic, json)
+        if (VrpcAgent._isObject(json)) this._handleClientInfoMessage(topic, json)
         return
       }
 
@@ -686,71 +748,106 @@ class VrpcAgent extends EventEmitter {
         return
       }
 
+      // the sender names where answers, callbacks and events go: without a
+      // connection id of this domain there is nowhere safe to answer
+      if (!VrpcAgent._isObject(json) || !this._isConnectionId(json.s)) {
+        this._log.warn(`Ignoring a request without a valid sender on: ${topic}`)
+        return
+      }
+
       // Prepare RPC json
       // SECURITY: take as much as possible params from topic structure as this
       // can be authorized by the broker. Content can't be checked...
       json.c = instance === '__static__' ? className : instance
       json.f = method
 
+      // what a lifecycle call works on, as it was before the call
+      const named = Array.isArray(json.a) ? json.a[0] : undefined
+      const before = VrpcAdapter._instances.get(named)
+
       // Mutates json and adds return value
       const mustTrack = VrpcAdapter._call(json)
+      if (mustTrack) this._watch(json.s)
 
-      if (mustTrack) {
-        this._mqttSubscribe(`${json.s}/__clientInfo__`)
-      }
-
-      // Intersecting life-cycle functions
-      switch (method) {
-        case '__createIsolated__': {
-          if (json.e) {
-            // a constructor that threw leaves nothing behind: no instance,
-            // no subscription, no lifetime bookkeeping
-            this._log.warn(
-              `Instantiation of ${className} failed: ${json.e.message}`
-            )
-            break
-          }
-          const instanceId = json.r
-          // TODO await this
-          this._subscribeToMethodsOfNewInstance(className, instanceId)
-          this._registerIsolatedInstance(instanceId, json.s)
-          break
+      if (json.e) {
+        if (method === '__createIsolated__' || method === '__createShared__') {
+          // a constructor that threw leaves nothing behind: no instance, no
+          // subscription, no lifetime bookkeeping
+          this._log.warn(
+            `Instantiation of ${className} failed: ${json.e.message}`
+          )
         }
-        case '__createShared__': {
-          if (json.e) {
-            this._log.warn(
-              `Instantiation of ${className} failed: ${json.e.message}`
-            )
+      } else {
+        switch (method) {
+          case '__createIsolated__':
+            if (!before) this._subscribeToMethodsOfNewInstance(className, json.r)
+            this._registerIsolatedInstance(json.r, json.s)
             break
-          }
-          const instanceId = json.r
-          if (!this._hasSharedInstance(instanceId)) {
-            this._subscribeToMethodsOfNewInstance(className, instanceId)
-            this._publishClassInfoMessage(className)
-            this._publishClassInfoConciseMessage(className)
-          }
-          this._registerSharedInstance(instanceId, json.s)
-          break
-        }
-        case '__delete__': {
-          this._unsubscribeMethodsOfDeletedInstance(className, instance)
-          const wasShared = this._unregisterInstance(json.a[0], json.s)
-          if (wasShared) {
-            this._publishClassInfoMessage(className)
-            this._publishClassInfoConciseMessage(className)
-          }
-          break
+          case '__createShared__':
+            if (!before) {
+              this._subscribeToMethodsOfNewInstance(className, json.r)
+              this._publishClassInfoMessage(className)
+              this._publishClassInfoConciseMessage(className)
+            }
+            // its creator's going is told (clientGone)
+            this._watch(json.s)
+            break
+          case '__delete__':
+            if (before) this._forgetInstance(named, before)
+            break
         }
       }
-      const { a, r, e, i, v } = json
-      const res = e ? { a, r, e, i, v } : { a, r, i, v }
-      this._mqttPublish(json.s, VrpcAgent._stringifySafely(res))
+      this._mqttPublish(json.s, VrpcAgent._stringifySafely(VrpcAgent._answer(json)))
     } catch (err) {
       this._log.error(
         err,
         `Problem while handling incoming message: ${err.message}`
       )
     }
+  }
+
+  /**
+   * The answer to a request: its result `r` or its error `e`, the request's
+   * correlation id `i` and this agent's protocol version - nothing of the
+   * request is echoed.
+   */
+  static _answer ({ r, e, i }) {
+    return e
+      ? { e, i, v: VRPC_PROTOCOL_VERSION }
+      : { r, i, v: VRPC_PROTOCOL_VERSION }
+  }
+
+  static _isObject (json) {
+    return !!json && typeof json === 'object' && !Array.isArray(json)
+  }
+
+  /**
+   * Whether a request's sender is a connection id of this domain:
+   * `<domain>/<mqttClientId>/<secret>`, three levels, none empty or a
+   * wildcard - and never an agent's info topic, the one other topic of
+   * three levels.
+   */
+  _isConnectionId (s) {
+    if (typeof s !== 'string') return false
+    const levels = s.split('/')
+    return (
+      levels.length === 3 &&
+      levels[0] === this._domain &&
+      levels[2] !== '__agentInfo__' &&
+      levels.every(level => level.length > 0 && !/[+#]/.test(level))
+    )
+  }
+
+  /**
+   * Watches a connection's presence while it holds anything here: isolated
+   * instances, subscriptions, shared instances it created. The watch ends
+   * when the connection goes.
+   */
+  _watch (connectionId) {
+    if (this._watched.has(connectionId)) return
+    this._watched.add(connectionId)
+    this._mqttSubscribe(`${connectionId}/__clientInfo__`)
+    this._log.debug(`Tracking lifetime of client: ${connectionId}`)
   }
 
   _handleClientInfoMessage (topic, json) {
@@ -761,6 +858,7 @@ class VrpcAgent extends EventEmitter {
     if (json.status === 'offline') {
       VrpcAdapter._unregisterClient(connectionId)
       const entry = this._isolatedInstances.get(connectionId)
+      this._isolatedInstances.delete(connectionId)
       if (entry) {
         entry.forEach(instanceId => {
           const known = VrpcAdapter._instances.get(instanceId)
@@ -768,7 +866,6 @@ class VrpcAgent extends EventEmitter {
             c: known && known.className,
             f: '__delete__',
             a: [instanceId],
-            r: null,
             s: VrpcAdapter.LOCAL_SENDER
           }
           VrpcAdapter._call(json)
@@ -779,6 +876,9 @@ class VrpcAgent extends EventEmitter {
           }
         })
       }
+      // a connection id is kept across reconnects: whatever the connection
+      // holds after it comes back is watched afresh
+      this._watched.delete(connectionId)
       this._mqttUnsubscribe(`${connectionId}/__clientInfo__`)
       // clientId: the identity-derived id shared by all connections of one
       // identity (undefined for clients < 3.8.0)
@@ -786,73 +886,30 @@ class VrpcAgent extends EventEmitter {
     }
   }
 
-  _registerIsolatedInstance (instanceId, clientId) {
-    const entry = this._isolatedInstances.get(clientId)
-    if (entry) {
-      // already seen
-      entry.add(instanceId)
+  _registerIsolatedInstance (instanceId, connectionId) {
+    const entry = this._isolatedInstances.get(connectionId)
+    if (entry) entry.add(instanceId)
+    else this._isolatedInstances.set(connectionId, new Set([instanceId]))
+    this._watch(connectionId)
+  }
+
+  /**
+   * A deleted instance leaves the agent: no request topic outlives it, an
+   * isolated one leaves its owner's bookkeeping, a shared one leaves its
+   * class info.
+   */
+  _forgetInstance (instanceId, { className, isIsolated, owner }) {
+    this._unsubscribeMethodsOfDeletedInstance(className, instanceId)
+    if (isIsolated) {
+      const entry = this._isolatedInstances.get(owner)
+      if (entry) {
+        entry.delete(instanceId)
+        if (entry.size === 0) this._isolatedInstances.delete(owner)
+      }
     } else {
-      // new instance
-      this._isolatedInstances.set(clientId, new Set([instanceId]))
-      if (!this._sharedInstances.has(clientId)) {
-        this._mqttSubscribe(`${clientId}/__clientInfo__`)
-      }
-      this._log.info(`Tracking lifetime of client: ${clientId}`)
+      this._publishClassInfoMessage(className)
+      this._publishClassInfoConciseMessage(className)
     }
-  }
-
-  _registerSharedInstance (instanceId, clientId) {
-    const entry = this._sharedInstances.get(clientId)
-    if (entry) {
-      // already seen
-      entry.add(instanceId)
-    } else {
-      // new instance
-      this._sharedInstances.set(clientId, new Set([instanceId]))
-      if (!this._isolatedInstances.has(clientId)) {
-        this._mqttSubscribe(`${clientId}/__clientInfo__`)
-      }
-      this._log.debug(`Tracking lifetime of client: ${clientId}`)
-    }
-  }
-
-  _hasSharedInstance (instanceId) {
-    for (const [, instances] of this._sharedInstances) {
-      if (instances.has(instanceId)) return true
-    }
-    return false
-  }
-
-  _unregisterInstance (instanceId, clientId) {
-    const entryIsolated = this._isolatedInstances.get(clientId)
-    if (entryIsolated && entryIsolated.has(instanceId)) {
-      entryIsolated.delete(instanceId)
-      if (entryIsolated.size === 0) {
-        this._isolatedInstances.delete(clientId)
-        this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
-        this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
-      }
-      return false
-    }
-    let found = false
-    this._sharedInstances.forEach(async v => {
-      if (v.has(instanceId)) {
-        found = true
-        v.delete(instanceId)
-        if (v.size === 0) {
-          this._sharedInstances.delete(clientId)
-          this._mqttUnsubscribe(`${clientId}/__clientInfo__`)
-          this._log.debug(`Stopped tracking lifetime of client: ${clientId}`)
-        }
-      }
-    })
-    if (!found) {
-      this._log.info(
-        `Unregistering non-tracked (possibly by agent created) instance: ${instanceId}`
-      )
-      return true
-    }
-    return true
   }
 
   /**

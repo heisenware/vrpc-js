@@ -204,8 +204,8 @@ describe('Instance life-cycle', () => {
         functionName: 'foo'
       })
       assert.deepStrictEqual(result, [
-        { id: 'foo-1', val: 'foo-1', err: null },
-        { id: 'foo-2', val: 'foo-2', err: null }
+        { id: 'foo-1', val: 'foo-1' },
+        { id: 'foo-2', val: 'foo-2' }
       ])
     })
     it('should be possible to call async functions across all instances', async () => {
@@ -214,8 +214,8 @@ describe('Instance life-cycle', () => {
         functionName: 'promisedFoo'
       })
       assert.deepStrictEqual(result, [
-        { id: 'foo-1', val: 'promised-foo-1', err: null },
-        { id: 'foo-2', val: 'promised-foo-2', err: null }
+        { id: 'foo-1', val: 'promised-foo-1' },
+        { id: 'foo-2', val: 'promised-foo-2' }
       ])
     })
   })

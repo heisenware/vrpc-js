@@ -48,21 +48,27 @@ class Bar {
   }
 
   /**
-   * Adds a listener which is triggered whenever a bottle is added.
+   * Calls back whenever a bottle is added.
    *
    * @param {Function(Bottle)} listener
+   * @returns {Registration}
    */
   onAdd (listener) {
     this._emitter.on('add', listener)
+    // undoes exactly this call once nobody listens any more
+    return { [Symbol.dispose]: () => this._emitter.off('add', listener) }
   }
 
   /**
-   * Adds a listener which is triggered whenever a bottle is removed.
+   * Calls back whenever a bottle is removed.
    *
    * @param {Function(Bottle)} listener
+   * @returns {Registration}
    */
   onRemove (listener) {
     this._emitter.on('remove', listener)
+    // undoes exactly this call once nobody listens any more
+    return { [Symbol.dispose]: () => this._emitter.off('remove', listener) }
   }
 
   /**

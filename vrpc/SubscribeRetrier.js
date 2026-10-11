@@ -93,6 +93,39 @@ class SubscribeRetrier {
     this._attempt = 0
   }
 
+  /**
+   * What a SUBACK said, however mqtt.js reports it. mqtt.js 5 turns a
+   * refused topic (reason code 0x80 and up) into an error carrying the
+   * SUBACK packet, and hands back the subscriptions as requested; older
+   * versions answered `qos: 128` in the granted list.
+   *
+   * @param {Error|null} err The subscribe callback's error
+   * @param {Array.<Object>} granted The subscribe callback's `{ topic, qos }`
+   * @returns {Object} `{ refused, granted, error }`: the refused topics, the
+   * granted `{ topic, qos }`, and an error that is no refusal (or null)
+   */
+  static outcome (err, granted) {
+    const subs = Array.isArray(granted) ? granted : []
+    const codes = err && err.packet && Array.isArray(err.packet.granted)
+      ? err.packet.granted
+      : null
+    if (codes) {
+      const refused = []
+      const ok = []
+      subs.forEach(({ topic }, i) => {
+        if ((codes[i] & 0x80) !== 0) refused.push(topic)
+        else ok.push({ topic, qos: codes[i] })
+      })
+      return { refused, granted: ok, error: null }
+    }
+    if (err) return { refused: [], granted: [], error: err }
+    return {
+      refused: subs.filter(x => x.qos === 128).map(x => x.topic),
+      granted: subs.filter(x => x.qos !== 128),
+      error: null
+    }
+  }
+
   _fire () {
     this._timer = null
     this._attempt += 1
