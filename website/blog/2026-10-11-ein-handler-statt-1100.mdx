@@ -1,0 +1,144 @@
+---
+slug: ein-handler-statt-1100
+title: Ein Handler statt 1.100
+description: VRPC 3.15 bringt Protokoll 4. Eine Event-Funktion läuft jetzt genau einmal – egal, wie viele Clients sie abonnieren. Was dahintersteckt und was sich sonst noch ändert.
+date: 2026-10-11T11:59
+authors: [bheisen]
+tags: [release, events, protocol, deutsch]
+image: /img/blog/ein-handler-statt-1100.png
+---
+
+<head>
+  <html lang="de" />
+  <link rel="alternate" hrefLang="en" href="https://vrpc.io/blog/events-that-scale" />
+  <link rel="alternate" hrefLang="de" href="https://vrpc.io/blog/ein-handler-statt-1100" />
+</head>
+
+*[Read in English](/blog/events-that-scale)*
+
+Ein Zähler in einer App auf der Heisenware-Plattform hat sich jede Minute neu
+für sein Event registriert. Aufgefallen ist das niemandem – bis nach 19
+Stunden 1.100 Kopien desselben Handlers an der Instanz hingen und jeder
+einzelne Impuls 1.100-mal verschickt wurde.
+
+Mit VRPC 3.15 ist damit Schluss. Das Release bringt Protokoll 4 und eine
+einfache Regel: **Eine Event-Funktion läuft genau einmal – egal, wie viele
+Clients sie abonnieren.**
+
+{/* truncate */}
+
+## VRPC in drei Sätzen
+
+Mit VRPC werden die Klassen eines Programms aus anderen Programmen heraus
+aufgerufen, als wären sie lokal. Eine Klasse wird bei einem Agenten
+registriert; Clients – ein Backend, ein Browser, ein Gerät – erzeugen davon
+Instanzen, rufen Funktionen auf und abonnieren Events. Alle verbinden sich
+nur ausgehend mit einem MQTT-Broker, deshalb ist auch Code hinter einer
+Firewall erreichbar, und eine API-Schicht braucht es nicht: Die Klasse ist
+die Schnittstelle.
+
+```javascript
+// läuft auf dem Raspberry Pi in der Küche
+const { VrpcAdapter, VrpcAgent } = require('vrpc')
+
+class Sensor { /* read(), onReading(handler) */ }
+
+VrpcAdapter.register(Sensor)
+new VrpcAgent({ domain: 'home', agent: 'pi-kitchen' }).serve()
+```
+
+```javascript
+// läuft überall sonst: im Backend, im Browser
+const { VrpcClient } = require('vrpc')
+
+const client = new VrpcClient({ domain: 'home' })
+await client.connect()
+const sensor = await client.getInstance('kitchen')
+console.log(await sensor.read())
+await sensor.onReading(celsius => chart.add(celsius))
+```
+
+## Registrierung und Subscription sind jetzt zwei Dinge
+
+Bisher landete jeder Aufruf, der ein Event abonnierte, direkt in der
+Event-Funktion der Klasse. Zehn Browser am selben Sensor bedeuteten zehn
+Listener, und jeder Client, der nach einem Verbindungsabbruch neu
+abonnierte, legte noch einen drauf. Protokoll 4 trennt das sauber:
+
+- Die **Registrierung** ist der Aufruf der Event-Funktion – pro Instanz,
+  Funktion und Argumenten genau einmal.
+- Eine **Subscription** steht für einen Client, der die Events bekommen
+  will. Wird doppelt abonniert, ändert sich nichts.
+
+Jedes Event wird vom Agenten an alle Subscriptions einer Registrierung
+verteilt. Verschwindet die letzte Subscription, wird auch die Registrierung
+freigegeben. Zehn Browser an einem Sensor ergeben damit einen Listener statt
+zehn – und an dem Zähler von oben hängt genau einer.
+
+## Aufräumen und begrüßen
+
+Damit klar ist, wie eine Registrierung wieder abgebaut wird, gibt die
+Event-Funktion ein Registrierungsobjekt zurück. Optional steht darin auch,
+wie neue Abonnenten begrüßt werden:
+
+```javascript
+onReading (handler) {
+  this._emitter.on('reading', handler)
+  return {
+    [Symbol.dispose]: () => this._emitter.off('reading', handler),
+    greet: greeting => greeting(this._reading)
+  }
+}
+```
+
+`[Symbol.dispose]` wird aufgerufen, wenn die letzte Subscription weg ist.
+`greet` läuft für jede neue Subscription, auch für die erste. So startet
+jeder Client mit dem aktuellen Messwert und muss nicht auf die nächste
+Änderung warten – auch wenn er erst Stunden später dazukommt.
+
+## Wenn etwas endet oder wegbricht
+
+Endet eine Registrierung, weil die Instanz gelöscht wurde oder die Klasse
+sie beendet, bekommen alle Abonnenten Bescheid: Der Client meldet `ended`,
+und der Handler wird nicht mehr aufgerufen. Geht ein Agent offline, bleiben
+die Subscriptions beim Client erhalten und werden von selbst neu angemeldet,
+sobald der Agent wieder da ist (`lost`, danach `healed`). Neu aufgebaut
+werden muss nichts.
+
+## Was sich sonst noch tut
+
+- **Schlankere Antworten:** Eine Antwort enthält nur noch das Ergebnis. Die
+  Argumente werden nicht mehr zurückgeschickt; große Argumente gingen bisher
+  zweimal übers Netz.
+- **`callAll` mit Auswahl:** Mit `instances: 'line-3*'` werden nur die
+  passenden Instanzen aufgerufen, mit einer einzigen Anfrage pro Agent.
+  `agent: 'edge-*'` fragt alle passenden Agenten gleichzeitig.
+- **Aufrufbar ist nur, was veröffentlicht ist:** `emit` und private
+  Hilfsfunktionen ließen sich bisher mit einer selbst gebauten Anfrage
+  erreichen. Das ist vorbei, und mit `@private` im JSDoc bleibt eine Funktion
+  ebenfalls intern.
+- **Jede Anfrage wird beantwortet**, und Fehler kommen einheitlich als
+  `{ message, cause }`.
+
+## Schwarz auf weiß
+
+Protokoll 4 ist in der [Protokollspezifikation](/docs/spec/protocol) Regel
+für Regel festgehalten – nummeriert, und jeder Test nennt die Regel, die er
+prüft. Die Spezifikation gilt für alle VRPC-Implementierungen. Die
+Portierungen für C++, Python und Arduino sprechen noch Protokoll 3, und das
+funktioniert weiterhin: Ein Agent ab 3.15 bedient auch ältere Clients, und
+umgekehrt.
+
+## Ausprobieren
+
+```bash
+npm install vrpc@3.15
+```
+
+Die Dokumentation ist auf Englisch. Mit [Getting started](/docs/getting-started)
+läuft das erste Beispiel in zehn Minuten, [Events](/docs/concepts/events)
+erklärt das Modell, und im
+[Changelog](https://github.com/heisenware/vrpc-js/blob/master/CHANGELOG.md)
+steht jede Änderung. Wenn dir VRPC Boilerplate erspart, freuen wir uns über
+einen [Stern auf GitHub](https://github.com/heisenware/vrpc-js) – damit es
+auch andere finden.
