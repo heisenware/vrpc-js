@@ -38,7 +38,21 @@ module.exports = {
           // before Docusaurus resolves .md links: links leaving docs/ go to GitHub
           beforeDefaultRemarkPlugins: [require('./plugins/remark-repo-links')]
         },
-        blog: false,
+        // news and stories, in English and German: a German post sets its
+        // own language and links to its English twin (hreflang)
+        blog: {
+          path: 'blog',
+          routeBasePath: 'blog',
+          blogTitle: 'VRPC blog',
+          blogDescription: 'News and stories from VRPC: remote objects over MQTT',
+          showReadingTime: true,
+          feedOptions: {
+            type: ['rss', 'atom'],
+            title: 'VRPC blog',
+            copyright: 'Copyright © 2018 Heisenware GmbH'
+          },
+          onUntruncatedBlogPosts: 'throw'
+        },
         theme: { customCss: require.resolve('./src/css/custom.css') }
       })
     ]
@@ -50,7 +64,7 @@ module.exports = {
       '@easyops-cn/docusaurus-search-local',
       {
         hashed: true,
-        indexBlog: false,
+        indexBlog: true,
         docsDir: '../docs',
         docsRouteBasePath: 'docs',
         highlightSearchTermsOnTargetPage: true
@@ -95,6 +109,8 @@ module.exports = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      // the preview a shared link shows, unless a page brings its own
+      image: 'img/social-card.png',
       colorMode: { defaultMode: 'light', respectPrefersColorScheme: true },
       navbar: {
         // the logo alone; its alt text names it for screen readers
@@ -104,6 +120,7 @@ module.exports = {
           { to: '/docs/getting-started', label: 'Getting started', position: 'left' },
           { to: '/docs/reference', label: 'API', position: 'left' },
           { to: '/docs/spec/protocol', label: 'Protocol', position: 'left' },
+          { to: '/blog', label: 'Blog', position: 'left' },
           { type: 'custom-githubStar', position: 'right' }
         ]
       },
@@ -131,6 +148,7 @@ module.exports = {
           {
             title: 'More',
             items: [
+              { label: 'Blog', to: '/blog' },
               { label: 'Changelog', href: `${github}/blob/master/CHANGELOG.md` },
               { label: 'Heisenware', href: 'https://heisenware.com' }
             ]

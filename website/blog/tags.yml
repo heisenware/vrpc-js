@@ -1,0 +1,12 @@
+release:
+  label: Release
+  description: New versions of VRPC
+events:
+  label: Events
+  description: Event functions, registrations and subscriptions
+protocol:
+  label: Protocol
+  description: The VRPC protocol and its versions
+deutsch:
+  label: Deutsch
+  description: Beiträge auf Deutsch

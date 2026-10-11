@@ -1,0 +1,134 @@
+---
+slug: events-that-scale
+title: Events that scale
+description: VRPC 3.15 brings protocol 4. An event function runs once, however many clients listen - why that matters, and what else changed.
+date: 2026-10-11T12:00
+authors: [bheisen]
+tags: [release, events, protocol]
+image: /img/blog/events-that-scale.png
+---
+
+<head>
+  <link rel="alternate" hrefLang="en" href="https://vrpc.io/blog/events-that-scale" />
+  <link rel="alternate" hrefLang="de" href="https://vrpc.io/blog/events-die-skalieren" />
+</head>
+
+*[Auf Deutsch lesen](/blog/events-die-skalieren)*
+
+In an app on the Heisenware platform, a counter registered its event handler
+again once a minute. Nothing in between knew it was the same listener. After 19 hours
+the instance held 1,100 copies of one handler, and every pulse of the
+counter went out 1,100 times.
+
+VRPC 3.15 ends that for good. It brings protocol 4, and with it a simple
+rule: **an event function runs once, however many listen.**
+
+{/* truncate */}
+
+## What VRPC is
+
+VRPC makes the classes of one program callable from others, as if they were
+local. You register a class with an agent; any client - a backend service, a
+browser, a device - creates instances of it, calls their functions and
+listens to their events. Agents and clients only connect out to an MQTT
+broker, so code behind a firewall is reachable, and there is no API layer to
+write: the class is the contract.
+
+```javascript
+// on the Raspberry Pi in the kitchen
+const { VrpcAdapter, VrpcAgent } = require('vrpc')
+
+class Sensor { /* read(), onReading(handler) */ }
+
+VrpcAdapter.register(Sensor)
+new VrpcAgent({ domain: 'home', agent: 'pi-kitchen' }).serve()
+```
+
+```javascript
+// anywhere else: a backend, a browser
+const { VrpcClient } = require('vrpc')
+
+const client = new VrpcClient({ domain: 'home' })
+await client.connect()
+const sensor = await client.getInstance('kitchen')
+console.log(await sensor.read())
+await sensor.onReading(celsius => chart.add(celsius))
+```
+
+## One registration, many subscriptions
+
+Before 3.15, every subscribing call reached the class's event function anew.
+Ten browsers on one sensor meant ten listeners on it, and a client that
+subscribed again after a hiccup added one more. Protocol 4 separates two
+things:
+
+- A **registration** is the one call of an event function, for one
+  instance, function and arguments. The agent makes it once.
+- A **subscription** is one listener's wish to receive those events.
+  Subscriptions are sets: declaring one again changes nothing.
+
+The agent hands every event of a registration to all of its subscriptions,
+and releases the registration when the last subscription leaves. Ten
+browsers on one sensor are one listener on the emitter, not ten - and the
+counter from above holds exactly one.
+
+## Tell VRPC how to undo it
+
+An event function returns a registration object. It says how to release the
+registration, and optionally how to greet a newcomer:
+
+```javascript
+onReading (handler) {
+  this._emitter.on('reading', handler)
+  return {
+    [Symbol.dispose]: () => this._emitter.off('reading', handler),
+    greet: greeting => greeting(this._reading)
+  }
+}
+```
+
+`[Symbol.dispose]` runs when the last subscriber leaves. `greet` runs for
+every new subscriber, the first one included, so each one starts with the
+current reading instead of waiting for the next change - however late it
+joins.
+
+## Ends are told, losses heal
+
+A registration can end: its instance is deleted, or the class ends it. Every
+subscriber is told, and the client emits `ended` instead of calling the
+handler again. When an agent goes offline, the client keeps its
+subscriptions there and declares them again once the agent is back - it
+emits `lost`, then `healed`, and nobody has to rebuild anything.
+
+## Fewer bytes, fewer requests, fewer surprises
+
+- **Answers carry only what a call yielded.** They no longer echo the
+  arguments, which made a large argument cross the network twice.
+- **`callAll` selects instances.** `instances: 'line-3*'` calls those alone,
+  in one request per agent however many instances it holds, and
+  `agent: 'edge-*'` asks all matching agents at once.
+- **Only what a class publishes can be called.** `emit` and private helpers
+  were reachable with a hand-made request; now they are not, and `@private`
+  in the JSDoc keeps a function inside as well.
+- **Every request that reaches an agent is answered**, and errors travel as
+  `{ message, cause }`.
+
+## Written down
+
+Protocol 4 is specified rule by rule in the
+[protocol specification](/docs/spec/protocol): numbered rules, and tests
+that name the rule they check. It binds every VRPC implementation. The C++,
+Python and Arduino ports speak protocol 3 today, and that keeps working: a
+3.15 agent serves older clients, and a 3.15 client talks to older agents.
+
+## Try it
+
+```bash
+npm install vrpc@3.15
+```
+
+[Getting started](/docs/getting-started) takes ten minutes,
+[Events](/docs/concepts/events) explains the model, and the
+[changelog](https://github.com/heisenware/vrpc-js/blob/master/CHANGELOG.md)
+lists every change. If VRPC saves you some boilerplate, a
+[star on GitHub](https://github.com/heisenware/vrpc-js) helps others find it.
