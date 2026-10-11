@@ -1,0 +1,894 @@
+/* The home page, in Heisenware's palette (see custom.css): blue spruce for
+   what VRPC does, copper for what comes back, carbon ink on a light grey
+   page - and the same roles on carbon in the dark. */
+
+:root {
+  --home-page: #f4f4f4;
+  --home-surface: #ffffff;
+  --home-sunken: #f8f9f9;
+  --home-line: #dbdbdb;
+  --home-line-strong: #bfc2c4;
+  --home-ink: #212529;
+  --home-muted: #5a6168;
+  --home-faint: #7c838a;
+  --home-brand: #0f8170;
+  --home-brand-hover: #0f695c;
+  --home-brand-ink: #0f8170;
+  --home-brand-soft: #e7f2f1;
+  --home-copper: #b87333;
+  --home-copper-ink: #8b5523;
+  --home-copper-soft: #f9efe7;
+  --home-shadow: 0 1px 2px rgba(33, 37, 41, 0.05), 0 12px 32px rgba(33, 37, 41, 0.07);
+  --home-logo-shadow: rgba(15, 82, 72, 0.3);
+  --tok-kw: #0f695c;
+  --tok-fn: #8b5523;
+  --tok-str: #137a3d;
+  --tok-num: #b87333;
+  --tok-com: #7c838a;
+  --tok-op: #5a6168;
+}
+
+[data-theme='dark'] {
+  --home-page: #17191c;
+  --home-surface: #212529;
+  --home-sunken: #1c2023;
+  --home-line: #383d43;
+  --home-line-strong: #4b5258;
+  --home-ink: #ebedef;
+  --home-muted: #adb3b8;
+  --home-faint: #7e858b;
+  --home-brand-hover: #1a9381;
+  --home-brand-ink: #59c0b0;
+  --home-brand-soft: #153732;
+  --home-copper-ink: #dfa168;
+  --home-copper-soft: #3d2b1a;
+  --home-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.25);
+  --home-logo-shadow: rgba(0, 0, 0, 0.55);
+  --tok-kw: #59c0b0;
+  --tok-fn: #dfa168;
+  --tok-str: #4fc37e;
+  --tok-num: #dfa168;
+  --tok-com: #7e858b;
+  --tok-op: #adb3b8;
+}
+
+.vrpc-home-wrapper {
+  background: var(--home-page);
+}
+
+.vrpc-home {
+  color: var(--home-ink);
+  padding-inline: 24px;
+  padding-block: 0 112px;
+}
+
+.vrpc-home h1,
+.vrpc-home h2,
+.vrpc-home h3 {
+  color: var(--home-ink);
+  margin: 0;
+}
+
+.vrpc-home p {
+  margin: 0;
+}
+
+.vrpc-home code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* ---- the journey of the V -------------------------------------------- */
+
+.logo-journey {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* the V in flight: its canvas, and a soft shadow on the floor below it */
+.logo-flight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  transform-origin: 0 0;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform;
+}
+
+.logo-journey.is-live .logo-flight {
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+.logo-canvas {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.logo-floor {
+  position: absolute;
+  left: 27%;
+  right: 27%;
+  bottom: 5%;
+  height: 8%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--home-logo-shadow), transparent);
+}
+
+.logo-slot {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+}
+
+.logo-still {
+  position: absolute;
+  inset: 13%;
+  width: 74%;
+  height: 74%;
+  filter: drop-shadow(0 14px 14px var(--home-logo-shadow));
+  transition: opacity 0.3s ease;
+}
+
+.logo-journey.is-live .logo-still {
+  opacity: 0;
+}
+
+/* ---- hero -------------------------------------------------------------- */
+
+.home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  align-items: center;
+  gap: 40px;
+  padding-block: 72px 32px;
+}
+
+.home-hero__copy {
+  display: grid;
+  gap: 22px;
+  justify-items: start;
+}
+
+/* the main message: what VRPC is, in copper */
+.hero-badge {
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--home-copper) 40%, transparent);
+  border-radius: 999px;
+  background: var(--home-copper-soft);
+  color: var(--home-copper-ink);
+  font: 600 0.8rem/1 var(--ifm-font-family-monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.home-hero h1 {
+  font-size: clamp(2.6rem, 5.6vw, 4.6rem);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.hero-dot {
+  color: var(--home-brand);
+}
+
+.home-hero .subtitle {
+  font-size: 1.15rem;
+  line-height: 1.65;
+  color: var(--home-muted);
+  max-width: 36em;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.vrpc-home .btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 22px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.vrpc-home .btn:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.vrpc-home .btn:focus-visible {
+  outline: 2px solid var(--home-brand);
+  outline-offset: 2px;
+}
+
+.vrpc-home .btn-primary {
+  background: var(--home-brand);
+  color: #ffffff;
+}
+
+.vrpc-home .btn-primary:hover {
+  background: var(--home-brand-hover);
+  color: #ffffff;
+}
+
+.vrpc-home .btn-secondary {
+  background: var(--home-surface);
+  border-color: var(--home-line);
+  color: var(--home-ink);
+}
+
+.vrpc-home .btn-secondary:hover {
+  border-color: var(--home-line-strong);
+  color: var(--home-ink);
+}
+
+.logo-slot--hero {
+  max-width: 440px;
+  justify-self: center;
+}
+
+/* ---- the call story ---------------------------------------------------- */
+
+.section-head {
+  display: grid;
+  gap: 12px;
+  max-width: 46rem;
+}
+
+.eyebrow {
+  font: 600 0.72rem/1 var(--ifm-font-family-monospace);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--home-copper-ink);
+}
+
+.section-head h2 {
+  font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.section-head p {
+  color: var(--home-muted);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.call-story {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px;
+  padding-block: 88px 0;
+}
+
+.call-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px minmax(0, 1fr);
+  align-items: center;
+  gap: 32px;
+}
+
+.call-card {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  background: var(--home-surface);
+  border: 1px solid var(--home-line);
+  border-radius: 12px;
+  box-shadow: var(--home-shadow);
+  overflow: hidden;
+}
+
+.call-card__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--home-sunken);
+  border-bottom: 1px solid var(--home-line);
+  font-size: 0.8rem;
+}
+
+.call-card__file {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 600;
+}
+
+.call-card__where {
+  color: var(--home-faint);
+}
+
+.vrpc-home .call-card__code {
+  margin: 0;
+  padding: 12px 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: var(--home-ink);
+  overflow-x: auto;
+}
+
+.call-card__code .line {
+  display: block;
+  padding: 0 16px 0 13px;
+  border-left: 3px solid transparent;
+  white-space: pre;
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+.call-card__code .line.is-active {
+  background: var(--home-brand-soft);
+  border-left-color: var(--home-brand);
+}
+
+.line-note {
+  color: var(--home-copper-ink);
+  font-weight: 600;
+  animation: note-in 0.35s ease;
+}
+
+@keyframes note-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.tok-kw {
+  color: var(--tok-kw);
+  font-weight: 600;
+}
+.tok-fn {
+  color: var(--tok-fn);
+}
+.tok-str {
+  color: var(--tok-str);
+}
+.tok-num {
+  color: var(--tok-num);
+}
+.tok-com {
+  color: var(--tok-com);
+}
+.tok-op {
+  color: var(--tok-op);
+}
+
+.logo-slot--call {
+  z-index: 1;
+  width: 190px;
+  justify-self: center;
+}
+
+.logo-slot__label {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  font: 600 0.68rem/1 var(--ifm-font-family-monospace);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--home-faint);
+  white-space: nowrap;
+  padding: 3px 8px;
+  background: var(--home-page);
+}
+
+.call-wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.call-wires .wire {
+  fill: none;
+  stroke: var(--home-line-strong);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 5;
+}
+
+.pulse {
+  color: var(--home-brand);
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
+.pulse--answer {
+  color: var(--home-copper);
+}
+
+.pulse circle {
+  fill: currentColor;
+}
+
+/* one grid for both rows, so that the messages start in one column; the
+   topic column fits the longest topic of the story (--topic, in ch) */
+.wire-log {
+  display: grid;
+  grid-template-columns: 1.2em var(--topic, max-content) minmax(0, 1fr);
+  gap: 8px 12px;
+  padding: 14px 18px;
+  background: var(--home-surface);
+  border: 1px solid var(--home-line);
+  border-radius: 12px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+}
+
+.wire-log__label {
+  grid-column: 1 / -1;
+  font: 600 0.68rem/1 var(--ifm-font-family-monospace);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--home-faint);
+}
+
+.wire-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+.wire-row.is-on {
+  opacity: 1;
+}
+
+.wire-row__dir {
+  font-weight: 700;
+}
+
+.wire-row--out .wire-row__dir {
+  color: var(--home-brand);
+}
+
+.wire-row--in .wire-row__dir {
+  color: var(--home-copper);
+}
+
+.vrpc-home .wire-row code {
+  font-family: var(--ifm-font-family-monospace);
+  overflow-wrap: anywhere;
+}
+
+.wire-row__topic {
+  color: var(--home-muted);
+  white-space: nowrap;
+}
+
+/* ---- compared ---------------------------------------------------------- */
+
+.compare-section {
+  max-width: 1200px;
+  margin: 120px auto 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.compare-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 24px 22px;
+  background: var(--home-surface);
+  border: 1px solid var(--home-line);
+  border-radius: 12px;
+}
+
+.compare-card h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.compare-card p {
+  color: var(--home-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.compare-card strong {
+  color: var(--home-ink);
+  font-weight: 600;
+}
+
+.vrpc-home .compare-card code {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.9em;
+  color: var(--home-ink);
+}
+
+.compare-note {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* ---- in short ---------------------------------------------------------- */
+
+.proof-section {
+  max-width: 1200px;
+  margin: 96px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 40px;
+}
+
+.proof-item {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding-block: 24px 28px;
+  border-top: 1px solid var(--home-line);
+}
+
+.proof-item__value {
+  color: var(--home-brand-ink);
+  font-size: clamp(1.6rem, 2.6vw, 2.1rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.proof-item p {
+  color: var(--home-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  max-width: 26em;
+}
+
+.proof-item a {
+  color: var(--home-brand-ink);
+  font-weight: 600;
+}
+
+/* ---- the live demo ----------------------------------------------------- */
+
+/* single columns that never grow past the screen: long code scrolls in its block */
+.demo-section {
+  max-width: 1200px;
+  margin: 120px auto 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 48px;
+}
+
+.demo-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.step-number {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--home-brand-soft);
+  color: var(--home-brand-ink);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.step-header h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.code-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-self: start;
+  padding: 5px;
+  background: var(--home-surface);
+  border: 1px solid var(--home-line);
+  border-radius: 14px;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--home-muted);
+  font: 500 0.9rem var(--ifm-font-family-base);
+  cursor: pointer;
+}
+
+.tab-btn:hover {
+  color: var(--home-ink);
+}
+
+.tab-btn:focus-visible {
+  outline: 2px solid var(--home-brand);
+  outline-offset: 1px;
+}
+
+.tab-btn.active {
+  background: var(--home-brand-soft);
+  color: var(--home-brand-ink);
+}
+
+.tab-logo {
+  height: 16px;
+  width: auto;
+  opacity: 0.55;
+  filter: grayscale(1);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.tab-btn.active .tab-logo {
+  opacity: 1;
+  filter: none;
+}
+
+.demo-row .theme-code-block {
+  margin-bottom: 0;
+}
+
+.snippet-more {
+  border: 1px solid var(--home-line);
+  border-radius: 8px;
+  background: var(--home-surface);
+}
+
+.snippet-more summary {
+  padding: 10px 16px;
+  font: 600 0.85rem var(--ifm-font-family-monospace);
+  cursor: pointer;
+}
+
+.snippet-more .theme-code-block {
+  margin: 0;
+  border-radius: 0 0 8px 8px;
+}
+
+/* the radar */
+.radar-box {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px;
+  background: var(--home-surface);
+  border: 1px solid var(--home-line);
+  border-radius: 12px;
+  box-shadow: var(--home-shadow);
+}
+
+.radar-box.loading {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 200px;
+  color: var(--home-muted);
+}
+
+.radar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.radar-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.05rem;
+}
+
+.vrpc-home .badge {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--home-brand-soft);
+  color: var(--home-brand-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.radar-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  color: var(--home-muted);
+}
+
+.radar-controls input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--home-sunken);
+  border: 1px solid var(--home-line);
+  border-radius: 8px;
+  color: var(--home-ink);
+  font: inherit;
+}
+
+.radar-controls input:focus {
+  outline: 2px solid var(--home-brand);
+  border-color: transparent;
+}
+
+.agent-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--home-sunken);
+  border: 1px solid var(--home-line);
+  border-radius: 8px;
+}
+
+.agent-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  color: var(--home-muted);
+  overflow-wrap: anywhere;
+}
+
+.send-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--home-brand);
+  color: #ffffff;
+  font: 600 0.85rem var(--ifm-font-family-base);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.send-btn:hover {
+  background: var(--home-brand-hover);
+}
+
+.spin {
+  animation: spin 2s linear infinite;
+}
+
+.pulse-icon {
+  color: var(--home-brand-ink);
+  animation: breathe 2.5s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ---- narrower screens -------------------------------------------------- */
+
+@media (max-width: 1100px) {
+  .compare-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 996px) {
+  .home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding-block: 32px 16px;
+    gap: 16px;
+  }
+
+  .logo-slot--hero {
+    order: -1;
+    max-width: 260px;
+  }
+
+  .call-stage {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 56px;
+  }
+
+  .logo-slot--call {
+    width: 150px;
+  }
+
+  .proof-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wire-log {
+    grid-template-columns: 1.2em minmax(0, 1fr);
+  }
+
+  .wire-row__payload {
+    grid-column: 2;
+  }
+
+  .wire-row__topic {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 600px) {
+  .vrpc-home {
+    padding-inline: 16px;
+  }
+
+  .vrpc-home .call-card__code {
+    font-size: 0.72rem;
+  }
+
+  .compare-grid,
+  .proof-section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .pulse-icon,
+  .line-note {
+    animation: none;
+  }
+
+  .vrpc-home .btn:hover {
+    transform: none;
+  }
+}

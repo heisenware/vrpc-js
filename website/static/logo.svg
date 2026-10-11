@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 340">
+  <title>VRPC</title>
+  <!-- a V in perspective: the front face, the two sides you see, the caps -->
+  <path id="side" fill="#095247" d="M313 10 338 15 223 316 192 327Z"/>
+  <path id="inner" fill="#57a89c" d="M80 15 117 20 188 232 155 238Z"/>
+  <path id="front" fill="#0f8170" d="M2 18 80 15 155 238 228 12 313 10 192 327 120 324Z"/>
+  <path id="caps" fill="#87c7bd" d="M2 18 80 15 82 21 4 24ZM228 12 313 10 311 16 226 18Z"/>
+</svg>

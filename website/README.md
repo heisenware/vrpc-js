@@ -1,16 +1,42 @@
-# React + Vite
+# vrpc.io
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The VRPC website, built with [Docusaurus](https://docusaurus.io). Its
+documentation is the repository's [docs/](../docs) folder, rendered as it is:
+write and fix documentation there, not here. This folder holds only the home
+page, the theme and the configuration.
 
-Currently, two official plugins are available:
+```bash
+npm install
+npm start          # http://localhost:3000, reloads on changes to ../docs too
+npm run build      # into build/; fails on a broken link or anchor
+npm run serve      # serves build/
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## How it fits together
 
-## React Compiler
+| File | Does |
+| --- | --- |
+| `docusaurus.config.js` | site, navbar, footer, search; docs come from `../docs` |
+| `sidebars.js` | the documentation's navigation; add a new page here |
+| `plugins/remark-repo-links.js` | links from docs/ to files elsewhere in the repository (README, changelog, examples) go to GitHub |
+| `src/pages/index.jsx`, `src/css/home.css` | the home page |
+| `src/components/LogoJourney.jsx`, `logo3d.js` | the 3D V: it floats in the hero and settles in the call story as you scroll (three.js, loaded after the page) |
+| `src/components/CallStory.jsx` | the animated call between a client and an agent, with its messages on the wire |
+| `src/components/LiveDemo.jsx`, `LiveRadar.jsx` | the home page's live demo, a VRPC client in the browser |
+| `src/components/GitHubStar.jsx`, `src/theme/NavbarItem/ComponentTypes.js` | the navbar's star button (`custom-githubStar`): live star count, and a thank-you when the visitor comes back from GitHub |
+| `src/css/custom.css` | Heisenware's palette and fonts for the whole site |
+| `src/clientModules/fonts.js` | Inter and JetBrains Mono, served from vrpc.io itself |
+| `static/` | the logo, favicons, language logos, the `CNAME` of vrpc.io |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The pages of the documentation work on GitHub as well as here: they link to
+each other with relative `.md` paths. `npm run check:links` in the repository
+root checks them without building the site.
 
-## Expanding the ESLint configuration
+The API reference in `docs/reference/` is generated from the JSDoc by
+`npm run build:doc` in the repository root.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Deployment
+
+[.github/workflows/deploy-website.yml](../.github/workflows/deploy-website.yml)
+builds the site for every pull request that touches `docs/` or `website/`,
+and deploys it to GitHub Pages from master.

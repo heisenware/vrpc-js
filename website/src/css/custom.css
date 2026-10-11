@@ -1,0 +1,267 @@
+/* VRPC wears Heisenware's palette: blue spruce #0f8170, alabaster grey
+   #dbdbdb, carbon black #212529, copper #b87333 - light by default, on
+   carbon in the dark (the tokens of heisenware-cloud's manager). */
+
+:root {
+  --ifm-color-primary: #0f8170;
+  --ifm-color-primary-dark: #0e7465;
+  --ifm-color-primary-darker: #0d6e5f;
+  --ifm-color-primary-darkest: #0b5a4e;
+  --ifm-color-primary-light: #118e7b;
+  --ifm-color-primary-lighter: #129480;
+  --ifm-color-primary-lightest: #14a38e;
+  --ifm-font-color-base: #212529;
+  --ifm-heading-color: #212529;
+  --ifm-color-emphasis-300: #dbdbdb;
+  --ifm-toc-border-color: #dbdbdb;
+  --ifm-hr-border-color: #dbdbdb;
+  --ifm-font-family-base: 'Inter Variable', Inter, 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ifm-heading-font-weight: 700;
+  --ifm-code-font-size: 90%;
+  --ifm-navbar-shadow: 0 1px 0 #dbdbdb;
+  --ifm-footer-background-color: #212529;
+  --docusaurus-highlighted-code-line-bg: rgba(15, 129, 112, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #59c0b0;
+  --ifm-color-primary-dark: #46b7a6;
+  --ifm-color-primary-darker: #42ad9c;
+  --ifm-color-primary-darkest: #368f81;
+  --ifm-color-primary-light: #6ac6b8;
+  --ifm-color-primary-lighter: #72c9bc;
+  --ifm-color-primary-lightest: #8bd3c8;
+  --ifm-background-color: #17191c;
+  --ifm-background-surface-color: #212529;
+  --ifm-font-color-base: #ebedef;
+  --ifm-heading-color: #ebedef;
+  --ifm-color-emphasis-300: #383d43;
+  --ifm-toc-border-color: #383d43;
+  --ifm-hr-border-color: #383d43;
+  --ifm-navbar-shadow: 0 1px 0 #383d43;
+  --ifm-footer-background-color: #1c2023;
+  --docusaurus-highlighted-code-line-bg: rgba(89, 192, 176, 0.14);
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+}
+
+/* tables of the documentation read better a little tighter */
+.markdown table {
+  font-size: 0.92rem;
+}
+
+/* the docs' menu, a step below the text and above the table of contents */
+.theme-doc-sidebar-menu {
+  --ifm-menu-link-padding-vertical: 0.3rem;
+  font-size: 0.875rem;
+}
+
+/* the logo, as far from the first link as the links are from each other */
+.navbar__logo {
+  margin-right: 0;
+}
+
+.navbar__brand {
+  margin-right: 0.75rem;
+}
+
+/* code reads as typed: no ligatures turning => into an arrow */
+code,
+pre,
+kbd {
+  font-variant-ligatures: none;
+}
+
+/* ---- the star button of the navbar ------------------------------------ */
+
+:root {
+  --star-copper: #b87333;
+  --star-copper-ink: #8b5523;
+  --star-copper-soft: #f9efe7;
+  --star-on-copper: #ffffff;
+}
+
+[data-theme='dark'] {
+  --star-copper-ink: #dfa168;
+  --star-copper-soft: #3d2b1a;
+  --star-on-copper: #17191c;
+}
+
+.star-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  color: var(--ifm-font-color-base);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.star-button:hover {
+  border-color: var(--star-copper);
+  background: var(--star-copper-soft);
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+}
+
+.star-button:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+
+.star-button__mark {
+  width: 16px;
+  height: 16px;
+}
+
+.star-button__icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.star-button__star {
+  display: inline-block;
+  color: var(--star-copper);
+  font-size: 0.95rem;
+  transition: transform 0.2s ease;
+}
+
+.star-button:hover .star-button__star {
+  transform: rotate(-12deg) scale(1.15);
+}
+
+.star-button__count {
+  padding-left: 8px;
+  border-left: 1px solid var(--ifm-color-emphasis-300);
+  color: var(--ifm-color-emphasis-700);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the thank-you: the star pops, stars fly out of it, a bubble says it */
+.star-button.is-thanked .star-button__star {
+  animation: star-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes star-pop {
+  40% {
+    transform: scale(1.8) rotate(-18deg);
+  }
+}
+
+.star-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+}
+
+.star-burst span {
+  position: absolute;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--star-copper);
+  opacity: 0;
+  animation: star-fly 0.9s ease-out forwards;
+}
+
+.star-burst span:nth-child(even) {
+  font-size: 8px;
+  color: var(--ifm-color-primary);
+}
+
+@keyframes star-fly {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(0) scale(0.4);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-30px) scale(1);
+  }
+}
+
+.star-thanks {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  z-index: 10;
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: var(--star-copper-ink);
+  color: var(--star-on-copper);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(33, 37, 41, 0.18);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: thanks 2.6s ease forwards;
+}
+
+.star-thanks::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+@keyframes thanks {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -6px) scale(0.9);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  82% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -3px);
+  }
+}
+
+/* on phones it is in the menu, as the other links */
+@media (max-width: 996px) {
+  .star-button {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star-burst {
+    display: none;
+  }
+
+  .star-button.is-thanked .star-button__star,
+  .star-button:hover .star-button__star {
+    animation: none;
+    transform: none;
+  }
+
+  .star-thanks {
+    animation: none;
+  }
+}
