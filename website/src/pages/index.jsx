@@ -292,7 +292,7 @@ export default function Home () {
 
   return (
     <Layout
-      title='Call classes in other programs as if they were local'
+      title='Remote objects over MQTT'
       description='VRPC makes the classes of Node.js, C++, Python and Arduino programs callable from any other program, over MQTT, without an API layer.'
       wrapperClassName='vrpc-home-wrapper'
     >

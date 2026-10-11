@@ -8,7 +8,7 @@ const github = 'https://github.com/heisenware/vrpc-js'
 /** @type {import('@docusaurus/types').Config} */
 module.exports = {
   title: 'VRPC',
-  tagline: 'Call classes in other programs as if they were local',
+  tagline: 'Remote objects over MQTT',
   url: 'https://vrpc.io',
   baseUrl: '/',
   trailingSlash: false,
