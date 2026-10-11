@@ -3,58 +3,75 @@
 Having worked on IoT projects for more than a decade I always felt a pain to
 interconnect software pieces running on different hardware and using different
 programming technologies. I was really missing a simple communication library
-that could do that all.
+that could do that all. With the initial successes the idea turned into
+something bigger, big enough for me to dedicate my entire working time to it
+and drive it professionally as [Heisenware GmbH](https://heisenware.com).
 
-With the advent of C++11, finally there was a possibility to achieve that. With
-the initial successes the idea turned into something bigger, big enough for me
-to dedicate my entire working time to that project and professionally drive it
-in form of the newly founded [Heisenware GmbH](https://heisenware.com).
+Here is how to contribute without unnecessary work or disappointment.
 
-To make it as easy as possible for you to contribute and for me to keep an
-overview, here are a few guidelines which should help us avoid all kinds of
-unnecessary work or disappointment.
+## Reporting
 
-## Private reports
+- **Bugs, API inconsistencies, weak documentation:** open an
+  [issue](https://github.com/heisenware/vrpc-js/issues/new/choose) with the
+  [bug template](.github/ISSUE_TEMPLATE/bug.md). Say how to reproduce it -
+  ideally with a complete example - and what you expected instead.
+- **Features:** open an issue describing what you need, with an example of
+  how the improved code would look. Please do not open pull requests for
+  features: we cannot review them in time yet, and want to spare you the
+  frustration.
+- **Security issues:** never in public; see [SECURITY.md](SECURITY.md).
 
-Usually, all issues are tracked publicly on
-[GitHub](https://github.com/heisenware/vrpc/issues). If you want to make a
-private report (e.g., for a vulnerability or to attach an example that is not
-meant to be published), please send an email to
-<burkhard.heisen@heisenware.com>.
+## Pull requests
 
-## Prerequisites
+Small pull requests that fix a bug, or the documentation, are welcome. A
+pull request:
 
-Please [create an issue](https://github.com/heisenware/vrpc/issues/new/choose),
-assuming one does not already exist, and describe your concern. Note you need a
-[GitHub account](https://github.com/signup/free) for this.
+- comes with a test that fails without it;
+- changes the documentation in the same pull request when it changes
+  behaviour - the [documentation map](docs/README.md) says where things
+  belong;
+- adds an entry to the top section of [CHANGELOG.md](CHANGELOG.md);
+- keeps `npm test` and `npm run check:links` passing.
 
-## Describe your issue
+## Development
 
-Clearly describe the issue:
+You need Node.js 18 or newer, and Docker for two of the test suites.
 
-- If it is a bug, please describe how to **reproduce** it. If possible, attach a
-  complete example which demonstrates the error. Please also state what you
-  **expected** to happen instead of the error.
-- If you propose a change or addition, try to give an **example** how the
-  improved code could look like or how to use it.
-- If you found a compilation error, please tell us which **compiler** (version
-  and operating system) you used and paste the (relevant part of) the error
-  messages to the ticket.
+```bash
+npm install
+npm run test:adapter         # in-process, seconds
+npm run test:subscriptions   # agent and client over an in-process broker
+npm run test:examples        # the examples, as a reader runs them
+npm run test:reconnect       # reconnect pacing against a fake broker
+npm run test:agent           # Docker: agent against Mosquitto
+npm run test:client          # Docker: client against agents and Mosquitto
+npm test                     # everything
+```
 
-Please stick to the provided issue templates ([bug report](https://github.com/heisenware/vrpc/blob/master/.github/ISSUE_TEMPLATE/bug.md)
-or [feature request](https://github.com/heisenware/vrpc/blob/master/.github/ISSUE_TEMPLATE/feature.md)
-if possible.
+`test:persistor`, `test:lifecycle` and `test:production` use the public
+broker unless `VRPC_TEST_BROKER` names another. A local one is faster and
+more reliable: `docker run -p 1883:1883 eclipse-mosquitto:1.6.12`, then
+`VRPC_TEST_BROKER=mqtt://localhost:1883 npm test`.
 
-## Please don't
+Other scripts:
 
-Please do not open pull requests for new features, but rather only report
-about things you would find useful using a [feature request](https://github.com/heisenware/vrpc/blob/master/.github/ISSUE_TEMPLATE/feature.md).
-We are not (yet) having the capacities to manage external feature suggestions in
-a timely fashion and want to avoid frustration.
+| Script | Does |
+| --- | --- |
+| `npm run build:doc` | regenerates the [API reference](docs/reference/README.md) from the JSDoc |
+| `npm run build:browser` | rebuilds the browser bundle `browser/vrpc.js` |
+| `npm run check:links` | checks every relative link and anchor of the documentation |
 
-## Wanted
+To see the documentation as [vrpc.io](https://vrpc.io) shows it, run
+`npm install && npm start` in [website/](website/README.md).
 
-The following areas really need contribution:
+## Changing the protocol
 
-- Reporting about any bugs, API inconsistencies or documentation weaknesses.
-- Provisioning of **small** pull requests that would fix such bugs.
+The [protocol specification](docs/spec/protocol.md) binds every VRPC
+implementation. A change to what travels on the wire:
+
+- changes or adds a numbered rule there (never re-using an identifier),
+  and its "Changes" appendix;
+- comes with tests that name the rule they check, like
+  `tests/subscriptions/wire.spec.js`;
+- keeps peers of the previous protocol version working, or says in section
+  13 why it cannot.

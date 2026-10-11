@@ -1,126 +1,149 @@
-# VRPC JavaScript / Node.js
+# VRPC for JavaScript
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![npm version](https://img.shields.io/npm/v/vrpc.svg)](https://www.npmjs.com/package/vrpc)
 
-**Stop writing API boilerplate.** VRPC (Variadic Remote Procedure Call) allows you to call Node.js, C++, Python, and Arduino classes across any network as if they were local objects. Perfect for microservices, IoT backends, and directly driving React frontends—without the need for REST, GraphQL, or WebSocket boilerplate.
+**Call classes in other programs as if they were local.** VRPC (Variadic
+Remote Procedure Call) makes the classes of a Node.js, C++, Python or
+Arduino program callable from any other program - a backend service, a
+browser, a device - across any network, without REST routes, schemas or
+WebSocket plumbing.
 
-This repository provides both the **Agent** (to expose your Node.js code) and the **Client** (to seamlessly control remote code from Node.js, the browser, or React/Vue applications).
+This package is VRPC for JavaScript: the **agent** that offers your Node.js
+or browser code, and the **client** that uses remote code from Node.js or
+the browser.
 
----
+## Why VRPC
 
-## Why VRPC for JavaScript?
+- **No API layer.** Register a class and its functions are callable
+  remotely: instances, static functions, promises, callbacks and errors work
+  as they do locally.
+- **Events that scale.** Many clients can listen to the same events; the
+  agent calls your event function once, hands every event to every
+  listener, greets newcomers with the current state, and cleans up when the
+  last one leaves.
+- **Reaches everything.** Built on MQTT: agents and clients only connect out
+  to a broker, so code behind firewalls and NATs is reachable, and
+  connections that break come back by themselves.
+- **One protocol, several languages.** A browser can call a C++ agent; a
+  Python service can listen to a Node.js agent.
 
-- **Zero Boilerplate:** No Express routers, no OpenAPI schemas, and no payload parsing. Just register your ES6 class, and VRPC instantly makes its asynchronous methods remotely callable. Promises are handled natively!
-- **Native Event Proxies:** Don't just fetch data—stream it. VRPC transparently proxies Node.js `EventEmitter` instances and standard callbacks across the network. When your backend emits an event, your React UI updates instantly.
-- **MQTT-Powered NAT Traversal:** Built on top of robust MQTT, agents make outbound connections to your broker. No CORS headaches, no complex reverse proxies, and perfect resilience on unstable networks.
-- **Universal Client:** The exact same client code works in Node.js microservices and in the browser. Easily build real-time dashboards that directly control distributed backend services.
-
-## Installation
-
-Install VRPC via npm or yarn:
+## Install
 
 ```bash
 npm install vrpc
-# or
-yarn add vrpc
 ```
 
-## Quick Start
+## Quick start
 
-With VRPC, making a Node.js class remotely accessible and consuming it from a frontend requires almost zero API code.
-
-### 1. Write and Expose your Backend Class (Agent)
+Offer a class from one program - the **agent**:
 
 ```javascript
-// backend.js
-const { VrpcAdapter, VrpcAgent } = require('vrpc')
+// agent.js
 const EventEmitter = require('events')
+const { VrpcAdapter, VrpcAgent } = require('vrpc')
 
-// A standard ES6 Class using Promises and EventEmitters
 class Sensor extends EventEmitter {
-  constructor(sensorId) {
+  constructor (id) {
     super()
-    this.id = sensorId
-
-    // Simulate real-time data
-    setInterval(() => {
-      this.emit('data', { id: this.id, value: Math.random() })
-    }, 1000)
+    this._timer = setInterval(() => this.emit('data', { id, value: Math.random() }), 1000)
   }
 
-  async calibrate() {
-    console.log(`Calibrating sensor ${this.id}...`)
+  async calibrate () {
     return true
   }
+
+  [Symbol.dispose] () {
+    clearInterval(this._timer)   // released when the instance is deleted
+  }
 }
 
-// 1. Register the class
 VrpcAdapter.register(Sensor)
 
-// 2. Start the Agent
-const agent = new VrpcAgent({
-  domain: 'my_domain',
-  agent: 'sensor_backend',
-  broker: 'mqtts://broker.hivemq.com:8883'
-})
-
-agent.serve().then(() => console.log('Backend is online!'))
+new VrpcAgent({ domain: 'my-domain', agent: 'sensors' })
+  .serve()
+  .then(() => console.log('Agent is serving'))
 ```
 
-### 2. Control it from your Frontend / Microservice (Client)
-
-Once your Node.js agent is running, you can interact with it transparently from any VRPC client (Browser or Node.js):
+Use it from another - the **client**, in Node.js or a browser:
 
 ```javascript
-// frontend.js (or React component)
-import { VrpcClient } from 'vrpc'
+// client.js
+const { VrpcClient } = require('vrpc')
 
-async function run() {
-  const client = new VrpcClient({
-    domain: 'my_domain',
-    broker: 'mqtts://broker.hivemq.com:8883'
-  })
-
+async function main () {
+  const client = new VrpcClient({ domain: 'my-domain' })
   await client.connect()
 
-  // Create a remote instance of your Node.js class
   const sensor = await client.create({
-    agent: 'sensor_backend',
+    agent: 'sensors',
     className: 'Sensor',
-    args: ['living-room-sensor']
+    instance: 'living-room',
+    args: ['living-room']
   })
 
-  // Call functions natively (Promises are automatically resolved)
-  const isCalibrated = await sensor.calibrate()
-  console.log(`Calibration successful: ${isCalibrated}`)
-
-  // Listen to remote EventEmitters across the network!
-  await sensor.on('data', reading => {
-    console.log(`New reading from ${reading.id}: ${reading.value}`)
-  })
+  console.log('calibrated:', await sensor.calibrate())
+  await sensor.on('data', ({ id, value }) => console.log(id, value))
 }
 
-run()
+main()
 ```
 
-## The VRPC Ecosystem
+Both connect to a public test broker by default; use a domain of your own,
+and your own broker for anything real. The
+[tutorial](docs/getting-started.md) takes it further in ten minutes.
 
-Write your performance-critical code in **C++**, your data-science scripts in **Python**, your business logic in **Node.js**, and your IoT firmware on **Arduino**. Call them all identically.
+## Event functions
 
-- [VRPC for C++](https://github.com/heisenware/vrpc-cpp)
-- [VRPC for Python](https://github.com/heisenware/vrpc-py)
-- [VRPC for Arduino / ESP32](https://github.com/heisenware/vrpc-arduino)
-- [VRPC for React](https://github.com/heisenware/vrpc-react)
+A function that calls a handler again and again returns a **registration**
+that tells the agent how to undo the call, and optionally how to greet a new
+listener:
+
+```javascript
+/**
+ * Calls back with every reading, beginning with the current one
+ * @param {Function} handler
+ * @returns {Registration}
+ */
+onReading (handler) {
+  this._emitter.on('reading', handler)
+  return {
+    [Symbol.dispose]: () => this._emitter.off('reading', handler),
+    greet: greeting => greeting(this._reading)
+  }
+}
+```
+
+The agent calls it once, however many clients subscribe, and releases it
+when the last one leaves. See [Events](docs/concepts/events.md) and
+[Writing event functions](docs/guides/event-functions.md).
 
 ## Documentation
 
-For detailed API references, React hooks (`react-vrpc`), advanced schema validation, and architecture overviews, please visit our official documentation at **[vrpc.io/docs](https://vrpc.io/docs)**.
+- [Getting started](docs/getting-started.md) - a ten-minute tutorial
+- [How VRPC works](docs/concepts/overview.md), [Instances](docs/concepts/instances.md),
+  [Calls](docs/concepts/calls.md), [Events](docs/concepts/events.md)
+- Guides: [offering classes](docs/guides/expose-classes.md),
+  [the browser](docs/guides/browser-and-react.md),
+  [persistence](docs/guides/persistence.md),
+  [security](docs/guides/security.md), [production](docs/guides/production.md),
+  [troubleshooting](docs/guides/troubleshooting.md)
+- [API reference](docs/reference/README.md)
+- [Protocol specification](docs/spec/protocol.md), for every VRPC implementation
+- [All documentation](docs/README.md), and [vrpc.io](https://vrpc.io)
 
-## Contributing
+## The VRPC family
 
-Contributions are welcome! Whether it's reporting a bug, proposing a new feature, or submitting a pull request, we'd love your help to make VRPC even better. Please read our [Contributing Guidelines](CONTRIBUTING.md) to get started.
+- [vrpc-hpp](https://github.com/heisenware/vrpc-hpp) - C++
+- [vrpc-py](https://github.com/heisenware/vrpc-py) - Python
+- [vrpc-arduino](https://github.com/heisenware/vrpc-arduino) - Arduino and ESP32
+- [vrpc-react](https://github.com/heisenware/vrpc-react) - React hooks
+
+## Contributing and security
+
+Bug reports and small fixes are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+Report security issues privately, as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-VRPC is released under the [MIT License](LICENSE).
+[MIT](LICENSE)

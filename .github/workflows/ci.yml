@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - run: npm install
+      - run: npm run check:links
       - run: npm run test:adapter
       - run: npm run test:subscriptions
       - run: npm run test:examples
