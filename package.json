@@ -1,7 +1,7 @@
 {
   "name": "vrpc",
   "version": "3.15.0",
-  "description": "Variadic Remote Procedure Calls",
+  "description": "Remote objects over MQTT: call classes in other programs as if they were local - Node.js, browser, C++, Python, Arduino",
   "main": "index.js",
   "directories": {
     "example": "examples",
@@ -31,27 +31,32 @@
     "vrpc-agent-js": "./vrpc/vrpc-agent-js"
   },
   "keywords": [
-    "communication",
-    "iot",
-    "mqtt",
-    "edge-to-cloud",
     "rpc",
-    "remote procedural calls",
-    "language binding",
-    "C++",
-    "C++ embedding",
-    "header-only"
+    "mqtt",
+    "remote objects",
+    "remote procedure call",
+    "mqtt-rpc",
+    "iot",
+    "edge-to-cloud",
+    "events",
+    "microservices",
+    "browser",
+    "react",
+    "arduino",
+    "esp32",
+    "python",
+    "c++"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/heisenware/vrpc.git"
+    "url": "git+https://github.com/heisenware/vrpc-js.git"
   },
   "author": "Burkhard C. Heisen <burkhard.heisen@heisenware.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/heisenware/vrpc/issues"
+    "url": "https://github.com/heisenware/vrpc-js/issues"
   },
-  "homepage": "https://docs.heisenware.com/developers/vrpc",
+  "homepage": "https://vrpc.io",
   "devDependencies": {
     "@heisenware/storage": "^3.0.2",
     "assert": "^2.1.0",
