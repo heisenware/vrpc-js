@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import Layout from '@theme/Layout'
 import Link from '@docusaurus/Link'
 import BrowserOnly from '@docusaurus/BrowserOnly'
+import { usePluginData } from '@docusaurus/useGlobalData'
 import CodeBlock from '@theme/CodeBlock'
 import LogoJourney from '../components/LogoJourney'
 import CallStory from '../components/CallStory'
@@ -221,7 +222,8 @@ function SnippetFiles ({ files }) {
 
 // What visitors weigh VRPC against. Every statement about another product
 // must be true when the site is published: objective and verifiable.
-const ALTERNATIVES = [
+// `rules` is the number of rules of the protocol spec (plugins/spec-facts).
+const alternatives = rules => [
   {
     name: 'REST or gRPC?',
     text: (
@@ -239,7 +241,7 @@ const ALTERNATIVES = [
       <>
         Then you write the RPC layer: matching answers to requests, timeouts,
         errors, discovery, knowing who still listens. VRPC is that layer,{' '}
-        <strong>finished, tested and specified in 88 rules</strong>.
+        <strong>finished, tested and specified in {rules} rules</strong>.
       </>
     )
   },
@@ -266,12 +268,12 @@ const ALTERNATIVES = [
 ]
 
 // What VRPC stands on, in short
-const PROOF = [
+const proof = rules => [
   { value: '0 lines of IDL', text: 'Your classes are the interface: no schemas, routes or code generators.' },
   { value: '0 open ports', text: 'on your devices: agents and clients only connect out, to the broker.' },
   { value: '1 broker', text: 'The MQTT broker you already run, such as Mosquitto or HiveMQ.' },
   { value: '5 platforms', text: 'Node.js, React, Python, C++ and Arduino, speaking one protocol.' },
-  { value: '88 rules', text: 'A written protocol, and tests that name the rules they check.' },
+  { value: `${rules} rules`, text: 'A written protocol, and tests that name the rules they check.' },
   {
     value: 'In production',
     text: (
@@ -289,6 +291,7 @@ const PROOF = [
 export default function Home () {
   const [activeTab, setActiveTab] = useState('javascript')
   const activeSnippet = snippets[activeTab]
+  const { rules } = usePluginData('spec-facts')
 
   return (
     <Layout
@@ -333,7 +336,7 @@ export default function Home () {
             <h2>Why not just use…</h2>
           </div>
           <div className='compare-grid'>
-            {ALTERNATIVES.map(({ name, text }) => (
+            {alternatives(rules).map(({ name, text }) => (
               <article key={name} className='compare-card'>
                 <h3>{name}</h3>
                 <p>{text}</p>
@@ -347,7 +350,7 @@ export default function Home () {
         </section>
 
         <section className='proof-section' aria-label='VRPC in short'>
-          {PROOF.map(({ value, text }) => (
+          {proof(rules).map(({ value, text }) => (
             <div key={value} className='proof-item'>
               <strong className='proof-item__value'>{value}</strong>
               <p>{text}</p>

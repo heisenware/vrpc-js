@@ -61,6 +61,8 @@ module.exports = {
   clientModules: [require.resolve('./src/clientModules/fonts.js')],
 
   plugins: [
+    // the number of protocol rules and other facts the home page states
+    require.resolve('./plugins/spec-facts.js'),
     // The live demo uses the browser bundle of vrpc, also in the server
     // build; the Node entry would pull the native addon sources in
     () => ({
