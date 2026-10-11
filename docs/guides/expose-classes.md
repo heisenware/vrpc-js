@@ -40,8 +40,8 @@ The agent publishes - and clients can call - exactly:
 - the class's **member functions**: the methods of its prototype chain,
   inherited ones included;
 - its **static functions**;
-- not functions whose name begins with `_` (register with
-  `{ onlyPublic: false }` to publish them);
+- not functions whose name begins with `_`, nor, when the agent reads the
+  class's JSDoc, functions tagged `@private` (see below);
 - not `constructor`: clients construct through `client.create()`;
 - for a class that extends `EventEmitter`: `on`, `addListener`, `off`,
   `removeListener`, `once` and `removeAllListeners`, but never `emit` or
@@ -50,6 +50,23 @@ The agent publishes - and clients can call - exactly:
 A function an instance only gets at run time (assigned in the constructor,
 say) is not published. Nothing that is not published can be reached: a
 request for it fails with `Could not find function`.
+
+### Keep a function inside
+
+Three ways keep a function off the network, the strongest first:
+
+| Write | What it is | When it holds |
+| --- | --- | --- |
+| `#calibrate () {}` | a private method of JavaScript itself | always: the language hides it from everything outside the class, the agent included |
+| `_calibrate () {}` | a name beginning with `_` | unless you register with `{ onlyPublic: false }` |
+| `@private` in its JSDoc (or `@access private`) | a documentation tag | when the agent reads the class's JSDoc: registered by path, or with `jsdocPath` |
+
+`@private` hides nothing when the agent does not read the JSDoc - after a
+plain `VrpcAdapter.register(Press)`, and always in the browser, where there
+is no source to read. For a function that must never be reached, use `#`.
+A tag counts for the class it is written in, static or member as it is
+declared, and a hidden function's documentation stays inside the agent, too.
+`{ onlyPublic: false }` publishes the `_` and `@private` functions as well.
 
 ## Document it
 

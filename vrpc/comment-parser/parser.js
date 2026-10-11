@@ -189,11 +189,19 @@ function parse_block (source, opts) {
 /**
  * Produces `extract` function with internal state initialized
  */
+// A class declaration: `class Name`, also exported or assigned to module.exports
+const CLASS_DECLARATION = /^(\s*)(?:export\s+(?:default\s+)?)?(?:module\.exports\s*=\s*)?class\s+([\w$]+)/
+
 function mkextract (opts) {
   let chunk = null
   let indent = 0
   let number = 0
   let findMethod = false
+  // the class whose body the lines are in: its name and the indentation of
+  // its declaration; a function indented deeper belongs to it
+  let scope = null
+  // whether the lines are inside a /** ... */ block
+  let commentOpen = false
 
   opts = Object.assign({}, {
     trim: true,
@@ -216,6 +224,14 @@ function mkextract (opts) {
     let result = null
     const startPos = line.indexOf(MARKER_START)
     const endPos = line.indexOf(MARKER_END)
+
+    // in the code: where a class begins, and where its body ends
+    if (!commentOpen && startPos === -1) {
+      const declared = line.match(CLASS_DECLARATION)
+      const closing = scope && line.match(/^(\s*)\}/)
+      if (declared) scope = { name: declared[2], indent: declared[1].length }
+      else if (closing && closing[1].length === scope.indent) scope = null
+    }
 
     // if open marker detected and it's not, skip one
     if (startPos !== -1 && line.indexOf(MARKER_START_SKIP) !== startPos) {
@@ -247,6 +263,9 @@ function mkextract (opts) {
       if (ret) {
         result = parse_block(chunk, opts)
         result.functionName = ret[1]
+        result.isStatic = /^\s*static\s/.test(line)
+        const depth = line.match(/^\s*/)[0].length
+        result.className = scope && depth > scope.indent ? scope.name : null
         findMethod = false
       }
     }
@@ -292,6 +311,9 @@ function mkextract (opts) {
       }
     }
 
+    if (startPos !== -1) commentOpen = true
+    if (endPos !== -1) commentOpen = false
+
     number += 1
     return result
   }
@@ -316,3 +338,4 @@ module.exports = function parse (source, opts) {
 
 module.exports.PARSERS = PARSERS
 module.exports.mkextract = mkextract
+module.exports.CLASS_DECLARATION = CLASS_DECLARATION

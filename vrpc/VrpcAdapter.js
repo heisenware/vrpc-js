@@ -98,14 +98,16 @@ class VrpcAdapter {
    * @param {Any} code Existing code to be registered, can be a class
    * or function object or a relative path to a module
    * @param {Object} [options]
-   * @param {Boolean} [options.onlyPublic=true] If true, only registers
-   * functions that do not begin with an underscore
+   * @param {Boolean} [options.onlyPublic=true] If true, only registers public
+   * functions: none whose name begins with an underscore, and - when the
+   * JSDoc is read - none tagged `@private` or `@access private`
    * @param {Boolean} [options.withNew=true] If true, class will be constructed
    * using the `new` operator
    * @param {Object} [options.schema=null] If provided is used to validate ctor
    * parameters (only works if registered code reflects a single class)
-   * @param {String} options.jsdocPath if provided, parses documentation and
-   * provides it as meta information
+   * @param {String} [options.jsdocPath] if provided, parses documentation and
+   * provides it as meta information; a code given by path has its JSDoc read
+   * without
    *
    * NOTE: This function currently only supports registration of classes (either
    * when provided as object or when exported on the provided module path)
@@ -136,8 +138,9 @@ class VrpcAdapter {
    * @param {Object} options
    * @param {String} options.className Class name of the instance
    * @param {String} options.instance Name of the instance
-   * @param {Boolean} [options.onlyPublic=true] If true, only registers
-   * functions that do not begin with an underscore
+   * @param {Boolean} [options.onlyPublic=true] If true, only registers public
+   * functions: none whose name begins with an underscore, and - when the
+   * JSDoc is read - none tagged `@private` or `@access private`
    * @param {String} [options.jsdocPath] if provided, parses documentation and
    * provides it as meta information
    */
@@ -145,18 +148,17 @@ class VrpcAdapter {
     obj,
     { className, instance, jsdocPath, onlyPublic = true } = {}
   ) {
-    let memberFunctions = VrpcAdapter._extractMemberFunctions(obj)
-    if (onlyPublic) {
-      memberFunctions = memberFunctions.filter(f => {
-        return !f.startsWith('_')
-      })
-    }
-    let meta = null
+    let docs = null
     if (jsdocPath) {
       const absJsdocPath = path.resolve(caller(), '../', jsdocPath)
       const content = fs.readFileSync(absJsdocPath).toString('utf8')
-      meta = this._parseComments(content)
+      docs = VrpcAdapter._readDocs(content, obj.constructor && obj.constructor.name)
     }
+    let memberFunctions = VrpcAdapter._extractMemberFunctions(obj)
+    if (onlyPublic) {
+      memberFunctions = VrpcAdapter._onlyPublic(memberFunctions, docs, 'member')
+    }
+    const meta = docs ? VrpcAdapter._metaOf(docs.meta, memberFunctions) : null
     if (!VrpcAdapter._functionRegistry.has(className)) {
       VrpcAdapter._functionRegistry.set(className, {
         memberFunctions,
@@ -336,9 +338,16 @@ class VrpcAdapter {
     { onlyPublic = true, withNew = true, schema = null, jsdoc = true } = {}
   ) {
     // Get all static static functions
+    const docs =
+      jsdoc && absJsdocPath
+        ? VrpcAdapter._readDocs(
+          fs.readFileSync(absJsdocPath).toString('utf8'),
+          Klass.name
+        )
+        : null
     let staticFunctions = VrpcAdapter._extractStaticFunctions(Klass)
     if (onlyPublic) {
-      staticFunctions = staticFunctions.filter(f => !f.startsWith('_'))
+      staticFunctions = VrpcAdapter._onlyPublic(staticFunctions, docs, 'static')
     }
     // Inject constructor and destructor
     staticFunctions.push('__createIsolated__')
@@ -347,15 +356,11 @@ class VrpcAdapter {
     staticFunctions.push('__delete__')
     let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
     if (onlyPublic) {
-      memberFunctions = memberFunctions.filter(f => {
-        return !f.startsWith('_')
-      })
+      memberFunctions = VrpcAdapter._onlyPublic(memberFunctions, docs, 'member')
     }
-    let meta = null
-    if (jsdoc && absJsdocPath) {
-      const content = fs.readFileSync(absJsdocPath).toString('utf8')
-      meta = this._parseComments(content)
-    }
+    const meta = docs
+      ? VrpcAdapter._metaOf(docs.meta, [...staticFunctions, ...memberFunctions])
+      : null
     VrpcAdapter._functionRegistry.set(Klass.name, {
       Klass,
       withNew,
@@ -366,8 +371,72 @@ class VrpcAdapter {
     })
   }
 
-  static _parseComments (content) {
-    const comments = commentParser(content, { assocFunctions: true })
+  /**
+   * The public of some functions: none beginning with an underscore, and
+   * none the class's JSDoc tags `@private` (when it was read)
+   */
+  static _onlyPublic (functions, docs, kind) {
+    return functions.filter(
+      f => !f.startsWith('_') && !(docs && docs.privates[kind].has(f))
+    )
+  }
+
+  /**
+   * The meta data of the published functions only: a hidden function's
+   * documentation stays inside the agent as well
+   */
+  static _metaOf (meta, published) {
+    return Object.fromEntries(
+      Object.entries(meta).filter(
+        ([name]) => name === '__createShared__' || published.includes(name)
+      )
+    )
+  }
+
+  /**
+   * The meta data of the functions a source documents (see `_readDocs`)
+   */
+  static _parseComments (content, className) {
+    return VrpcAdapter._readDocs(content, className).meta
+  }
+
+  /**
+   * Reads the JSDoc of a class's source: the meta data of its functions, and
+   * the functions tagged `@private` (or `@access private`), which stay off
+   * its class info and so cannot be called. A comment counts for the class
+   * whose body it is in; in a source that declares no class, and when no
+   * class name is given, every comment counts.
+   *
+   * @param {String} content the source
+   * @param {String} [className] the class to read the documentation of
+   * @returns {{ meta: Object, privates: { member: Set, static: Set } }}
+   */
+  static _readDocs (content, className) {
+    const declaresClasses = content
+      .split('\n')
+      .some(line => commentParser.CLASS_DECLARATION.test(line))
+    const comments = commentParser(content, { assocFunctions: true }).filter(
+      ({ functionName, className: owner }) =>
+        !functionName ||
+        className === undefined ||
+        owner === className ||
+        (!owner && !declaresClasses)
+    )
+    const privates = { member: new Set(), static: new Set() }
+    comments.forEach(({ tags, functionName, isStatic, className: owner }) => {
+      if (!functionName || functionName === 'constructor' || !tags) return
+      const hidden = tags.some(
+        ({ tag, name }) =>
+          tag === 'private' || (tag === 'access' && name === 'private')
+      )
+      if (!hidden) return
+      if (owner) {
+        privates[isStatic ? 'static' : 'member'].add(functionName)
+      } else {
+        privates.member.add(functionName)
+        privates.static.add(functionName)
+      }
+    })
     const meta = {}
     const paramsOf = tags =>
       tags
@@ -426,7 +495,7 @@ class VrpcAdapter {
         }
       }
     })
-    return meta
+    return { meta, privates }
   }
 
   /**

@@ -204,14 +204,16 @@ Registers existing code and makes it (remotely) callable
 - code <code>Any</code> - Existing code to be registered, can be a class
 or function object or a relative path to a module
 - [options] <code>Object</code>
-    - [.onlyPublic] <code>Boolean</code> <code> = true</code> - If true, only registers
-functions that do not begin with an underscore
+    - [.onlyPublic] <code>Boolean</code> <code> = true</code> - If true, only registers public
+functions: none whose name begins with an underscore, and - when the
+JSDoc is read - none tagged `@private` or `@access private`
     - [.withNew] <code>Boolean</code> <code> = true</code> - If true, class will be constructed
 using the `new` operator
     - [.schema] <code>Object</code> <code> = </code> - If provided is used to validate ctor
 parameters (only works if registered code reflects a single class)
-    - .jsdocPath <code>String</code> - if provided, parses documentation and
-provides it as meta information
+    - [.jsdocPath] <code>String</code> - if provided, parses documentation and
+provides it as meta information; a code given by path has its JSDoc read
+without
 
 NOTE: This function currently only supports registration of classes (either
 when provided as object or when exported on the provided module path)
@@ -231,8 +233,9 @@ Registers an existing instance and make it (remotely) callable
 - options <code>Object</code>
     - .className <code>String</code> - Class name of the instance
     - .instance <code>String</code> - Name of the instance
-    - [.onlyPublic] <code>Boolean</code> <code> = true</code> - If true, only registers
-functions that do not begin with an underscore
+    - [.onlyPublic] <code>Boolean</code> <code> = true</code> - If true, only registers public
+functions: none whose name begins with an underscore, and - when the
+JSDoc is read - none tagged `@private` or `@access private`
     - [.jsdocPath] <code>String</code> - if provided, parses documentation and
 provides it as meta information
 
