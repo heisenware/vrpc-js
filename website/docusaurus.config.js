@@ -136,7 +136,7 @@ module.exports = {
             ]
           }
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} Heisenware GmbH. VRPC is MIT licensed.`
+        copyright: 'Copyright © 2018 Heisenware GmbH. VRPC is MIT licensed.'
       },
       prism: {
         theme: themes.github,
