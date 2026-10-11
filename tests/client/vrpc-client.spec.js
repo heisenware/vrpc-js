@@ -276,6 +276,7 @@ describe('vrpc-client', () => {
             '__createIsolated__',
             '__createShared__',
             '__callAll__',
+            '__callMatching__',
             '__delete__'
           ],
           meta: {}
@@ -483,6 +484,7 @@ describe('vrpc-client', () => {
             '__createIsolated__',
             '__createShared__',
             '__callAll__',
+            '__callMatching__',
             '__delete__'
           ],
           meta: {}

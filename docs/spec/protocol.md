@@ -142,9 +142,10 @@ reported as an `error` event.
 - **TOP-3.** A class name and a function name MUST be non-empty and MUST NOT
   contain `/`, `+` or `#`. They MUST NOT have the form `__<word>__` unless
   this document defines that name.
-- **TOP-4.** An instance name MUST be a non-empty string without `/`, `+` or
-  `#`, and MUST NOT be `__static__`. An agent MUST refuse to create an
-  instance under any other name (INST-2).
+- **TOP-4.** An instance name MUST be a non-empty string without `/`, `+`,
+  `#` or `*`, and MUST NOT be `__static__`. An agent MUST refuse to create an
+  instance under any other name (INST-2). (`*` would read as a pattern,
+  ALL-5.)
 
 *In vrpc-js:* an agent created without a name is named
 `<user>-<installationId>@<hostname>-<platform>-js`, the installation id a
@@ -162,7 +163,7 @@ characters on every start. Name agents explicitly in production.
 | `__classInfo__`, `__classInfoConcise__` | fourth level | class info (section 7.3) |
 | `__clientInfo__` | fourth level, under a connection id | presence (section 8.2) |
 | `__createShared__`, `__createIsolated__`, `__delete__` | function level | instance lifecycle (section 10) |
-| `__callAll__` | function level | calling every instance of a class (section 11) |
+| `__callAll__`, `__callMatching__` | function level | calling every instance of a class, or those a selection names (section 11) |
 | `__unsubscribe__`, `__registrations__`, `__end__` | function level | withdrawing, listing and ending registrations (section 12) |
 | `__f__…` | argument value | a one-shot callback (section 9.3) |
 | `__e__…` | argument value | a subscription id (section 12.2) |
@@ -307,7 +308,7 @@ Until a refused request topic is granted (TR-7), requests to it are lost.
   "className": "Sensor",
   "instances": ["kitchen", "garage"],
   "memberFunctions": ["read", "calibrate", "onReading"],
-  "staticFunctions": ["list", "__createIsolated__", "__createShared__", "__callAll__", "__delete__"],
+  "staticFunctions": ["list", "__createIsolated__", "__createShared__", "__callAll__", "__callMatching__", "__delete__"],
   "meta": { "read": { "description": "The latest reading", "params": [], "ret": { "description": "", "type": "number" } } },
   "v": 4
 }
@@ -541,6 +542,44 @@ answered.
 { "r": "__p____callAll__-7", "i": "Xa3kP9qz-20", "v": 4 }
 { "r": [{ "id": "kitchen", "val": 21.5 }, { "id": "garage", "err": { "message": "sensor offline" } }], "i": "__p____callAll__-7", "v": 4 }
 ```
+
+A client that wants some instances of a class, not all, names them with a
+**selection**: the agent calls those alone and answers for those alone, in
+one request however many instances it holds.
+
+- **ALL-4.** A request to `<domain>/<agent>/<class>/__static__/__callMatching__`
+  with `a` = `[<selection>, <function>, <argument>, ...]` MUST be served as a
+  `__callAll__` request with `a` = `[<function>, <argument>, ...]` (ALL-1 to
+  ALL-3), for the shared instances the selection selects only. A selection
+  is a name pattern, or a non-empty array of them; it selects a name one of
+  them matches. The agent MUST answer a request whose selection is neither -
+  an empty string or array, an array with anything but non-empty strings,
+  any other value - with an error.
+- **ALL-5.** A name pattern matches a name when its `*` each stand for a run
+  of characters, none included, and every other character of the pattern
+  stands for itself, in order and case-sensitive. No other character is
+  special: there is no escape, and no other wildcard. `line-*` matches
+  `line-3` and `line-`, `*-3` matches `line-3`, `*` matches every name.
+- **ALL-6.** An agent that serves `__callMatching__` MUST list it among the
+  static functions of every class it offers (section 7.3). A client SHOULD
+  send it only to an agent that lists it; towards any other agent it MAY call
+  each selected instance on its own (from the class info's `instances`),
+  answering its consumer as ALL-2 does, but MUST NOT turn a selection into
+  `__callAll__`, which would call instances the selection leaves out.
+
+```json
+{ "c": "Line", "f": "status", "a": ["line-3*", "status"], "i": "Xa3kP9qz-21", "s": "plant/web-7f3a/k9x2", "v": 4 }
+{ "r": "__p____callMatching__-8", "i": "Xa3kP9qz-21", "v": 4 }
+{ "r": [{ "id": "line-3", "val": "running" }, { "id": "line-31", "val": "stopped" }], "i": "__p____callMatching__-8", "v": 4 }
+```
+
+*In vrpc-js:* `client.callAll({ instances })` takes a pattern or a list of
+names and patterns, and `agent` may be a pattern (`*` by default) or a list
+of agents as well: the client asks the agents that offer the class all at
+once and names the agent in every entry. Towards an agent that does not
+list `__callMatching__` it calls each selected instance on its own, and
+refuses a selection for a subscription there: as single calls, its events
+would not name their instance (ALL-3).
 
 ## 12. Events
 
@@ -882,6 +921,8 @@ an agent's version from its agent info (AG-6).
     for `on`, `off<Name>` with the declaration's arguments for `on<Name>`
     when the class lists that function; it ends other subscriptions locally;
   - stops a `__callAll__` subscription at one instance locally;
+  - calls each instance a selection selects on its own, since such agents
+    list no `__callMatching__` (ALL-6);
   - does not declare its subscriptions again after a reconnect, and drops
     those it lost with the agent (CL-10);
   - accepts errors as plain strings (MSG-7).
@@ -1092,5 +1133,7 @@ sequenceDiagram
   (MSG-6); errors are objects (MSG-7); every request that reaches an agent is
   answered (CALL-2).
 - `__callAll__` answers `{ id, val }` or `{ id, err }` per instance (ALL-2).
-- Instance names are checked (TOP-4); a delete names the instance's own
-  class (INST-6).
+- Instance names are checked (TOP-4), and may no longer contain `*`; a
+  delete names the instance's own class (INST-6).
+- New: `__callMatching__` calls the instances a selection names (ALL-4 to
+  ALL-6).

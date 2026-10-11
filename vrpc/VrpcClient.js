@@ -41,6 +41,7 @@ const mqtt = require('mqtt')
 const EventEmitter = require('events')
 const SubscribeRetrier = require('./SubscribeRetrier')
 const ReconnectBackoff = require('./ReconnectBackoff')
+const NamePattern = require('./namePattern')
 
 const VRPC_PROTOCOL_VERSION = 4
 
@@ -741,28 +742,60 @@ class VrpcClient extends EventEmitter {
    * registrations. In this case the instanceId of the emitter is injected as
    * first argument of any event callback.
    *
-   * NOTE: When no agent was specified as class default and no agent is
-   * specified when calling this function, callAll will act on the requested
-   * class across all available agents. The same is true when explicitly using a
-   * wildcard (*) as agent value.
+   * `instances` selects the instances: a name pattern (`line-*`, where `*`
+   * matches any run of characters) or a list of names and patterns. The
+   * agent calls the selected ones only and answers for those - one request,
+   * however many instances. An agent that does not select instances
+   * (before protocol 4) gets one call per selected instance instead; a
+   * subscription cannot be split like that and is refused there.
+   *
+   * `agent` may name several agents as well: a pattern (`edge-*`, `*` by
+   * default) asks every online agent that offers the class and matches, a
+   * list asks each agent listed. They are asked all at once, and every
+   * entry names its agent; an agent that fails as a whole answers an error
+   * for each of its instances the client knows - or one entry with the
+   * error alone when it knows none - and the other agents' answers stand.
    *
    * @param {Object} options
-   * @param {String} options.className Name of the static function's class
-   * @param {Array} [options.args] Positional arguments of the static function
-   * call
-   * @param {String} [options.agent] Agent name. If not provided class default
-   * is used
-   * @returns {Promise<Object[]>} An array of objects `{ id, val, err }`
-   * carrying the instance id, the return value and potential errors
+   * @param {String} options.className Name of the class
+   * @param {String} options.functionName Name of the member function
+   * @param {Array} [options.args] Positional arguments of the call
+   * @param {String|Array.<String>} [options.agent] Agent name, pattern or
+   * list of names. If not provided class default is used
+   * @param {String|Array.<String>} [options.instances] The instances to call:
+   * a name pattern, or a list of names and patterns (all if not provided)
+   * @returns {Promise<Object[]>} An array of objects `{ id, val }` or
+   * `{ id, err }` carrying the instance id and its return value or error,
+   * and `agent` when the call addressed several agents
    */
   async callAll ({
     className,
     functionName,
     args = [],
-    agent = this._agent
+    agent = this._agent,
+    instances
   } = {}) {
     if (!this._isConnected()) {
       throw new Error('Client is not connected')
+    }
+    if (instances !== undefined && !NamePattern.isSelection(instances)) {
+      throw new Error(
+        `Invalid instances: ${JSON.stringify(instances)} (a name pattern, or a list of names and patterns)`
+      )
+    }
+    // a selection of everything is no selection
+    const selection =
+      instances === undefined || NamePattern.selectsAll(instances)
+        ? undefined
+        : instances
+    if (Array.isArray(agent) || agent.includes('*')) {
+      return this._callAllAgents({
+        className,
+        functionName,
+        args,
+        agents: agent,
+        selection
+      })
     }
     const json = {
       c: className,
@@ -772,40 +805,113 @@ class VrpcClient extends EventEmitter {
       s: this._vrpcConnectionId,
       v: VRPC_PROTOCOL_VERSION
     }
-    if (agent === '*') {
-      // every online agent that offers the class, all at once; an agent that
-      // fails as a whole answers an error for each of its instances, as one
-      // failing instance does, and the others' answers stand
-      const agents = this.getAvailableAgents().filter(
-        name => this._agents[name].classes[className]
-      )
-      const answers = await Promise.all(
-        agents.map(name =>
-          this.callAll({ className, functionName, args, agent: name }).then(
-            result => result || [],
-            err =>
-              this.getAvailableInstances({ className, agent: name }).map(
-                id => ({ id, err: { message: err.message } })
-              )
-          )
-        )
-      )
-      return answers.flat()
+    let special = '__callAll__'
+    if (selection !== undefined) {
+      await this._waitUntilClassIsOnline(agent, className)
+      if (!this._selectsInstances(agent, className)) {
+        return this._callSelected({
+          agent,
+          className,
+          functionName,
+          args,
+          selection
+        })
+      }
+      special = '__callMatching__'
     }
-    const topic = `${this._domain}/${agent}/${className}/__static__/__callAll__`
+    const topic = `${this._domain}/${agent}/${className}/__static__/${special}`
     const wrapped = await this._wrapArguments({
       agent,
       className,
       functionName,
       args,
-      isCallAll: true
+      isCallAll: true,
+      selection
     })
     if (!wrapped) return // using cache
-    json.a = [functionName, ...wrapped]
+    json.a =
+      selection === undefined
+        ? [functionName, ...wrapped]
+        : [selection, functionName, ...wrapped]
     this._declare(json, topic)
     await this._waitUntilClassIsOnline(agent, className)
     this._mqttPublish(topic, JSON.stringify(json))
     return this._handleAgentAnswer(json, agent)
+  }
+
+  /**
+   * callAll on several agents: those a list names, or every online agent
+   * that offers the class and whose name a pattern matches - all at once,
+   * every entry naming its agent
+   */
+  async _callAllAgents ({ className, functionName, args, agents, selection }) {
+    const names = Array.isArray(agents)
+      ? agents
+      : this.getAvailableAgents().filter(
+        name =>
+          this._agents[name].classes[className] &&
+          NamePattern.matches(agents, name)
+      )
+    const answers = await Promise.all(
+      names.map(name =>
+        this.callAll({
+          className,
+          functionName,
+          args,
+          agent: name,
+          instances: selection
+        }).then(
+          result => (result || []).map(entry => ({ agent: name, ...entry })),
+          err => {
+            const error = { message: err.message }
+            const known = this.getAvailableInstances({ className, agent: name })
+              .filter(id => selection === undefined || NamePattern.selects(selection, id))
+            return known.length > 0
+              ? known.map(id => ({ agent: name, id, err: error }))
+              : [{ agent: name, err: error }]
+          }
+        )
+      )
+    )
+    return answers.flat()
+  }
+
+  // whether an agent selects instances itself: its class info lists
+  // __callMatching__ (agents of protocol 4)
+  _selectsInstances (agent, className) {
+    const info = this._agents[agent] && this._agents[agent].classes[className]
+    return (
+      !!info &&
+      info.staticFunctions.some(
+        f => this._stripSignature(f) === '__callMatching__'
+      )
+    )
+  }
+
+  /**
+   * A selection towards an agent that does not select instances: one call
+   * per selected instance, answered as callAll answers. A subscription is
+   * refused: its events, one per instance, would not name their instance.
+   */
+  async _callSelected ({ agent, className, functionName, args, selection }) {
+    if (args.some(x => this._isFunction(x) || this._isEmitter(x))) {
+      throw new Error(
+        `Agent ${agent} does not select instances for callbacks and events (its class info lists no __callMatching__): update it, or call without instances`
+      )
+    }
+    const selected = this.getAvailableInstances({ className, agent }).filter(
+      id => NamePattern.selects(selection, id)
+    )
+    return Promise.all(
+      selected.map(async id => {
+        try {
+          const proxy = await this.getInstance(id, { agent, className })
+          return { id, val: await proxy[functionName](...args) }
+        } catch (err) {
+          return { id, err: { message: err.message } }
+        }
+      })
+    )
   }
 
   /**
@@ -1805,7 +1911,8 @@ class VrpcClient extends EventEmitter {
     proxyId,
     functionName,
     args,
-    isCallAll = false
+    isCallAll = false,
+    selection
   }) {
     const wrapped = []
 
@@ -1852,7 +1959,8 @@ class VrpcClient extends EventEmitter {
             functionName: isVrpcOn ? args[0] : functionName,
             args: isVrpcOn ? args.slice(1) : args,
             position: isVrpcOn ? i - 1 : i,
-            isCallAll
+            isCallAll,
+            selection
           })
           wrapped.push(id)
           continue
@@ -1863,6 +1971,7 @@ class VrpcClient extends EventEmitter {
               className,
               instance,
               isCallAll,
+              selection,
               functionName,
               args,
               position: i,
@@ -1967,9 +2076,11 @@ class VrpcClient extends EventEmitter {
     )
   }
 
-  // what a subscription is, but its callback: target and subscription key
-  static _identity ({ agent, className, instance, isCallAll, key }) {
-    return JSON.stringify([agent, className, instance || null, !!isCallAll, key])
+  // what a subscription is, but its callback: target, the instances a
+  // callAll selects, and subscription key
+  static _identity ({ agent, className, instance, isCallAll, selection, key }) {
+    const target = [agent, className, instance || null, !!isCallAll, key]
+    return JSON.stringify(selection === undefined ? target : [...target, selection])
   }
 
   /**
@@ -2011,13 +2122,15 @@ class VrpcClient extends EventEmitter {
     functionName,
     args,
     position,
-    isCallAll = false
+    isCallAll = false,
+    selection
   }) {
     const identity = VrpcClient._identity({
       agent,
       className,
       instance,
       isCallAll,
+      selection,
       key: this._subscriptionKey(functionName, args, position)
     })
     const topic = this._subscriptionTopic(callback, identity)
@@ -2032,6 +2145,8 @@ class VrpcClient extends EventEmitter {
       event,
       functionName,
       callAll: isCallAll,
+      // the instances a callAll selects (absent: all)
+      selection,
       callback,
       handler: null,
       declaration: null,
@@ -2070,6 +2185,7 @@ class VrpcClient extends EventEmitter {
     className,
     instance,
     isCallAll,
+    selection,
     functionName,
     args,
     position,
@@ -2083,6 +2199,7 @@ class VrpcClient extends EventEmitter {
         className,
         instance,
         isCallAll,
+        selection,
         key: this._subscriptionKey(twin, args, position)
       }),
       { readOnly: true }
@@ -2097,7 +2214,8 @@ class VrpcClient extends EventEmitter {
           sub.agent === agent &&
           sub.className === className &&
           sub.instance === instance &&
-          sub.callAll === !!isCallAll
+          sub.callAll === !!isCallAll &&
+          JSON.stringify(sub.selection) === JSON.stringify(selection)
       )
       const ofTwin = ofCallback.filter(
         sub =>
@@ -2235,7 +2353,8 @@ class VrpcClient extends EventEmitter {
       instance: sub.instance,
       functionName: sub.functionName,
       event: sub.event,
-      callAll: sub.callAll
+      callAll: sub.callAll,
+      ...(sub.selection === undefined ? {} : { instances: sub.selection })
     }
   }
 

@@ -45,10 +45,43 @@ const all = await client.callAll({
 Every call is asynchronous for the caller, whatever the function is.
 `callAll` answers one entry per shared instance: `val` with the result, or
 `err` when that instance failed - one failing instance does not fail the
-others. With `agent: '*'`, `callAll` asks every online agent that offers the
-class, all at once, and joins the answers; an agent that fails as a whole
-(it does not answer in time, say) answers an `err` for each of its
-instances, and the other agents' answers stand.
+others.
+
+`instances` selects some instances instead of all: a name pattern, where
+`*` matches any run of characters, or a list of names and patterns. The
+agent calls the selected instances alone, in one request however many it
+holds:
+
+```javascript
+const pressA = await client.callAll({
+  agent: 'line-1',
+  className: 'Press',
+  functionName: 'readPressure',
+  instances: 'press-a*' // or ['press-a', 'press-c*']
+})
+```
+
+`agent` takes a pattern or a list as well. `callAll` then asks every
+matching online agent that offers the class - or every listed agent - all
+at once, and every entry names its agent: `{ agent, id, val }`. `*`, the
+default, asks them all. An agent that fails as a whole (it does not answer
+in time, say) answers an `err` for each of its instances, or one entry
+with the error when the client knows none of them, and the other agents'
+answers stand.
+
+```javascript
+const fleet = await client.callAll({
+  agent: 'edge-*',
+  className: 'Press',
+  functionName: 'readPressure',
+  instances: 'press-*'
+})
+// [{ agent: 'edge-1', id: 'press-a', val: 7.2 }, { agent: 'edge-2', id: 'press-a', val: 6.9 }]
+```
+
+An agent before protocol 4 cannot select instances: the client calls each
+selected instance there on its own, and refuses a selection for a
+subscription, whose events would then not name their instance.
 
 ## Arguments and results
 

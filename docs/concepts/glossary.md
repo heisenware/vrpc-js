@@ -11,7 +11,7 @@ wire depends on.
 | **Agent info** | What an agent publishes about itself, retained: online or offline, its host, its version, its protocol version. |
 | **Answer** | An agent's reply to a request: a result or an error. |
 | **Broker** | The MQTT broker every agent and client connects to. |
-| **callAll** | One call of a member function on every shared instance of a class; answers one entry per instance. |
+| **callAll** | One call of a member function on every shared instance of a class, or on those a selection names; answers one entry per instance. |
 | **Callback** | A function passed as an argument, which the agent calls back into the caller - once, or a few times during the call. |
 | **Class info** | What an agent publishes about each class, retained: its static and member functions, its shared instances and, in full, their documentation. |
 | **Client** | A program, or the part of one, that calls agents (`VrpcClient`). |
@@ -34,6 +34,7 @@ wire depends on.
 | **Registration object** | What an event function returns: how to undo its call, and optionally how to greet, when it ended and what to answer. |
 | **Release** | To undo a registration once its last subscription left. |
 | **Request** | A client's message asking an agent to call a function. |
+| **Selection** | The instances a callAll calls: a name pattern (`*` matches any run of characters) or a list of names and patterns. |
 | **Subscription** | One listener's wish to receive the events of a registration. The client owns it. |
 | **Subscription id** | The name of a subscription, `__e__<connectionId>/<topicId>`; events travel to the topic it names. A secret of its connection. |
 | **Will** | The message the broker publishes for a peer whose connection breaks: an agent's agent info `offline`, a client's presence. |

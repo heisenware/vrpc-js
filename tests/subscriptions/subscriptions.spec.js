@@ -508,9 +508,186 @@ describe('subscriptions between a client and an agent (#1837)', function () {
         })
         // no waiting for the agent without the class (the timeout is 2 s)
         expect(Date.now() - started).to.be.below(1000)
-        expect(answers.find(x => x.id === instance)).to.deep.equal({ id: instance, val: 0 })
+        // several agents asked: every entry names its agent
+        expect(answers.find(x => x.id === instance)).to.deep.equal({ agent: 'a1', id: instance, val: 0 })
       } finally {
         await other.end()
+      }
+    })
+  })
+
+  describe('callAll with a selection (ALL-4, ALL-5)', () => {
+    // instances under a fresh prefix: `${prefix}-line-1`, ...
+    const createAll = async (client, prefix, names, agent = 'a1') => {
+      const real = {}
+      for (const name of names) {
+        const instance = `${prefix}-${name}`
+        await client.create({ agent, className: 'Counter', instance })
+        real[name] = VrpcAdapter.getInstance(instance)
+      }
+      return real
+    }
+    const sentTo = (from, prefix) =>
+      broker.published.slice(from).map(x => x.topic).filter(topic => topic.startsWith(prefix))
+
+    it('calls the selected instances only, in one request', async () => {
+      const client = await newClient()
+      const prefix = unique('sel')
+      await createAll(client, prefix, ['line-1', 'line-2', 'pump-1'])
+      const before = broker.published.length
+      const answers = await client.callAll({
+        agent: 'a1',
+        className: 'Counter',
+        functionName: 'handlers',
+        instances: `${prefix}-line-*`
+      })
+      expect(answers.map(x => x.id).sort()).to.deep.equal([`${prefix}-line-1`, `${prefix}-line-2`])
+      expect(answers.every(x => x.val === 0 && !('agent' in x))).to.equal(true)
+      expect(sentTo(before, `${DOMAIN}/a1/Counter/`)).to.deep.equal([
+        `${DOMAIN}/a1/Counter/__static__/__callMatching__`
+      ])
+      // a list of names and patterns; `*` alone is all
+      const listed = await client.callAll({
+        agent: 'a1',
+        className: 'Counter',
+        functionName: 'handlers',
+        instances: [`${prefix}-pump-1`, `${prefix}-line-2`]
+      })
+      expect(listed.map(x => x.id).sort()).to.deep.equal([`${prefix}-line-2`, `${prefix}-pump-1`])
+      const from = broker.published.length
+      await client.callAll({ agent: 'a1', className: 'Counter', functionName: 'handlers', instances: '*' })
+      expect(sentTo(from, `${DOMAIN}/a1/Counter/`)).to.deep.equal([`${DOMAIN}/a1/Counter/__static__/__callAll__`])
+      // what is no selection never leaves the client
+      for (const instances of [[], '', [''], 7]) {
+        let error = null
+        try {
+          await client.callAll({ agent: 'a1', className: 'Counter', functionName: 'handlers', instances })
+        } catch (err) {
+          error = err
+        }
+        expect(error && error.message, JSON.stringify(instances)).to.include('Invalid instances')
+      }
+    })
+
+    it('subscribes the selected instances only, and declares its selections again after a reconnect', async () => {
+      const client = await newClient()
+      const prefix = unique('sel')
+      const real = await createAll(client, prefix, ['line-1', 'line-2', 'pump-1', 'tank-1'])
+      const seen = []
+      const handler = (instance, value) => seen.push([instance, value])
+      const subscribe = instances =>
+        client.callAll({ agent: 'a1', className: 'Counter', functionName: 'onEvent', args: [handler], instances })
+      await subscribe(`${prefix}-line-*`)
+      expect(['line-1', 'line-2', 'pump-1', 'tank-1'].map(n => real[n].handlers())).to.deep.equal([1, 1, 0, 0])
+      real['pump-1'].fire('not selected')
+      real['line-1'].fire('selected')
+      await until(() => seen.length === 1)
+      await sleep(50)
+      expect(seen).to.deep.equal([[`${prefix}-line-1`, 'selected']])
+      // one callback on another selection is another subscription
+      await subscribe([`${prefix}-pump-*`])
+      const subs = client.getSubscriptions({ callback: handler })
+      expect(subs.map(x => x.instances)).to.have.deep.members([`${prefix}-line-*`, [`${prefix}-pump-*`]])
+      expect(subs.map(x => x.id)[0]).to.not.equal(subs.map(x => x.id)[1])
+      expect(real['pump-1'].handlers()).to.equal(1)
+
+      // after the client's own reconnect, each selection is declared again
+      const matching = () => broker.publishedOn(`${DOMAIN}/a1/Counter/__static__/__callMatching__`).length
+      const declared = matching()
+      const reconnected = new Promise(resolve => client.once('connect', resolve))
+      broker.cut(client._mqttClientId)
+      await reconnected
+      await until(() => matching() >= declared + 2)
+      await until(() => real['line-2'].calls === 2 && real['pump-1'].calls === 2)
+      expect(['line-1', 'line-2', 'pump-1', 'tank-1'].map(n => real[n].handlers())).to.deep.equal([1, 1, 1, 0])
+      real['line-2'].fire('again')
+      real['tank-1'].fire('never')
+      await until(() => seen.length === 2)
+      await sleep(50)
+      expect(seen[1]).to.deep.equal([`${prefix}-line-2`, 'again'])
+
+      expect(await client.unsubscribe(handler)).to.equal(true)
+      expect(['line-1', 'line-2', 'pump-1'].map(n => real[n].handlers())).to.deep.equal([0, 0, 0])
+    })
+
+    it('asks the agents a pattern or a list names, every entry naming its agent', async () => {
+      const VrpcBrowserAdapter = require('../../vrpc/VrpcBrowserAdapter')
+      const VrpcBrowserAgent = require('../../vrpc/VrpcBrowserAgent')
+      const { Counter } = require('./fixtures/classes')
+      if (!VrpcBrowserAdapter.getAvailableClasses().includes('Counter')) {
+        VrpcBrowserAdapter.registerClass(Counter)
+      }
+      const edge = unique('edge')
+      const other = new VrpcBrowserAgent({ domain: DOMAIN, agent: edge, broker: broker.url, log: quiet })
+      await other.serve()
+      const client = await newClient()
+      try {
+        const prefix = unique('fleet')
+        await client.create({ agent: 'a1', className: 'Counter', instance: `${prefix}-a` })
+        await client.create({ agent: edge, className: 'Counter', instance: `${prefix}-b` })
+        const ask = agent =>
+          client.callAll({ agent, className: 'Counter', functionName: 'handlers', instances: `${prefix}-*` })
+        expect(await ask(['a1', edge])).to.have.deep.members([
+          { agent: 'a1', id: `${prefix}-a`, val: 0 },
+          { agent: edge, id: `${prefix}-b`, val: 0 }
+        ])
+        expect(await ask('edge-*')).to.deep.equal([{ agent: edge, id: `${prefix}-b`, val: 0 }])
+        // a listed agent that is not there: its error, the others stand
+        const withMissing = await ask(['a1', 'nobody'])
+        expect(withMissing.find(x => x.agent === 'a1')).to.deep.equal({ agent: 'a1', id: `${prefix}-a`, val: 0 })
+        expect(withMissing.find(x => x.agent === 'nobody')).to.have.nested.property('err.message')
+      } finally {
+        await other.end()
+      }
+    })
+
+    it('towards an agent that lists no __callMatching__: one call per selected instance, and no subscription', async () => {
+      const omit = json => ({
+        ...json,
+        staticFunctions: json.staticFunctions.filter(f => f !== '__callMatching__')
+      })
+      broker.rewrite = (topic, json) =>
+        topic.startsWith(`${DOMAIN}/a1/Counter/__classInfo`) ? omit(json) : undefined
+      const client = await newClient()
+      const prefix = unique('older')
+      try {
+        await createAll(client, prefix, ['line-1', 'line-2', 'pump-1'])
+        await until(
+          () => !client.getAvailableStaticFunctions({ agent: 'a1', className: 'Counter' }).includes('__callMatching__')
+        )
+        const before = broker.published.length
+        const answers = await client.callAll({
+          agent: 'a1',
+          className: 'Counter',
+          functionName: 'handlers',
+          instances: `${prefix}-line-*`
+        })
+        expect(answers).to.have.deep.members([
+          { id: `${prefix}-line-1`, val: 0 },
+          { id: `${prefix}-line-2`, val: 0 }
+        ])
+        const sent = sentTo(before, `${DOMAIN}/a1/Counter/`)
+        expect(sent).to.have.members([
+          `${DOMAIN}/a1/Counter/${prefix}-line-1/handlers`,
+          `${DOMAIN}/a1/Counter/${prefix}-line-2/handlers`
+        ])
+        let error = null
+        try {
+          await client.callAll({
+            agent: 'a1',
+            className: 'Counter',
+            functionName: 'onEvent',
+            args: [() => {}],
+            instances: `${prefix}-line-*`
+          })
+        } catch (err) {
+          error = err
+        }
+        expect(error && error.message).to.include('__callMatching__')
+      } finally {
+        broker.rewrite = null
+        // the agent publishes its true class info again
+        await client.create({ agent: 'a1', className: 'Counter', instance: unique('restore') })
       }
     })
   })

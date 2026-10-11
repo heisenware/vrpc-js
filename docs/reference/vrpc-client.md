@@ -311,22 +311,34 @@ aggregated result. It as well allows for batch event and callback
 registrations. In this case the instanceId of the emitter is injected as
 first argument of any event callback.
 
-NOTE: When no agent was specified as class default and no agent is
-specified when calling this function, callAll will act on the requested
-class across all available agents. The same is true when explicitly using a
-wildcard (*) as agent value.
+`instances` selects the instances: a name pattern (`line-*`, where `*`
+matches any run of characters) or a list of names and patterns. The
+agent calls the selected ones only and answers for those - one request,
+however many instances. An agent that does not select instances
+(before protocol 4) gets one call per selected instance instead; a
+subscription cannot be split like that and is refused there.
+
+`agent` may name several agents as well: a pattern (`edge-*`, `*` by
+default) asks every online agent that offers the class and matches, a
+list asks each agent listed. They are asked all at once, and every
+entry names its agent; an agent that fails as a whole answers an error
+for each of its instances the client knows - or one entry with the
+error alone when it knows none - and the other agents' answers stand.
 
 **Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
-**Returns**: <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code> - An array of objects `{ id, val, err }`
-carrying the instance id, the return value and potential errors  
+**Returns**: <code>Promise.&lt;Array.&lt;Object&gt;&gt;</code> - An array of objects `{ id, val }` or
+`{ id, err }` carrying the instance id and its return value or error,
+and `agent` when the call addressed several agents  
 **Params**
 
 - options <code>Object</code>
-    - .className <code>String</code> - Name of the static function's class
-    - [.args] <code>Array</code> - Positional arguments of the static function
-call
-    - [.agent] <code>String</code> - Agent name. If not provided class default
-is used
+    - .className <code>String</code> - Name of the class
+    - .functionName <code>String</code> - Name of the member function
+    - [.args] <code>Array</code> - Positional arguments of the call
+    - [.agent] <code>String</code> | <code>Array.&lt;String&gt;</code> - Agent name, pattern or
+list of names. If not provided class default is used
+    - [.instances] <code>String</code> | <code>Array.&lt;String&gt;</code> - The instances to call:
+a name pattern, or a list of names and patterns (all if not provided)
 
 
 * * *

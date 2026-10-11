@@ -43,6 +43,7 @@ const commentParser = require('./comment-parser')
 const EventEmitter = require('events')
 const { nanoid } = require('nanoid')
 const Registrations = require('./Registrations')
+const NamePattern = require('./namePattern')
 
 // Node before 18.18 / 20.4 has no dispose symbols, and a class's
 // [Symbol.asyncDispose]() would become a method named 'undefined'. Node's
@@ -353,6 +354,7 @@ class VrpcAdapter {
     staticFunctions.push('__createIsolated__')
     staticFunctions.push('__createShared__')
     staticFunctions.push('__callAll__')
+    staticFunctions.push('__callMatching__')
     staticFunctions.push('__delete__')
     let memberFunctions = VrpcAdapter._extractMemberFunctions(Klass)
     if (onlyPublic) {
@@ -537,6 +539,9 @@ class VrpcAdapter {
       case '__callAll__':
         VrpcAdapter._handleCallAll(json)
         break
+      case '__callMatching__':
+        VrpcAdapter._handleCallMatching(json)
+        break
       case '__delete__':
         VrpcAdapter._handleDelete(json)
         break
@@ -596,14 +601,14 @@ class VrpcAdapter {
 
   /**
    * An instance name is one topic level of its own: a non-empty string
-   * without `/`, `+` or `#`, and never `__static__`, which stands for the
-   * class in a request topic.
+   * without `/`, `+`, `#` or `*` (which would read as a pattern), and never
+   * `__static__`, which stands for the class in a request topic.
    */
   static _assertInstanceName (name) {
     if (
       typeof name !== 'string' ||
       name.length === 0 ||
-      /[/+#]/.test(name) ||
+      /[/+#*]/.test(name) ||
       name === '__static__'
     ) {
       throw new Error(`Invalid instance name: ${JSON.stringify(name)}`)
@@ -679,23 +684,47 @@ class VrpcAdapter {
     return instance
   }
 
+  // `a` = [function, ...arguments]: every shared instance of the class (ALL-1)
   static _handleCallAll (json) {
+    const [func, ...args] = json.a
+    VrpcAdapter._callAll(json, func, args, () => true)
+  }
+
+  // `a` = [selection, function, ...arguments]: the shared instances whose
+  // name the selection matches, a pattern or a list of them (ALL-4, ALL-5)
+  static _handleCallMatching (json) {
+    const [selection, func, ...args] = json.a
+    if (!NamePattern.isSelection(selection)) {
+      json.e = {
+        message: `Invalid selection: ${JSON.stringify(selection)} (a pattern or a list of them)`
+      }
+      return
+    }
+    VrpcAdapter._callAll(json, func, args, id =>
+      NamePattern.selects(selection, id)
+    )
+  }
+
+  // calls a function on the shared instances of a class `chosen` takes, and
+  // answers one entry per instance (ALL-2)
+  static _callAll (json, func, args, chosen) {
     try {
       const calls = []
-      const func = json.a[0]
-      const args = json.a.slice(1)
       const subscribes = Registrations.carriesEventIds(args)
       // a remover carrying ids never reaches the class (see Registrations)
       const withdraws = subscribes && Registrations.isRemover(func, json.v)
       if (!withdraws && !VrpcAdapter._isPublished(json.c, func, false)) {
         throw new Error(`Could not find function: ${func}`)
       }
+      // what the instance's callbacks unwrap from: the function and its
+      // arguments, as a __callAll__ request carries them
+      const asCallAll = { ...json, a: [func, ...args] }
       for (const [
         id,
         { className, instance, isIsolated }
       ] of VrpcAdapter._instances) {
-        // TODO Think about a configurable behavior w.r.t. isolated instances...
-        if (className !== json.c || isIsolated) continue
+        // isolated instances never take part
+        if (className !== json.c || isIsolated || !chosen(id)) continue
         // one answer per instance: `{ id, val }`, or `{ id, err }` with the
         // error as it travels
         try {
@@ -710,7 +739,7 @@ class VrpcAdapter {
               isCallAll: true
             }).value
           } else {
-            const unwrapped = VrpcAdapter._unwrapArguments(json, id)
+            const unwrapped = VrpcAdapter._unwrapArguments(asCallAll, id)
             val = instance[func].apply(instance, unwrapped.slice(1))
             val = VrpcAdapter.sanitizeEventListenerReturnValues(val)
           }

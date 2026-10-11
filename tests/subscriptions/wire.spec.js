@@ -417,6 +417,65 @@ for (const [name, Agent, Adapter, register] of AGENTS) {
       })
     })
 
+    describe('callMatching', () => {
+      const ids = answer => answer.r.map(entry => entry.id).sort()
+
+      it('is listed with the reserved functions (ALL-6)', async () => {
+        const topic = `${DOMAIN}/${AGENT}/Pair/__classInfo__`
+        await subscribeRaw(topic)
+        await until(() => inbox.some(m => m.topic === topic))
+        const info = inbox.filter(m => m.topic === topic).pop().json
+        expect(info.staticFunctions).to.include.members(['__callAll__', '__callMatching__'])
+      })
+
+      it('calls the instances a pattern matches, and answers for those only (ALL-4, ALL-5)', async () => {
+        const prefix = unique('select')
+        for (const name of ['line-1', 'line-2', 'pump-1']) {
+          await createShared('Pair', `${prefix}-${name}`, ['ok'])
+        }
+        const first = await request('Pair/__static__/__callMatching__', {
+          a: [`${prefix}-line-*`, 'value']
+        })
+        const answer = await answerTo(first.r)
+        expect(ids(answer)).to.deep.equal([`${prefix}-line-1`, `${prefix}-line-2`])
+        expect(answer.r.every(entry => entry.val === 1)).to.equal(true)
+        // `*` anywhere, any number of times; nothing else is special
+        const inner = await answerTo(
+          (await request('Pair/__static__/__callMatching__', { a: [`${prefix}*-*1`, 'value'] })).r
+        )
+        expect(ids(inner)).to.deep.equal([`${prefix}-line-1`, `${prefix}-pump-1`])
+        const literal = await answerTo(
+          (await request('Pair/__static__/__callMatching__', { a: [`${prefix}-line-?`, 'value'] })).r
+        )
+        expect(literal.r).to.deep.equal([])
+      })
+
+      it('takes a list of names and patterns (ALL-4)', async () => {
+        const prefix = unique('select')
+        for (const name of ['a', 'b', 'c']) {
+          await createShared('Pair', `${prefix}-${name}`, ['ok'])
+        }
+        const first = await request('Pair/__static__/__callMatching__', {
+          a: [[`${prefix}-a`, `${prefix}-c*`], 'value']
+        })
+        expect(ids(await answerTo(first.r))).to.deep.equal([`${prefix}-a`, `${prefix}-c`])
+      })
+
+      it('refuses what is no selection, and a function the class info does not list (ALL-4)', async () => {
+        for (const selection of [[], [''], '', 42, null]) {
+          const answer = await request('Pair/__static__/__callMatching__', { a: [selection, 'value'] })
+          expect(answer.e.message, JSON.stringify(selection)).to.include('Invalid selection')
+        }
+        const answer = await request('Pair/__static__/__callMatching__', { a: ['*', '_mode'] })
+        expect(answer.e).to.deep.equal({ message: 'Could not find function: _mode' })
+      })
+
+      it('creates no instance whose name has a `*` (TOP-4, INST-2)', async () => {
+        const answer = await request('Pair/__static__/__createShared__', { a: ['line-*', 'ok'] })
+        expect(answer.e.message).to.include('Invalid instance name')
+      })
+    })
+
     describe('a refused subscription', () => {
       it('is retried until the broker grants it (TR-7)', async () => {
         const id = unique('retry')

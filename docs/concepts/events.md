@@ -181,8 +181,10 @@ await client.callAll({
 })
 ```
 
-`client.unsubscribe(callback, { instance: 'press-b' })` stops it at one
-instance while the others keep delivering.
+With `instances: 'press-a*'` it subscribes the instances that selection
+names alone (see [Calls](calls.md)); one callback on two selections is two
+subscriptions. `client.unsubscribe(callback, { instance: 'press-b' })` stops
+it at one instance while the others keep delivering.
 
 ## The protocol underneath
 
