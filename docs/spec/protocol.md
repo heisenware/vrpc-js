@@ -256,6 +256,7 @@ An agent publishes the answer to a request to the request's `s`.
 | one-shot callback (section 9.3) | `<connectionId>` | `a` (the callback's arguments), `i` (the callback id), `v` |
 | event (section 12.4) | the topic its subscription id names | `a` (the event's arguments), `i` (the subscription id), `v` |
 | ended notice (section 12.8) | the topic its subscription id names | `i` (the subscription id), `end`, `v` |
+| undeliverable notice (CALL-10, EV-22) | where the callback or the event would have gone | `i` (the callback or subscription id), `e`, `v` |
 
 ## 7. Agents: serving and announcing
 
@@ -419,6 +420,13 @@ reachable from the wire.
   `__f__<anything>`. Each time the function is called, the agent MUST publish
   `{ "a": [<its arguments>], "i": "<the __f__ string>", "v": 4 }` to the
   request's `s`.
+- **CALL-10.** When JSON cannot encode the arguments of such a call (a
+  BigInt), the agent MUST NOT drop it silently: to a request of version 4 it
+  MUST publish `{ "i": "<the __f__ string>", "e": <error>, "v": 4 }` instead,
+  an **undeliverable notice**. A client MUST NOT call the callback for it, and
+  SHOULD tell its consumer. Towards a request of a lower version the agent
+  publishes nothing: such a client would call the callback without
+  arguments.
 
 A client typically passes a callback for a single answer and stops listening
 after the first one. The agent does not track one-shot callbacks: they
@@ -671,6 +679,21 @@ agent holds every subscription the request declared.
   was deleted, MUST NOT publish anything any more, whatever the code behind
   it still does.
 
+- **EV-22.** When JSON cannot encode the arguments of an event (a BigInt),
+  the agent MUST NOT drop it silently: to each subscription of version 4 it
+  MUST publish `{ "i": "<subscription id>", "e": <error>, "v": 4 }` in place
+  of the event, an **undeliverable notice**, and the subscription stays. A
+  client MUST NOT call the subscription's handler for it, and SHOULD tell its
+  consumer. A subscription of a lower version gets nothing: its client would
+  call the handler without arguments.
+
+```json
+{ "i": "__e__home/web-7f3a/k9x2/s1", "e": { "message": "The arguments of this event cannot be encoded as JSON: Do not know how to serialize a BigInt" }, "v": 4 }
+```
+
+*In vrpc-js:* the client emits `undelivered` (id, error, info) for such a
+notice, for an event and a one-shot callback alike.
+
 ### 12.5 Greeting
 
 A class often greets a subscriber with what it has now - the current value,
@@ -914,7 +937,8 @@ an agent's version from its agent info (AG-6).
   - also treats `unmonitor<Name>`, `unsignal<Name>` (undoing
     `monitor<Name>`, `signal<Name>`) and `remove<Name>` (undoing any event
     function) as removers (EV-16);
-  - sends no ended notices to their subscriptions (EV-17).
+  - sends no ended notices to their subscriptions (EV-17), and no
+    undeliverable notices to them or their callbacks (EV-22, CALL-10).
 - **VER-2.** A client of version 4 MUST serve its consumers towards agents
   of version 3. Towards them it:
   - withdraws a subscription with a remover: `removeListener(<event>, <id>)`
@@ -1137,3 +1161,6 @@ sequenceDiagram
   delete names the instance's own class (INST-6).
 - New: `__callMatching__` calls the instances a selection names (ALL-4 to
   ALL-6).
+- An event or a one-shot callback JSON cannot encode is told to its receiver
+  as an undeliverable notice (EV-22, CALL-10); version 3 answered a result it
+  could not encode with the string `__vrpc::not-serializable__`.

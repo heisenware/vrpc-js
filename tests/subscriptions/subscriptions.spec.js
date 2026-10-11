@@ -692,6 +692,34 @@ describe('subscriptions between a client and an agent (#1837)', function () {
     })
   })
 
+  describe('what JSON cannot carry (EV-22, CALL-10)', () => {
+    it('is told to the consumer instead of reaching the callback, and the subscription stays', async () => {
+      const client = await newClient()
+      const { instance, proxy, real } = await create(client, 'Counter')
+      const seen = []
+      const undelivered = []
+      client.on('undelivered', (id, error, info) => undelivered.push({ id, error, info }))
+      await proxy.onEvent(value => seen.push(value))
+      const [{ id }] = client.getSubscriptions().filter(x => x.instance === instance)
+      real.fire(10n)
+      await until(() => undelivered.length === 1)
+      expect(undelivered[0].id).to.equal(id)
+      expect(undelivered[0].error.message).to.include('cannot be encoded as JSON')
+      expect(undelivered[0].info).to.include({ instance, functionName: 'onEvent' })
+      real.fire(1)
+      await until(() => seen.length === 1)
+      expect(seen).to.deep.equal([1])
+
+      // a one-shot callback alike
+      let called = false
+      expect(await proxy.reply(() => { called = true }, 'big')).to.equal(true)
+      await until(() => undelivered.length === 2)
+      expect(undelivered[1].info).to.include({ instance, functionName: 'reply' })
+      await sleep(50)
+      expect(called).to.equal(false)
+    })
+  })
+
   describe('a loss heals (CL-9, CL-10, CL-11)', () => {
     // an agent of its own: these tests cut its connection
     const servedAgent = async name => {

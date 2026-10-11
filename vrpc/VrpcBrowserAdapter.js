@@ -611,7 +611,8 @@ class VrpcAdapter {
           clientId: json.s,
           isCallAll,
           instanceId: contextName,
-          eventId
+          eventId,
+          receiverVersion: json.v
         })
     })
     // a subscriber is tracked: its going withdraws what it holds
@@ -935,7 +936,8 @@ class VrpcAdapter {
             clientId,
             isCallAll,
             instanceId: context,
-            eventId: arg
+            eventId: arg,
+            receiverVersion: json.v
           })
         )
       } else {
@@ -962,13 +964,21 @@ class VrpcAdapter {
     }
   }
 
-  static _generateCallback ({ eventId, clientId, instanceId, isCallAll }) {
+  static _generateCallback ({
+    eventId,
+    clientId,
+    instanceId,
+    isCallAll,
+    receiverVersion
+  }) {
     const speaks = VrpcAdapter._speaksFor(instanceId)
     return (...innerArgs) => {
       if (!speaks()) return
       // "callAll" event notifications expect the instanceId as first argument
       const a = isCallAll ? [instanceId, ...innerArgs] : [...innerArgs]
-      VrpcAdapter._callback({ a, s: clientId, i: eventId })
+      // the receiver's protocol version: whether it can be told of a
+      // callback that cannot travel (CALL-10)
+      VrpcAdapter._callback({ a, s: clientId, i: eventId, receiverVersion })
     }
   }
 

@@ -144,6 +144,18 @@ client.on('healed', id => console.log(`${id} is back`))
 Withdrawals you make while an agent, or your own client, is offline are sent
 once both are back.
 
+One event can also fail to arrive while the subscription goes on: JSON
+cannot carry some values, such as a `BigInt`. The agent then sends a notice
+in its place, the client emits `undelivered` (id, error, info) instead of
+calling your callback, and the next event arrives as usual. A one-shot
+callback the agent cannot encode is told the same way. Convert such values
+in your class (a `BigInt` to a string or a number) where you know what they
+mean.
+
+```javascript
+client.on('undelivered', (id, error) => console.log(`${id}: ${error.message}`))
+```
+
 ## Seeing who listens
 
 An agent lists the registrations of an instance or a class - function,

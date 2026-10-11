@@ -278,7 +278,8 @@ class Registrations {
           if (!isSpeaking()) return
           this._publish({
             a: isCallAll ? [contextName, ...innerArgs] : innerArgs,
-            i: arg
+            i: arg,
+            receiverVersion: json.v
           })
         }
       })
@@ -504,9 +505,12 @@ class Registrations {
       if (reg.state >= SILENT || !speaks()) return
       this._count(reg)
       for (const sub of reg.positions[k].subs.values()) {
+        // the subscriber's version: whether it can be told of an event
+        // that cannot travel (EV-22)
         this._publish({
           a: sub.isCallAll ? [contextName, ...innerArgs] : innerArgs,
-          i: sub.id
+          i: sub.id,
+          receiverVersion: sub.v
         })
       }
     }
@@ -610,7 +614,8 @@ class Registrations {
       if (sub.position.subs.get(sub.id) !== sub) return
       this._publish({
         a: sub.isCallAll ? [reg.contextName, ...innerArgs] : innerArgs,
-        i: sub.id
+        i: sub.id,
+        receiverVersion: sub.v
       })
     }
   }

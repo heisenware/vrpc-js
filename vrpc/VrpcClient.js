@@ -2013,7 +2013,14 @@ class VrpcClient extends EventEmitter {
           this._invokeId++ % Number.MAX_SAFE_INTEGER
         }`
         wrapped.push(id)
-        this._eventEmitter.once(id, ({ a }) => callback.apply(null, a))
+        // a callback the agent could not encode is told, never called (CALL-10)
+        this._eventEmitter.once(id, ({ a, e }) => {
+          if (e) {
+            this.emit('undelivered', id, e, { agent, className, instance, functionName })
+            return
+          }
+          callback.apply(null, a)
+        })
         continue
       }
       // default behavior is to not touch
@@ -2156,11 +2163,16 @@ class VrpcClient extends EventEmitter {
       // callAll: the instances it was withdrawn at (unsubscribe's instance)
       withdrawn: new Set()
     }
-    // an ended notice carries `end` and never reaches the callback; a
-    // callAll event names its instance first
-    sub.handler = ({ a, end }) => {
+    // an ended notice carries `end` and never reaches the callback, nor
+    // does an event the agent could not encode (`e`, EV-22); a callAll
+    // event names its instance first
+    sub.handler = ({ a, end, e }) => {
       if (end) {
         this._handleEnded(topic, end)
+        return
+      }
+      if (e) {
+        this.emit('undelivered', id, e, this._subscriptionInfo(sub))
         return
       }
       if (sub.withdrawn.size > 0 && Array.isArray(a) && sub.withdrawn.has(a[0])) {
@@ -2573,6 +2585,23 @@ class VrpcClient extends EventEmitter {
  * @param {Object} info - The subscription (agent, className, instance,
  * functionName, event, callAll), `context` (the instance or class) and
  * `failed`
+ */
+
+/**
+ * Event 'undelivered'
+ *
+ * Emitted instead of an event, or a one-shot callback, whose arguments the
+ * agent could not encode as JSON (a BigInt, say). The callback is not
+ * called for it; a subscription stays and receives the next event. Agents
+ * before protocol 4 drop such events without telling.
+ *
+ * @event VrpcClient#undelivered
+ *
+ * @param {String} id - The subscription id, or the one-shot callback's id
+ * @param {Object} error - What the agent says, `{ message }`
+ * @param {Object} info - The subscription (agent, className, instance,
+ * functionName, event, callAll), or for a one-shot callback its agent,
+ * className, instance and functionName
  */
 
 /**

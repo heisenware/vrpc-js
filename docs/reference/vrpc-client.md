@@ -43,6 +43,7 @@ functions as provided through one or more (distributed) agents.
     * ["instanceNew" (addedInstances, info)](#VrpcClient+event_instanceNew)
     * ["instanceGone" (removedInstances, info)](#VrpcClient+event_instanceGone)
     * ["ended" (id, reason, by, info)](#VrpcClient+event_ended)
+    * ["undelivered" (id, error, info)](#VrpcClient+event_undelivered)
     * ["lost" (id, reason, info)](#VrpcClient+event_lost)
     * ["healed" (id, info)](#VrpcClient+event_healed)
     * ["connect"](#VrpcClient+event_connect)
@@ -700,6 +701,28 @@ callback. A callAll subscription lives on at its other instances.
 - info <code>Object</code> - The subscription (agent, className, instance,
 functionName, event, callAll), `context` (the instance or class) and
 `failed`
+
+
+* * *
+
+<a id="VrpcClient+event_undelivered"></a>
+
+### "undelivered" (id, error, info)
+Event 'undelivered'
+
+Emitted instead of an event, or a one-shot callback, whose arguments the
+agent could not encode as JSON (a BigInt, say). The callback is not
+called for it; a subscription stays and receives the next event. Agents
+before protocol 4 drop such events without telling.
+
+**Kind**: event emitted by [<code>VrpcClient</code>](#VrpcClient)  
+**Params**
+
+- id <code>String</code> - The subscription id, or the one-shot callback's id
+- error <code>Object</code> - What the agent says, `{ message }`
+- info <code>Object</code> - The subscription (agent, className, instance,
+functionName, event, callAll), or for a one-shot callback its agent,
+className, instance and functionName
 
 
 * * *

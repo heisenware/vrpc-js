@@ -33,6 +33,12 @@ class Counter {
     return this._emitter.listenerCount('event')
   }
 
+  // calls a one-shot callback with what it is given, or a BigInt
+  reply (callback, value) {
+    callback(value === 'big' ? 10n : value)
+    return true
+  }
+
   handlers () {
     return this._emitter.listenerCount('event')
   }

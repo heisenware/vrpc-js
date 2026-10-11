@@ -53,6 +53,11 @@ class Thing extends EventEmitter {
   tick (value) {
     if (this._tick) this._tick(value)
   }
+  // calls a one-shot callback with what it is given, or a BigInt
+  reply (callback, value) {
+    callback(value === 'big' ? 10n : value)
+    return true
+  }
 
   static make () { return 'made' }
 
@@ -393,6 +398,51 @@ for (const [name, Agent, Adapter, register] of AGENTS) {
             !Adapter._instances.has(id))
           await until(() => !agentSubscriptions().includes(`${conn}/__clientInfo__`))
         }
+      })
+    })
+
+    describe('what JSON cannot carry', () => {
+      const on = topic => inbox.filter(m => m.topic === topic).map(m => m.json)
+
+      it('tells a subscriber of protocol 4 that an event could not travel, and keeps it (EV-22)', async () => {
+        const id = unique('t')
+        const real = await createShared('Thing', id)
+        const v4 = `__e__${S}/${unique('ev')}`
+        const v3 = `__e__${S}/${unique('ev')}`
+        expect((await request(`Thing/${id}/onTick`, { a: [v4] })).e).to.equal(undefined)
+        expect((await request(`Thing/${id}/onTick`, { a: [v3], v: 3 })).e).to.equal(undefined)
+        real.tick(10n)
+        await until(() => on(v4.slice(5)).length === 1)
+        const [notice] = on(v4.slice(5))
+        expect(notice).to.have.all.keys('i', 'e', 'v')
+        expect(notice.i).to.equal(v4)
+        expect(notice.v).to.equal(4)
+        expect(notice.e.message).to.include('cannot be encoded as JSON')
+        // a subscriber of protocol 3 would call its handler without arguments
+        await sleep(50)
+        expect(on(v3.slice(5))).to.deep.equal([])
+        // both stay, and get the next event
+        real.tick(1)
+        await until(() => on(v4.slice(5)).length === 2 && on(v3.slice(5)).length === 1)
+        expect(on(v4.slice(5))[1].a).to.deep.equal([1])
+        expect(on(v3.slice(5))[0].a).to.deep.equal([1])
+      })
+
+      it('tells the sender of a one-shot callback it could not encode (CALL-10)', async () => {
+        const id = unique('t')
+        await createShared('Thing', id)
+        const callback = `__f__${unique('cb')}`
+        const big = await request(`Thing/${id}/reply`, { a: [callback, 'big'] })
+        expect(big.r).to.equal(true)
+        await until(() => inbox.some(m => m.topic === S && m.json && m.json.i === callback))
+        const notice = inbox.find(m => m.topic === S && m.json.i === callback).json
+        expect(notice).to.have.all.keys('i', 'e', 'v')
+        expect(notice.e.message).to.include('cannot be encoded as JSON')
+        // towards a sender of protocol 3: nothing
+        const old = `__f__${unique('cb')}`
+        expect((await request(`Thing/${id}/reply`, { a: [old, 'big'], v: 3 })).r).to.equal(true)
+        await sleep(100)
+        expect(inbox.some(m => m.topic === S && m.json && m.json.i === old)).to.equal(false)
       })
     })
 

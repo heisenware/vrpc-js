@@ -552,18 +552,38 @@ class VrpcAgent extends EventEmitter {
    * `{ a, i, v }`, the second answer of a promise `{ r | e, i, v }`, an
    * ended notice `{ i, end, v }`. Events and notices go to the topic their
    * subscription id names, everything else to the sender.
+   *
+   * An event or a callback whose arguments JSON cannot carry (a BigInt) is
+   * not dropped silently: a receiver of protocol 4 gets `{ i, e, v }`
+   * instead (EV-22, CALL-10). An older one would call its handler without
+   * arguments, so it gets nothing, and the agent logs a warning.
    */
   _handleVrpcCallback (json) {
-    const { s, i, r, e, a, end } = json
+    const { s, i, r, e, a, end, receiverVersion } = json
     const topic = i.startsWith('__e__') ? i.slice(5) : s
     const v = VRPC_PROTOCOL_VERSION
     let message
     if (end) message = { i, end, v }
     else if (a !== undefined) message = { a, i, v }
     else message = VrpcAgent._answer({ r, e, i })
+    let payload
+    try {
+      payload = VrpcAgent._stringifySafely(message)
+    } catch (err) {
+      const what = i.startsWith('__e__') ? 'event' : 'callback'
+      this._log.warn(
+        `The arguments of ${what === 'event' ? 'an' : 'a'} ${what} to ${topic} cannot be encoded as JSON: ${err.message}`
+      )
+      if (!(receiverVersion >= 4)) return
+      payload = JSON.stringify({
+        i,
+        e: { message: `The arguments of this ${what} cannot be encoded as JSON: ${err.message}` },
+        v
+      })
+    }
     try {
       this._log.debug(`Forwarding callback to: ${topic} with payload:`, json)
-      this._mqttPublish(topic, VrpcAgent._stringifySafely(message))
+      this._mqttPublish(topic, payload)
     } catch (err) {
       this._log.warn(
         err,
