@@ -69,7 +69,9 @@ class VrpcAdapter {
    * @param {Boolean} [options.withNew=true] If true, class will be constructed
    * using the `new` operator
    * @param {Object} [options.schema=null] If provided is used to validate ctor
-   * parameters (only works if registered code reflects a single class)
+   * parameters (only works if registered code reflects a single class). The
+   * browser bundle (`browser/vrpc.js`) does not validate: it warns once and
+   * constructs with the arguments as given
    */
   static registerClass (
     Klass,
@@ -912,6 +914,17 @@ class VrpcAdapter {
   }
 
   static _validate (schema, params) {
+    // the browser bundle leaves ajv out - a fifth of its size, for agents in
+    // a page, which are rare: there a schema is not checked
+    if (typeof Ajv !== 'function') {
+      if (!VrpcAdapter._warnedNoSchemas) {
+        VrpcAdapter._warnedNoSchemas = true
+        console.warn(
+          'vrpc: schema validation is not available in the browser build, constructor arguments are not checked'
+        )
+      }
+      return
+    }
     if (!VrpcAdapter._ajv) {
       VrpcAdapter._ajv = new Ajv({ useDefaults: true })
     }

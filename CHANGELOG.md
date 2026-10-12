@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [3.16.0] - Unreleased
 
+### Changed
+
+- **The browser bundle is a fifth smaller** (#73): `browser/vrpc.js` no longer carries Ajv, the JSON Schema validator, which only an agent in a page uses, to check the constructor arguments of a class registered with a `schema`. Every page that loads VRPC as a client carried it for nothing: the bundle goes from 660 to 547 KB, 199 to 161 KB gzipped. An agent in a page whose class has a schema now warns once on the console and constructs with the arguments as given - unchecked, and without the defaults the schema declares. Node agents validate as before.
+
 ### Fixed
 
 - **Two agents no longer give one client the same promise id** (#76): an agent named a pending promise `__p__<function>-<counter>`, with a counter that starts at 0 in every process, and a client waits for the result under that id alone - answers reach it on its own topic, whichever agent sends them. Two agents whose counters stood alike, waited on by one client for the same function at once, gave the same id, and the first result settled both calls: the caller got one agent's value as the other's, without an error. Agents started together and serving the same calls count alike - a fleet of edge agents behind one `callAll` over an agent pattern collided on every poll. A promise id now carries a random part per process, `__p__<function>-<nonce>-<counter>`. Clients check only the `__p__` prefix, so clients of every version profit; the protocol now requires such ids (CALL-6).

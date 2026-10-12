@@ -85,7 +85,10 @@ await agent.serve()
 A browser agent without a name takes eight random characters on every page
 load; name it if clients need to find it again. Plain functions registered
 with `registerFunction` are called on the class `__global__`. Persistence
-and the command line are not available in the browser.
+and the command line are not available in the browser, and neither is
+schema validation of constructor arguments
+([Validate constructor arguments](expose-classes.md#validate-constructor-arguments)):
+the validator would make every page's bundle a fifth larger.
 
 ## React
 

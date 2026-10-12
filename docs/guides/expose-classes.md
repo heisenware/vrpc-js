@@ -116,7 +116,9 @@ VrpcAdapter.register(Press, {
 The schema (JSON Schema, validated with Ajv) applies to the **first**
 constructor argument. A create whose options do not validate fails with the
 validation error, and no instance is made; defaults the schema declares are
-filled in.
+filled in. The browser build leaves the validator out to stay small: an agent
+in a page warns once and constructs with the options as given, unchecked and
+without defaults.
 
 A class that must not be called with `new` (a factory function) registers
 with `{ withNew: false }`.

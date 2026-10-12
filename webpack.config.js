@@ -13,7 +13,11 @@ module.exports = {
     alias: {
       mqtt$: path.resolve(__dirname, 'node_modules/mqtt/build/index.js'),
       // the SOCKS transport is Node-only (net, dns); it stays out of the page
-      socks$: false
+      socks$: false,
+      // schema validation serves agents in a page only, which are rare: a
+      // fifth of the bundle that every client page would carry for nothing
+      // (VrpcBrowserAdapter._validate warns and skips without it)
+      ajv: false
     },
     fallback: {
       net: false,
