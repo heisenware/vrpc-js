@@ -1177,13 +1177,15 @@ class VrpcAdapter {
   }
 
   /**
-   * Answers a promise twice: at once with `r: '__p__<f>-<n>'`, and once it
-   * settled with a second answer under that id, `{ s, i, r }` or
-   * `{ s, i, e }`.
+   * Answers a promise twice: at once with `r: '__p__<f>-<nonce>-<n>'`, and
+   * once it settled with a second answer under that id, `{ s, i, r }` or
+   * `{ s, i, e }`. A client waits for the second answer under the bare id,
+   * whichever agent sends it: the nonce keeps the ids of two agents apart,
+   * whose counters may well stand at the same value.
    */
   static _handlePromise (json, promise) {
     const cid = VrpcAdapter._correlationId++ % Number.MAX_SAFE_INTEGER
-    const id = `__p__${json.f}-${cid}`
+    const id = `__p__${json.f}-${VrpcAdapter._promiseNonce}-${cid}`
     const { s } = json
     json.r = id
     promise.then(
@@ -1391,6 +1393,8 @@ VrpcAdapter._functionRegistry = new Map()
 VrpcAdapter._instances = new Map()
 VrpcAdapter._emitter = new EventEmitter()
 VrpcAdapter._correlationId = 0
+// tells this process's promise ids from those of every other agent
+VrpcAdapter._promiseNonce = nanoid(8)
 // the event registrations of every context and their subscriptions
 VrpcAdapter._registrations = new Registrations({
   publish: message => VrpcAdapter._callback(message),

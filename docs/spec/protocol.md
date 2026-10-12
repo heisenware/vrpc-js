@@ -444,20 +444,25 @@ a subscription id instead (section 12).
   begins with `__p__`, and MUST later publish a second answer to the
   request's `s`: `{ "r": <result>, "i": "<promise id>", "v": 4 }` once the
   result is there, or `{ "e": <error>, "i": "<promise id>", "v": 4 }` when it
-  failed.
+  failed. A promise id MUST NOT be one another agent could give the same
+  sender while it waits: answers reach the sender on its own topic, whoever
+  sends them, and nothing but the id tells two of them apart. A random part
+  per agent process next to a counter is enough; a counter alone is not,
+  as agents started together count alike.
 - **CALL-7.** A client MUST treat an answer whose `r` is a string beginning
   with `__p__` as pending, and MUST take the message whose `i` equals that
   string as the final answer.
 
 ```json
-{ "r": "__p__readSlowly-41", "i": "Xa3kP9qz-19", "v": 4 }
-{ "r": 21.5, "i": "__p__readSlowly-41", "v": 4 }
+{ "r": "__p__readSlowly-Vb2kQ9xd-41", "i": "Xa3kP9qz-19", "v": 4 }
+{ "r": 21.5, "i": "__p__readSlowly-Vb2kQ9xd-41", "v": 4 }
 ```
 
 A function that really returns a string beginning with `__p__` is
 indistinguishable from a promise (section 15).
 
-*In vrpc-js:* a promise id is `__p__<function>-<counter>`. The client puts
+*In vrpc-js:* a promise id is
+`__p__<function>-<8 random characters per process>-<counter>`. The client puts
 no time limit on the second answer, but fails the call once the second
 answer can no longer arrive: when the agent's info says `offline`, when the
 agent announces `online` again (a live, not a retained message: a new
@@ -552,8 +557,8 @@ answered.
   function passed.
 
 ```json
-{ "r": "__p____callAll__-7", "i": "Xa3kP9qz-20", "v": 4 }
-{ "r": [{ "id": "kitchen", "val": 21.5 }, { "id": "garage", "err": { "message": "sensor offline" } }], "i": "__p____callAll__-7", "v": 4 }
+{ "r": "__p____callAll__-Vb2kQ9xd-7", "i": "Xa3kP9qz-20", "v": 4 }
+{ "r": [{ "id": "kitchen", "val": 21.5 }, { "id": "garage", "err": { "message": "sensor offline" } }], "i": "__p____callAll__-Vb2kQ9xd-7", "v": 4 }
 ```
 
 A client that wants some instances of a class, not all, names them with a
@@ -582,8 +587,8 @@ one request however many instances it holds.
 
 ```json
 { "c": "Line", "f": "status", "a": ["line-3*", "status"], "i": "Xa3kP9qz-21", "s": "plant/web-7f3a/k9x2", "v": 4 }
-{ "r": "__p____callMatching__-8", "i": "Xa3kP9qz-21", "v": 4 }
-{ "r": [{ "id": "line-3", "val": "running" }, { "id": "line-31", "val": "stopped" }], "i": "__p____callMatching__-8", "v": 4 }
+{ "r": "__p____callMatching__-Vb2kQ9xd-8", "i": "Xa3kP9qz-21", "v": 4 }
+{ "r": [{ "id": "line-3", "val": "running" }, { "id": "line-31", "val": "stopped" }], "i": "__p____callMatching__-Vb2kQ9xd-8", "v": 4 }
 ```
 
 *In vrpc-js:* `client.callAll({ instances })` takes a pattern or a list of
@@ -1022,6 +1027,9 @@ credential a broker can rely on.
   does not exist, or for an unlisted static function, reaches no agent
   (CALL-3).
 - **A result string beginning with `__p__` reads as a promise** (CALL-7).
+- **Older agents number promises with a counter alone** (CALL-6): vrpc-js
+  agents before 3.16.0 did. A client waiting for promises of two such agents
+  at once can take one agent's result for the other's.
 - **Events missed during a loss are not replayed.** A class whose events
   must not be lost numbers them and offers a function to fetch what was
   missed.

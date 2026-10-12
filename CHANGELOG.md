@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.16.0] - Unreleased
+
+### Fixed
+
+- **Two agents no longer give one client the same promise id** (#76): an agent named a pending promise `__p__<function>-<counter>`, with a counter that starts at 0 in every process, and a client waits for the result under that id alone - answers reach it on its own topic, whichever agent sends them. Two agents whose counters stood alike, waited on by one client for the same function at once, gave the same id, and the first result settled both calls: the caller got one agent's value as the other's, without an error. Agents started together and serving the same calls count alike - a fleet of edge agents behind one `callAll` over an agent pattern collided on every poll. A promise id now carries a random part per process, `__p__<function>-<nonce>-<counter>`. Clients check only the `__p__` prefix, so clients of every version profit; the protocol now requires such ids (CALL-6).
+
 ## [3.15.1] - Unreleased
 
 ### Fixed

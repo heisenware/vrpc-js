@@ -40,7 +40,9 @@ It MUST be able to:
   `VrpcAdapter.call(jsonString) -> jsonString`;
 - **hand out what it sends on its own** - callbacks, events, second answers of
   promises, ended notices (section 6.3) - through one hook, in JavaScript
-  `VrpcAdapter.onCallback(message => ...)`;
+  `VrpcAdapter.onCallback(message => ...)`. A promise id carries a random
+  part per process next to its counter, so no other agent repeats it
+  ([CALL-6](protocol.md#94-promises));
 - **keep registrations** with the guarantees of
   [section 12](protocol.md#12-events). `vrpc/Registrations.js` is the
   reference design: one book per adapter of contexts, registrations and

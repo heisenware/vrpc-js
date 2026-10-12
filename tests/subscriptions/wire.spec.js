@@ -206,7 +206,7 @@ for (const [name, Agent, Adapter, register] of AGENTS) {
         const id = unique('t')
         await createShared('Thing', id)
         const first = await request(`Thing/${id}/later`, { a: [] })
-        expect(first.r).to.match(/^__p__later-\d+$/)
+        expect(first.r).to.match(/^__p__later-[\w-]{8}-\d+$/)
         expect(await answerTo(first.r)).to.deep.equal({ r: 'done', i: first.r, v: 4 })
       })
 
