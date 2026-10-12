@@ -132,6 +132,7 @@ A call fails with an `Error` when:
 | the function is not one the class info lists | `[vrpc ...]: Could not find function: <name>` |
 | the instance is isolated to another connection | `[vrpc ...]: Instance '<name>' is isolated to another connection` |
 | no answer came in time | `Function call "<context>::<function>()" on agent "<agent>" timed out (> <ms> ms)` |
+| the answer can no longer arrive | `Function call "<context>::<function>()" on agent "<agent>" lost its answer: <reason>` |
 
 A call to an instance that does not exist, or to a static function the class
 does not list, reaches no agent at all: the agent does not listen on such a
@@ -149,6 +150,14 @@ rides out short connection losses at some cost.
 ```javascript
 const client = new VrpcClient({ domain: 'factory', timeout: 30000 })
 ```
+
+A function that returns a promise is answered at once that its result will
+follow, and the result has no time limit: the function may run as long as it
+needs. The client waits for it as long as the path it would travel stands.
+When the agent goes offline or announces itself from a new connection, or
+the client loses its own connection, the call fails at once with
+`lost its answer` - the result can no longer arrive. A caller that wants a
+bound on a long-running function races the call against a timer of its own.
 
 ## Where a call goes
 

@@ -18,6 +18,21 @@ send and receive.
 | The message was lost (QoS 0) on an unstable link | use `bestEffort: false` on both sides. |
 | The function takes longer than the timeout | raise `timeout` on the client, or return a promise: a promise is answered when it settles, without a time limit. |
 
+## A call lost its answer
+
+`Function call "<context>::<function>()" on agent "<agent>" lost its answer: <reason>`
+
+The answer can no longer arrive, so the call failed at once instead of
+waiting. Calling again is safe as far as VRPC goes; whether the function ran
+is unknown.
+
+| Reason | What happened |
+| --- | --- |
+| `this client lost its connection` | the client's broker connection dropped while it waited. With a clean session nothing published meanwhile reaches it. |
+| `the agent went offline` | the agent's will arrived while a promise of it was pending. |
+| `the agent connected anew` | the agent announced itself from a new connection - it restarted, or its connection was taken over - while a promise of it was pending. |
+| `the client ended` | `client.end()` was called while the call waited. |
+
 ## `Could not find function: <name>`
 
 The function is not published. Functions starting with `_`, functions an

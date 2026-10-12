@@ -457,7 +457,12 @@ a subscription id instead (section 12).
 A function that really returns a string beginning with `__p__` is
 indistinguishable from a promise (section 15).
 
-*In vrpc-js:* a promise id is `__p__<function>-<counter>`.
+*In vrpc-js:* a promise id is `__p__<function>-<counter>`. The client puts
+no time limit on the second answer, but fails the call once the second
+answer can no longer arrive: when the agent's info says `offline`, when the
+agent announces `online` again (a live, not a retained message: a new
+connection, which knows nothing of the promise), or when the client's own
+connection closes.
 
 ### 9.5 Special calls
 

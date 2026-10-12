@@ -180,6 +180,9 @@ class VrpcClient extends EventEmitter {
     this._pendingWithdrawals = new Map()
     // the client's own inbox is subscribed (answers can arrive)
     this._inboxReady = false
+    // the answers this client waits for ({ agent, second, lose, forget }),
+    // lost when the path an answer would travel breaks (see _loseAnswers)
+    this._waiting = new Set()
     // labels callbacks carry towards the agent's list of registrations
     this._subscriberLabels = new WeakMap()
     if (log === 'console') {
@@ -323,6 +326,12 @@ class VrpcClient extends EventEmitter {
       this.emit('error', err)
     })
 
+    // a clean session keeps nothing for this connection while it is gone:
+    // an answer published meanwhile never arrives
+    this._client.on('close', () => {
+      this._loseAnswers(() => true, 'this client lost its connection')
+    })
+
     this._client.stream.on('error', err => {
       this.emit('error', err)
     })
@@ -377,7 +386,7 @@ class VrpcClient extends EventEmitter {
       }
     })
 
-    this._client.on('message', (topic, message) => {
+    this._client.on('message', (topic, message, packet) => {
       if (message.length === 0) return
       try {
         const tokens = topic.split('/')
@@ -398,8 +407,21 @@ class VrpcClient extends EventEmitter {
           // the agent's protocol version (undefined before 3)
           this._agents[agent].v = v
           if (status === 'offline') {
+            this._loseAnswers(
+              w => w.second && w.agent === agent,
+              'the agent went offline'
+            )
             this._loseAgent(agent, v)
           } else {
+            // an agent announces itself from a new connection only (a
+            // retained announcement is old news a subscription brings):
+            // the promises its former connection was to answer are gone
+            if (!packet.retain) {
+              this._loseAnswers(
+                w => w.second && w.agent === agent,
+                'the agent connected anew'
+              )
+            }
             this._redeclareTo(agent)
             this._flushWithdrawals(agent)
           }
@@ -1400,6 +1422,7 @@ class VrpcClient extends EventEmitter {
         v: VRPC_PROTOCOL_VERSION
       })
     )
+    this._loseAnswers(() => true, 'the client ended')
     this._eventEmitter.removeAllListeners()
     this.removeAllListeners()
     // the agents withdraw what this connection held: nothing to declare
@@ -1604,12 +1627,16 @@ class VrpcClient extends EventEmitter {
     await this._waitUntilClassIsOnline(agent, className)
     this._mqttPublish(topic, JSON.stringify(json))
     return new Promise((resolve, reject) => {
-      const msg = `Proxy creation for class "${className}" on agent "${agent}" and domain "${this._domain}" timed out (> ${this._timeout} ms)`
+      const call = `Proxy creation for class "${className}" on agent "${agent}" and domain "${this._domain}"`
       const timer = setTimeout(() => {
-        this._eventEmitter.removeAllListeners(i)
-        reject(new Error(msg))
+        forget()
+        reject(new Error(`${call} timed out (> ${this._timeout} ms)`))
       }, this._timeout)
-      this._eventEmitter.once(i, ({ e, r }) => {
+      const lose = reason => {
+        clearTimeout(timer)
+        reject(new Error(`${call} lost its answer: ${reason}`))
+      }
+      const forget = this._awaitAnswer(i, { agent, lose }, ({ e, r }) => {
         clearTimeout(timer)
         if (e) {
           // the agent answers a throwing constructor with { message, cause }
@@ -1813,27 +1840,33 @@ class VrpcClient extends EventEmitter {
 
   async _handleAgentAnswer ({ i, c, f, a }, agent) {
     return new Promise((resolve, reject) => {
-      const msg = `Function call "${c}::${f}()" on agent "${agent}" timed out (> ${this._timeout} ms)`
+      const call = `Function call "${c}::${f}()" on agent "${agent}"`
       const timer = setTimeout(() => {
-        this._eventEmitter.removeAllListeners(i)
-        reject(new Error(msg))
+        forget()
+        reject(new Error(`${call} timed out (> ${this._timeout} ms)`))
       }, this._timeout)
+      const lose = reason => {
+        clearTimeout(timer)
+        reject(new Error(`${call} lost its answer: ${reason}`))
+      }
       // a protocol-4 agent that answers a declaring call without an error
       // holds every subscription the call carried
       const confirm = () => {
         const info = this._agents[agent]
         if (info && info.v >= 4) this._confirmSubscriptions(a)
       }
-      this._eventEmitter.once(i, data => {
+      const forget = this._awaitAnswer(i, { agent, lose }, data => {
         clearTimeout(timer)
         if (data.e) {
           const { message, cause } = VrpcClient._prepareError(data.e)
           reject(new Error(`[vrpc ${agent}-${c}-${f}]: ${message}`, { cause }))
         } else {
           const ret = data.r
-          // Handle functions returning a promise
+          // Handle functions returning a promise: the result follows when
+          // it settles, however long that takes - unless the path it would
+          // travel breaks first
           if (typeof ret === 'string' && ret.substring(0, 5) === '__p__') {
-            this._eventEmitter.once(ret, promiseData => {
+            this._awaitAnswer(ret, { agent, lose, second: true }, promiseData => {
               if (promiseData.e) {
                 const { message, cause } = VrpcClient._prepareError(
                   promiseData.e
@@ -1853,6 +1886,44 @@ class VrpcClient extends EventEmitter {
         }
       })
     })
+  }
+
+  /**
+   * Waits for the answer with id `id`.
+   *
+   * @param {String} id
+   * @param {Object} waiter
+   * @param {String} waiter.agent the agent that answers
+   * @param {Function} waiter.lose called with a reason when the answer can
+   * no longer arrive
+   * @param {Boolean} [waiter.second] a promise's result, the second answer
+   * to its call
+   * @param {Function} onAnswer called with the answer
+   * @returns {Function} stops waiting, without a call to `lose`
+   */
+  _awaitAnswer (id, { agent, lose, second = false }, onAnswer) {
+    const waiter = { agent, lose, second }
+    const listener = data => {
+      this._waiting.delete(waiter)
+      onAnswer(data)
+    }
+    waiter.forget = () => {
+      this._waiting.delete(waiter)
+      this._eventEmitter.removeListener(id, listener)
+    }
+    this._waiting.add(waiter)
+    this._eventEmitter.once(id, listener)
+    return waiter.forget
+  }
+
+  // the answers that can no longer arrive: their calls reject at once, and
+  // a late answer finds no listener
+  _loseAnswers (selects, reason) {
+    for (const waiter of Array.from(this._waiting)) {
+      if (!selects(waiter)) continue
+      waiter.forget()
+      waiter.lose(reason)
+    }
   }
 
   static _prepareError (rpcError) {
