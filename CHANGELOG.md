@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [3.16.0] - Unreleased
+## [3.16.0] - Oct 12 2026
 
 ### Changed
 
@@ -13,13 +13,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- **Two agents no longer give one client the same promise id** (#76): an agent named a pending promise `__p__<function>-<counter>`, with a counter that starts at 0 in every process, and a client waits for the result under that id alone - answers reach it on its own topic, whichever agent sends them. Two agents whose counters stood alike, waited on by one client for the same function at once, gave the same id, and the first result settled both calls: the caller got one agent's value as the other's, without an error. Agents started together and serving the same calls count alike - a fleet of edge agents behind one `callAll` over an agent pattern collided on every poll. A promise id now carries a random part per process, `__p__<function>-<nonce>-<counter>`. Clients check only the `__p__` prefix, so clients of every version profit; the protocol now requires such ids (CALL-6).
-
-## [3.15.1] - Unreleased
-
-### Fixed
-
 - **A promise's lost result rejects the call instead of hanging it for good** (#75): a function that returns a promise is answered twice, `__p__<id>` at once and the result once it settles, and the client waited for the second answer without a deadline and without anything else that could end the wait. A result lost on the way - this client's connection dropped for a second, the agent went offline or restarted - left the caller's promise pending for the life of the process, without a log line, and leaked a listener. Every `callAll` is answered this way, and `callAll` over an agent pattern waited for all agents, so one lost result held back every other agent's answer too. The client now rejects a call as soon as its answer can no longer arrive: `Function call "<context>::<function>()" on agent "<agent>" lost its answer: <reason>`, when the agent goes offline, when it announces itself from a new connection (its former connection was to deliver the result; a retained announcement a subscription brings changes nothing), when this client loses its connection (a clean session keeps nothing for it meanwhile - this also ends a call still waiting for its first answer, which used to wait out `timeout` for nothing), and when the client ends. A `callAll` over an agent pattern answers the failed agent with its usual `err` entries, the others' answers stand. A result that arrives after the rejection is ignored, as a late answer after `timeout` is. There is still no time limit on a promise's result: a function may run as long as it needs while agent and client stay connected.
+- **Two agents no longer give one client the same promise id** (#76): an agent named a pending promise `__p__<function>-<counter>`, with a counter that starts at 0 in every process, and a client waits for the result under that id alone - answers reach it on its own topic, whichever agent sends them. Two agents whose counters stood alike, waited on by one client for the same function at once, gave the same id, and the first result settled both calls: the caller got one agent's value as the other's, without an error. Agents started together and serving the same calls count alike - a fleet of edge agents behind one `callAll` over an agent pattern collided on every poll. A promise id now carries a random part per process, `__p__<function>-<nonce>-<counter>`. Clients check only the `__p__` prefix, so clients of every version profit; the protocol now requires such ids (CALL-6).
 
 ## [3.15.0] - Oct 11 2026
 
