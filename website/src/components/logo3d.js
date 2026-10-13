@@ -102,26 +102,52 @@ export function startLogo ({ wrap, flight, canvas, onReady }) {
   // the journey: 0 in the hero, 1 in the call story
   const progress = () => clamp(window.scrollY / layout.end, 0, 1)
 
-  // the pointer, while a mouse or pen is over the window
+  // the pointer, while a mouse or pen is over the window - or a finger that
+  // touched the V: it turns the V while it rests or drags, and the V keeps
+  // facing it a moment after it lifted, so that a tap turns it, too. A
+  // vertical swipe scrolls the page and lets go (pointercancel).
   let mouse = null
+  let finger = null
+  let linger = 0
   function onPointer (e) {
-    if (e.pointerType === 'touch') return
+    if (e.pointerType === 'touch' && e.pointerId !== finger) return
     mouse = { x: e.clientX, y: e.clientY }
     wake()
   }
+  function onDown (e) {
+    if (e.pointerType !== 'touch' || !layout) return
+    const point = { x: e.clientX, y: e.clientY }
+    if (!aimAt(point, false)) return
+    clearTimeout(linger)
+    finger = e.pointerId
+    mouse = point
+    wake()
+  }
+  function onUp (e) {
+    if (e.pointerId !== finger) return
+    finger = null
+    linger = setTimeout(() => {
+      mouse = null
+      wake()
+    }, e.type === 'pointercancel' ? 0 : 600)
+  }
   function onOut (e) {
-    if (e.relatedTarget) return
+    if (e.relatedTarget || e.pointerType === 'touch') return
     mouse = null
     wake()
   }
-  // where on the V the pointer rests, -1..1 from its middle, or nothing
-  function aim () {
-    if (!mouse) return null
+  // where on the V a point is, -1..1 from its middle, or nothing outside it
+  // (or, `clamped`, its edge)
+  function aimAt (point, clamped) {
     const r = flight.getBoundingClientRect()
-    const x = ((mouse.x - r.left) / r.width - 0.5) * 2
-    const y = ((mouse.y - r.top) / r.height - 0.5) * 2
+    const x = ((point.x - r.left) / r.width - 0.5) * 2
+    const y = ((point.y - r.top) / r.height - 0.5) * 2
+    if (clamped) return { x: clamp(x, -1, 1), y: clamp(y, -1, 1) }
     return Math.abs(x) <= 1 && Math.abs(y) <= 1 ? { x, y } : null
   }
+  // where on the V the pointer rests: a finger that drags off the V keeps
+  // it turned towards that side
+  const aim = () => (mouse ? aimAt(mouse, finger !== null) : null)
 
   // the flash of the last message that reached the V in the call story
   let flash = null
@@ -199,6 +225,9 @@ export function startLogo ({ wrap, flight, canvas, onReady }) {
   window.addEventListener('resize', measure)
   window.addEventListener('scroll', wake, { passive: true })
   window.addEventListener('pointermove', onPointer, { passive: true })
+  window.addEventListener('pointerdown', onDown, { passive: true })
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onUp)
   document.addEventListener('pointerout', onOut)
   window.addEventListener('vrpc-pulse', onPulse)
   measure()
@@ -207,11 +236,15 @@ export function startLogo ({ wrap, flight, canvas, onReady }) {
 
   return () => {
     cancelAnimationFrame(frame)
+    clearTimeout(linger)
     io.disconnect()
     ro.disconnect()
     window.removeEventListener('resize', measure)
     window.removeEventListener('scroll', wake)
     window.removeEventListener('pointermove', onPointer)
+    window.removeEventListener('pointerdown', onDown)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onUp)
     document.removeEventListener('pointerout', onOut)
     window.removeEventListener('vrpc-pulse', onPulse)
     geometry.dispose()

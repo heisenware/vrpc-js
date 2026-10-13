@@ -141,6 +141,12 @@
   opacity: 0;
 }
 
+/* a finger on the V turns it: a sideways drag stays with the V, a vertical
+   swipe still scrolls the page */
+.logo-journey.is-live .logo-slot {
+  touch-action: pan-y pinch-zoom;
+}
+
 /* ---- hero -------------------------------------------------------------- */
 
 .home-hero {
