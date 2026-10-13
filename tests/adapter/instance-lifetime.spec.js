@@ -444,6 +444,71 @@ for (const [adapterName, Adapter, register] of ADAPTERS) {
       })
     })
 
+    describe('a create of a name that exists returns it unchanged', () => {
+      // what the adapter announces as 'create' while `action` runs
+      const announced = action => {
+        const seen = []
+        const hook = event => seen.push(event)
+        Adapter.on('create', hook)
+        try {
+          action()
+        } finally {
+          Adapter.off('create', hook)
+        }
+        return seen
+      }
+
+      it('announces a shared instance once, however often it is created remotely', () => {
+        const id = uniqueId('emitting')
+        let first
+        const seen = announced(() => {
+          first = create('Emitting', id, 'gen1')
+          expect(create('Emitting', id, 'gen2')).to.equal(first)
+          expect(create('Emitting', id, 'gen3')).to.equal(first)
+        })
+        expect(seen).to.deep.equal([
+          { args: ['gen1'], className: 'Emitting', isIsolated: false, instance: id }
+        ])
+        expect(first._tag).to.equal('gen1')
+      })
+
+      it('announces a shared instance once, however often it is created in-process', () => {
+        const id = uniqueId('emitting')
+        let first
+        const seen = announced(() => {
+          first = Adapter.create({ className: 'Emitting', instance: id, args: ['gen1'] })
+          const again = Adapter.create({ className: 'Emitting', instance: id, args: ['gen2'] })
+          expect(again).to.equal(first)
+        })
+        expect(seen.map(event => event.args)).to.deep.equal([['gen1']])
+      })
+
+      it('keeps the class of a shared instance created again under another class', () => {
+        const id = uniqueId('emitting')
+        const first = create('Emitting', id, 'gen1')
+        const seen = announced(() => {
+          const json = call({ c: 'Ticking', f: '__createShared__', a: [id, 'gen2'], s: CLIENT })
+          expect(json.r).to.equal(id)
+        })
+        expect(seen).to.deep.equal([])
+        expect(Adapter._instances.get(id)).to.include({ instance: first, className: 'Emitting' })
+      })
+
+      it('announces an isolated instance once, however often its owner creates it', () => {
+        const id = uniqueId('emitting')
+        const createIsolated = tag =>
+          call({ c: 'Emitting', f: '__createIsolated__', a: [id, tag], s: CLIENT })
+        const seen = announced(() => {
+          expect(createIsolated('gen1').r).to.equal(id)
+          expect(createIsolated('gen2').r).to.equal(id)
+        })
+        expect(seen.map(event => event.args)).to.deep.equal([['gen1']])
+        expect(Adapter.getInstance(id)._tag).to.equal('gen1')
+        // the cleanup after this suite sees shared instances only
+        Adapter.delete(id)
+      })
+    })
+
     describe('a client subscribed twice to one event id', () => {
       it('leaves no listener behind when the client goes (#1705)', () => {
         const id = uniqueId('emitting')

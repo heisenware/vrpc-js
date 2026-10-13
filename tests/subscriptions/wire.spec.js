@@ -559,6 +559,65 @@ for (const [name, Agent, Adapter, register] of AGENTS) {
       })
     })
 
+    describe('a class the agent no longer offers', () => {
+      const ghostInfo = className =>
+        JSON.stringify({
+          className,
+          instances: [],
+          memberFunctions: ['ping'],
+          staticFunctions: ['__createShared__'],
+          v: 4
+        })
+
+      it('loses its retained class infos once the agent serves (AG-12)', async () => {
+        const name = unique('sweeping')
+        const prefix = `${DOMAIN}/${name}`
+        // what an earlier run under this name left behind
+        for (const info of ['__classInfo__', '__classInfoConcise__']) {
+          broker.inject(`${prefix}/Ghost/${info}`, ghostInfo('Ghost'), { retain: true })
+        }
+        const warnings = []
+        const sweeping = new Agent({
+          domain: DOMAIN,
+          agent: name,
+          broker: broker.url,
+          log: { ...quiet, warn: (...args) => warnings.push(args) }
+        })
+        await sweeping.serve()
+        try {
+          await until(() => broker.retainedUnder(`${prefix}/Ghost/`).length === 0)
+          // what it offers stays, and its own messages pass without a word
+          expect(broker.retainedUnder(`${prefix}/Thing/`)).to.have.members([
+            `${prefix}/Thing/__classInfo__`,
+            `${prefix}/Thing/__classInfoConcise__`
+          ])
+          await sleep(100)
+          expect(warnings).to.deep.equal([])
+        } finally {
+          await sweeping.end({ unregister: true })
+        }
+      })
+
+      it('keeps a class info published while the agent serves (AG-12)', async () => {
+        const name = unique('sweeping')
+        const prefix = `${DOMAIN}/${name}`
+        const sweeping = new Agent({ domain: DOMAIN, agent: name, broker: broker.url, log: quiet })
+        await sweeping.serve()
+        try {
+          // routed live, not as a retained message from before: not the
+          // agent's to judge
+          broker.inject(`${prefix}/Ghost/__classInfoConcise__`, ghostInfo('Ghost'), { retain: true })
+          await sleep(200)
+          expect(broker.retainedUnder(`${prefix}/Ghost/`)).to.deep.equal([
+            `${prefix}/Ghost/__classInfoConcise__`
+          ])
+        } finally {
+          await sweeping.end({ unregister: true })
+          broker.inject(`${prefix}/Ghost/__classInfoConcise__`, '', { retain: true })
+        }
+      })
+    })
+
     describe('a client', () => {
       const newClient = async () => {
         const client = new VrpcClient({

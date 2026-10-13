@@ -158,6 +158,24 @@ describe('VrpcPersistor', () => {
     expect(orphan.listenerCount('update')).to.equal(0)
   })
 
+  it('should leave the record of an existing instance alone when it is created again', async () => {
+    new VrpcPersistor({ agentInstance: agent, dir: testDir })
+    agent.create({ className: 'Updating', instance: 'updating-2', args: [1] })
+    const obj = VrpcAdapter.getInstance('updating-2')
+    const storage = await openStorage(testDir)
+    expect(await waitForKey(storage, 'Updating', 'updating-2', true)).to.be.true
+    obj.emit('update', 5)
+    await sleep()
+    expect((await storage.getItem('updating-2')).args).to.deep.equal([5])
+
+    // a client that creates the instance it relies on, again and again
+    agent.create({ className: 'Updating', instance: 'updating-2', args: [9] })
+    agent.create({ className: 'Updating', instance: 'updating-2', args: [9] })
+    await sleep()
+    expect((await storage.getItem('updating-2')).args).to.deep.equal([5])
+    expect(obj.listenerCount('update')).to.equal(1)
+  })
+
   it('should handle restoring a large number of instances', async function () {
     // The budget is dominated by the broker round trip of the agent restart
     // below, not by the persistor: a public broker can take >10 s per connect

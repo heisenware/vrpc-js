@@ -646,6 +646,9 @@ class VrpcAgent extends EventEmitter {
     ] of VrpcAdapter._instances.entries()) {
       batches.push(this._methodsTopic(className, instanceId))
     }
+    // what the broker retains of this agent's classes: an earlier run's
+    // class that is no longer offered is cleared (_sweepClassInfo)
+    batches.push(`${this._baseTopic}/+/__classInfoConcise__`)
     let pending = batches.length
     const announce = () => {
       // a connection that ended meanwhile announces nothing: the next
@@ -658,10 +661,6 @@ class VrpcAgent extends EventEmitter {
       }
       this._serving = true
       this.emit('connect')
-    }
-    if (pending === 0) {
-      announce()
-      return
     }
     for (const topic of batches) {
       this._mqttSubscribe(topic, undefined, () => {
@@ -743,7 +742,38 @@ class VrpcAgent extends EventEmitter {
     return topics
   }
 
-  _handleMessage (topic, data) {
+  /**
+   * A class info under this agent's own name. What the broker retained of
+   * a class this agent does not offer is a ghost of an earlier run - a
+   * class info only `end({ unregister: true })` would have cleared - and
+   * clients would list the class forever: it is cleared, in full and
+   * concise. Everything else on the topic - the agent's own announcements
+   * and clears, routed back live - passes without a word.
+   *
+   * @returns {Boolean} whether the message was a class info
+   * @private
+   */
+  _sweepClassInfo (topic, data, packet) {
+    const prefix = `${this._baseTopic}/`
+    if (!topic.startsWith(prefix)) return false
+    const tokens = topic.slice(prefix.length).split('/')
+    if (tokens.length !== 2) return false
+    const [className, info] = tokens
+    if (info !== '__classInfoConcise__' && info !== '__classInfo__') {
+      return false
+    }
+    const retained = !!packet && packet.retain
+    if (!retained || data.length === 0) return true
+    if (this._getClasses().includes(className)) return true
+    this._log.info(`Clearing the class info of ${className}, no longer offered`)
+    for (const name of ['__classInfo__', '__classInfoConcise__']) {
+      this._mqttPublish(`${prefix}${className}/${name}`, null, { retain: true })
+    }
+    return true
+  }
+
+  _handleMessage (topic, data, packet) {
+    if (this._sweepClassInfo(topic, data, packet)) return
     let json
     try {
       json = JSON.parse(data.toString())

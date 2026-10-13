@@ -112,7 +112,9 @@ process.on('SIGTERM', async () => {
 ```
 
 `agent.end({ unregister: true })` takes an agent off the broker for good:
-its retained agent and class info are cleared, and clients forget it. A
+its retained agent and class info are cleared, and clients forget it. An
+agent that serves again without a class it offered before clears that
+class's info itself, whichever way it ended. A
 client's `end()` publishes its presence, so agents clean up after it at
 once.
 

@@ -332,6 +332,13 @@ Until a refused request topic is granted (TR-7), requests to it are lost.
   isolated one.
 - **AG-9.** `memberFunctions` and `staticFunctions` MUST list exactly what
   a request can call (CALL-1).
+- **AG-12.** An agent SHOULD clear, with zero-length retained messages on
+  both topics, the class info of every class it does not offer that the
+  broker retained under its name - what an earlier run left behind. It
+  learns of them by subscribing `<domain>/<agent>/+/__classInfoConcise__`
+  after every connect, and judges only messages delivered as retained: one
+  routed live comes from a running agent. Two agents serving under one name
+  clear each other's classes.
 
 A client needs `__classInfo__` only when it reads `meta`; otherwise
 `__classInfoConcise__` carries the same at a fraction of the size.

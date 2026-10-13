@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.16.1] - Unreleased
+
+### Fixed
+
+- **A create of a shared instance that exists changes nothing**: the adapter did not construct it again, but announced it again as `create` and filed it anew under the class and arguments of the repeated request. A `VrpcPersistor` therefore rewrote the instance's record with those arguments - discarding the state its `update` events had stored, so a restart restored an older instance, or one of the wrong class - logged "Persisting new instance" each time and attached one more `update` listener to it. A client that creates the instance it relies on once a minute did all of this once a minute. Now a shared create of a name that exists returns the instance unchanged and emits nothing, as an isolated create of its owner already did; the Node and the browser adapter alike.
+- **A class an agent no longer offers leaves the broker**: its class info stayed retained under the agent's name - only `end({ unregister: true })` cleared class infos, and only of the classes the agent still offered - so every client listed the class forever and a call into it timed out. Now an agent subscribes to the class infos retained under its name each time it connects and clears, in full and concise, every one of a class it does not offer; class infos routed live, its own included, it leaves alone. The Node and the browser agent alike; protocol rule AG-12. Two processes serving under one agent name with different classes clear each other's class infos.
+
 ## [3.16.0] - Oct 12 2026
 
 ### Changed

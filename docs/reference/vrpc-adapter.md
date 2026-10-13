@@ -64,7 +64,8 @@ communication.
 ### "create"
 Event 'create'
 
-Emitted on creation of shared instance
+Emitted once an instance was created. A create of a name that exists
+returns that instance and emits nothing.
 
 **Kind**: event emitted by [<code>VrpcAdapter</code>](#VrpcAdapter)  
 **Properties**

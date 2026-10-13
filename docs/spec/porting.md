@@ -68,7 +68,8 @@ of section [8.2](protocol.md#82-presence). In order of a connection's life:
    (TOP-2).
 2. Subscribe every request topic (AG-2), wait for every SUBACK, retry
    refused ones (TR-7), and only then publish the agent info `online` and
-   both class infos of every class (AG-1, AG-3, AG-7).
+   both class infos of every class (AG-1, AG-3, AG-7). Clear the retained
+   class info of a class you no longer offer (AG-12).
 3. For every request: check the sender (MSG-2, SEC-2), take context and
    function from the topic (MSG-1), let the adapter run it, publish the
    answer to `s` (MSG-6). Watch the presence of connections that hold

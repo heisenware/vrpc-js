@@ -469,8 +469,15 @@ class VrpcAdapter {
       const [instanceId, ...args] = json.a
       VrpcAdapter._assertInstanceName(instanceId)
       const existing = VrpcAdapter._instances.get(instanceId)
-      if (existing && existing.isIsolated) {
-        throw new Error(`Instance '${instanceId}' exists as an isolated instance`)
+      if (existing) {
+        // an id is never re-homed: an isolated instance stays isolated
+        if (existing.isIsolated) {
+          throw new Error(`Instance '${instanceId}' exists as an isolated instance`)
+        }
+        // a create of a name that exists returns it unchanged: its class
+        // and arguments stay, and nothing announces it (no 'create' event)
+        json.r = instanceId
+        return existing.instance
       }
       instance = VrpcAdapter._create(className, instanceId, ...args)
       VrpcAdapter._instances.set(instanceId, {
@@ -1132,7 +1139,8 @@ class VrpcAdapter {
 /**
  * Event 'create'
  *
- * Emitted on creation of shared instance
+ * Emitted once an instance was created. A create of a name that exists
+ * returns that instance and emits nothing.
  *
  * @event VrpcAdapter#create
  * @type {Object}
