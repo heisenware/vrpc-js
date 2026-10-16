@@ -985,9 +985,12 @@ class VrpcAdapter {
     // special case: removing a listener the adapter does not hold (the
     // client's subscription outlived a restart of this agent, or it sent
     // no listener at all) - nothing to remove, and the instance's
-    // EventEmitter would throw on a listener that is not a function
+    // EventEmitter would throw on a listener that is not a function. Only
+    // a call with a listener slot is such a remover: a class's own off()
+    // (a lamp, a relay) takes no event and no listener and is called
     if (
       (json.f === 'off' || json.f === 'removeListener') &&
+      unwrapped.length >= 2 &&
       typeof unwrapped[1] !== 'function'
     ) {
       json.r = true

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.16.2] - Oct 17 2026
+
+### Fixed
+
+- **A class's own `off()` is called**: since 3.14.0 the agent answered every call of a function named `off` or `removeListener` whose second argument was not a function with `true` and never called the class - a shortcut meant for a client removing a listener the agent does not hold (`off(event, null)`, or a subscription id from before a restart of the agent). A class that offers `off()` with another meaning, a lamp or a relay, was unreachable over VRPC: `off()` answered `true` and did nothing. Now only a call with a listener slot, two arguments or more, takes the shortcut; `off()` and `off(x)` reach the class and answer what it returns. The Node and the browser adapter alike.
+
 ## [3.16.1] - Oct 13 2026
 
 ### Fixed

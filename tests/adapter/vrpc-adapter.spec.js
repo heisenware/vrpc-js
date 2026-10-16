@@ -190,6 +190,52 @@ describe('vrpc-adapter', () => {
     })
   })
 
+  describe("a class's own off() reaches the class", () => {
+    // The shrug above is for a remover: off(event, <listener slot>) with
+    // nothing the adapter holds. A class whose off() means something else
+    // (a lamp, a relay) is called with no event and no listener slot - that
+    // call is the class's to answer, as any other call.
+    class Lamp {
+      constructor () {
+        this.lit = true
+      }
+
+      off () {
+        this.lit = false
+        return 'dark'
+      }
+    }
+    before(() => {
+      VrpcAdapter.register(Lamp)
+      VrpcAdapter.create({ className: 'Lamp', instance: 'lamp1' })
+    })
+    const call = a =>
+      JSON.parse(
+        VrpcAdapter.call(
+          JSON.stringify({ c: 'lamp1', f: 'off', a, i: 'i-lamp', s: 'client-1' })
+        )
+      )
+    it('answers what off() returns and runs it', () => {
+      const json = call([])
+      assert.strictEqual(json.e, undefined)
+      assert.strictEqual(json.r, 'dark')
+      assert.strictEqual(VrpcAdapter.getInstance('lamp1').lit, false)
+    })
+    it('reaches the class with one argument as well', () => {
+      VrpcAdapter.getInstance('lamp1').lit = true
+      const json = call(['slowly'])
+      assert.strictEqual(json.r, 'dark')
+      assert.strictEqual(VrpcAdapter.getInstance('lamp1').lit, false)
+    })
+    it('still shrugs at a listener slot it does not hold', () => {
+      VrpcAdapter.getInstance('lamp1').lit = true
+      const json = call(['value', null])
+      assert.strictEqual(json.e, undefined)
+      assert.strictEqual(json.r, true)
+      assert.strictEqual(VrpcAdapter.getInstance('lamp1').lit, true)
+    })
+  })
+
   describe('isolated instances belong to the connection that created them', () => {
     const call = json => JSON.parse(VrpcAdapter.call(JSON.stringify(json)))
     const create = (s, instance = 'iso1') =>
