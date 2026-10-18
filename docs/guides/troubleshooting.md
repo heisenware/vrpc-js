@@ -18,6 +18,20 @@ send and receive.
 | The message was lost (QoS 0) on an unstable link | use `bestEffort: false` on both sides. |
 | The function takes longer than the timeout | raise `timeout` on the client, or return a promise: a promise is answered when it settles, without a time limit. |
 
+## The class of an agent is not found in time
+
+`Connection to class "<class>" on agent "<agent>" and domain "<domain>" timed out (> 12000 ms)`
+
+The client waits for the agent to announce the class before it sends a
+call, a `create` or a `getInstance`, and gave up.
+
+| Cause | Check |
+| --- | --- |
+| The agent is not running, or not yet | start the agent first; `client.getAvailableAgents()` lists the agents online. |
+| The agent offers no class of that name | `client.getAvailableClasses({ agent })`, and the `VrpcAdapter.register` calls of the agent. |
+| Agent and client are in different domains, or on different brokers | both `domain` and `broker` options. |
+| The broker is slow - the public test broker at times is | raise `timeout` on the client, or run a broker of your own (see [Getting started](../getting-started.md#1-set-up-a-project)). |
+
 ## A call lost its answer
 
 `Function call "<context>::<function>()" on agent "<agent>" lost its answer: <reason>`

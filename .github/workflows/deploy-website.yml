@@ -1,8 +1,8 @@
 name: Website
 
-# vrpc.io renders the repository's docs/ folder: a change there changes the
-# site. Pull requests build it (a broken link or anchor fails the build);
-# master deploys it to GitHub Pages.
+# vrpc.io renders the repository's docs/ folder, and serves the README as
+# /index.md: a change there changes the site. Pull requests build it (a
+# broken link or anchor fails the build); master deploys it to GitHub Pages.
 
 on:
   push:
@@ -10,11 +10,13 @@ on:
     paths:
       - "docs/**"
       - "website/**"
+      - "README.md"
       - ".github/workflows/deploy-website.yml"
   pull_request:
     paths:
       - "docs/**"
       - "website/**"
+      - "README.md"
       - ".github/workflows/deploy-website.yml"
   workflow_dispatch:
 
@@ -27,6 +29,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # the whole history: every page says when it last changed
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

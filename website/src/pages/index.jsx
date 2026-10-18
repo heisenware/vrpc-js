@@ -1,6 +1,7 @@
 // vrpc.io: the home page
 import React, { useState } from 'react'
 import Layout from '@theme/Layout'
+import Head from '@docusaurus/Head'
 import Link from '@docusaurus/Link'
 import BrowserOnly from '@docusaurus/BrowserOnly'
 import { usePluginData } from '@docusaurus/useGlobalData'
@@ -288,6 +289,23 @@ const proof = rules => [
   }
 ]
 
+const description =
+  'VRPC makes the classes of Node.js, C++, Python and Arduino programs callable from any other program, over MQTT, without an API layer.'
+
+// what search engines read about VRPC (schema.org)
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareSourceCode',
+  name: 'VRPC',
+  description,
+  url: 'https://vrpc.io/',
+  codeRepository: 'https://github.com/heisenware/vrpc-js',
+  license: 'https://opensource.org/licenses/MIT',
+  isAccessibleForFree: true,
+  programmingLanguage: ['JavaScript', 'C++', 'Python'],
+  runtimePlatform: ['Node.js', 'Browser', 'Arduino']
+}
+
 export default function Home () {
   const [activeTab, setActiveTab] = useState('javascript')
   const activeSnippet = snippets[activeTab]
@@ -296,9 +314,14 @@ export default function Home () {
   return (
     <Layout
       title='Remote objects over MQTT'
-      description='VRPC makes the classes of Node.js, C++, Python and Arduino programs callable from any other program, over MQTT, without an API layer.'
+      description={description}
       wrapperClassName='vrpc-home-wrapper'
     >
+      <Head>
+        {/* the README, as Markdown (plugins/llms.js) */}
+        <link rel='alternate' type='text/markdown' href='/index.md' />
+        <script type='application/ld+json'>{JSON.stringify(structuredData)}</script>
+      </Head>
       <main className='vrpc-home'>
         <LogoJourney>
           <section className='home-hero'>
@@ -321,6 +344,10 @@ export default function Home () {
                   Read the docs
                 </Link>
               </div>
+              <p className='hero-note'>
+                Open source under the MIT license - nothing to sign up for.
+                All it needs is an MQTT broker.
+              </p>
             </div>
             <div className='logo-slot logo-slot--hero' data-logo-slot='hero'>
               <img className='logo-still' src='/logo.svg' alt='VRPC' />

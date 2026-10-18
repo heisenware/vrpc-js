@@ -201,6 +201,13 @@
   margin-top: 6px;
 }
 
+/* what VRPC costs and needs, under the buttons */
+.hero-note {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--home-muted);
+}
+
 .vrpc-home .btn {
   display: inline-flex;
   align-items: center;

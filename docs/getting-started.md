@@ -2,7 +2,8 @@
 
 In ten minutes you will offer a JavaScript class from one program and use it
 from another: create an instance remotely, call its functions, and listen to
-its events. You need Node.js 18 or newer.
+its events. You need Node.js 18 or newer - nothing else: VRPC is open source
+under the MIT license, with no account to create and no key to get.
 
 ## 1. Set up a project
 
@@ -16,6 +17,12 @@ Both programs of this tutorial connect to the public MQTT broker VRPC uses by
 default, `broker.hivemq.com`. Anybody can read what travels there, so pick a
 **domain** of your own - below it is `tutorial-<your-name>` - and use your own
 broker for anything real.
+
+The public broker is shared, and at times slow. If a step below fails with
+`timed out (> 12000 ms)`, give the client more time,
+`new VrpcClient({ domain: 'tutorial-<your-name>', timeout: 30000 })`, or run a
+broker of your own with `docker run -p 1883:1883 eclipse-mosquitto:1.6.12`
+and add `broker: 'mqtt://localhost:1883'` to the options of agent and client.
 
 ## 2. Write a class
 

@@ -5,12 +5,8 @@
 // that work on GitHub. On the website those files do not exist: this
 // rewrites every relative link that leaves docs/ to the file on GitHub.
 
-const fs = require('fs')
 const path = require('path')
-
-const repoRoot = path.resolve(__dirname, '../..')
-const docsRoot = path.join(repoRoot, 'docs')
-const github = 'https://github.com/heisenware/vrpc-js'
+const { docsRoot, githubUrl } = require('./doc-text')
 
 function visit (node, fn) {
   fn(node)
@@ -28,9 +24,7 @@ module.exports = function remarkRepoLinks () {
       const [target, anchor] = url.split('#')
       const absolute = path.resolve(path.dirname(source), target)
       if (absolute.startsWith(docsRoot + path.sep) || absolute === docsRoot) return
-      const relative = path.relative(repoRoot, absolute).split(path.sep).join('/')
-      const kind = fs.existsSync(absolute) && fs.statSync(absolute).isDirectory() ? 'tree' : 'blob'
-      node.url = `${github}/${kind}/master/${relative}${anchor ? `#${anchor}` : ''}`
+      node.url = `${githubUrl(absolute)}${anchor ? `#${anchor}` : ''}`
     })
   }
 }

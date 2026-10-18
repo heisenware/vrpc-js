@@ -2,6 +2,7 @@
 // folder, rendered as it is; nothing of it is copied here.
 
 const { themes } = require('prism-react-renderer')
+const { isDoc, descriptionOf } = require('./plugins/doc-text')
 
 const github = 'https://github.com/heisenware/vrpc-js'
 
@@ -11,7 +12,9 @@ module.exports = {
   tagline: 'Remote objects over MQTT',
   url: 'https://vrpc.io',
   baseUrl: '/',
-  trailingSlash: false,
+  // GitHub Pages serves a page's folder: /docs/x/ is the page, and /docs/x
+  // redirects to it (with false, /docs/x/ would not be found)
+  trailingSlash: true,
   favicon: 'favicon.ico',
   organizationName: 'heisenware',
   projectName: 'vrpc-js',
@@ -22,7 +25,17 @@ module.exports = {
     // .md files are CommonMark, .mdx files MDX: the docs are plain Markdown
     format: 'detect',
     mermaid: true,
-    hooks: { onBrokenMarkdownLinks: 'throw' }
+    hooks: { onBrokenMarkdownLinks: 'throw' },
+    // a page of docs/ is described by its first paragraph, not by its first
+    // line - the docs wrap their lines, Docusaurus would cut mid-sentence
+    parseFrontMatter: async params => {
+      const result = await params.defaultParseFrontMatter(params)
+      if (isDoc(params.filePath) && result.frontMatter.description === undefined) {
+        const description = descriptionOf(result.content)
+        if (description) result.frontMatter.description = description
+      }
+      return result
+    }
   },
 
   presets: [
@@ -35,6 +48,8 @@ module.exports = {
           routeBasePath: 'docs',
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl: ({ docPath }) => `${github}/edit/master/docs/${docPath}`,
+          // from git: the deploy workflow checks out the whole history
+          showLastUpdateTime: true,
           // before Docusaurus resolves .md links: links leaving docs/ go to GitHub
           beforeDefaultRemarkPlugins: [require('./plugins/remark-repo-links')]
         },
@@ -53,7 +68,11 @@ module.exports = {
           },
           onUntruncatedBlogPosts: 'throw'
         },
-        theme: { customCss: require.resolve('./src/css/custom.css') }
+        theme: { customCss: require.resolve('./src/css/custom.css') },
+        sitemap: {
+          lastmod: 'date',
+          ignorePatterns: ['/search/**']
+        }
       })
     ]
   ],
@@ -77,6 +96,8 @@ module.exports = {
   plugins: [
     // the number of protocol rules and other facts the home page states
     require.resolve('./plugins/spec-facts.js'),
+    // llms.txt, and every page of the documentation as Markdown
+    require.resolve('./plugins/llms.js'),
     // The live demo uses the browser bundle of vrpc, also in the server
     // build; the Node entry would pull the native addon sources in
     () => ({
@@ -94,7 +115,8 @@ module.exports = {
           { from: '/docs/architecture', to: '/docs/concepts/overview' },
           { from: '/docs/api', to: '/docs/reference' },
           { from: '/docs/persistence', to: '/docs/guides/persistence' },
-          { from: '/docs/examples', to: '/docs/getting-started' }
+          { from: '/docs/examples', to: '/docs/getting-started' },
+          { from: '/examples', to: '/docs/getting-started' }
         ]
       }
     ]
@@ -150,6 +172,8 @@ module.exports = {
             items: [
               { label: 'Blog', to: '/blog' },
               { label: 'Changelog', href: `${github}/blob/master/CHANGELOG.md` },
+              // the documentation's index for AI assistants (plugins/llms.js)
+              { label: 'llms.txt', href: 'pathname:///llms.txt' },
               { label: 'Heisenware', href: 'https://heisenware.com' }
             ]
           }
