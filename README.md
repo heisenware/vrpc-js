@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![npm version](https://img.shields.io/npm/v/vrpc.svg)](https://www.npmjs.com/package/vrpc)
+[![CI](https://github.com/heisenware/vrpc-js/actions/workflows/ci.yml/badge.svg)](https://github.com/heisenware/vrpc-js/actions/workflows/ci.yml)
 
 **Call classes in other programs as if they were local.** VRPC (Variadic
 Remote Procedure Call) makes the classes of a Node.js, C++, Python or
@@ -33,6 +34,9 @@ the browser.
 ```bash
 npm install vrpc
 ```
+
+Node.js 18 or newer, or any current browser. VRPC is free and open source;
+all it needs is an MQTT broker.
 
 ## Quick start
 
@@ -131,6 +135,8 @@ when the last one leaves. See [Events](docs/concepts/events.md) and
 - [API reference](docs/reference/README.md)
 - [Protocol specification](docs/spec/protocol.md), for every VRPC implementation
 - [All documentation](docs/README.md), and [vrpc.io](https://vrpc.io)
+- [llms.txt](https://vrpc.io/llms.txt) - the documentation's index for AI
+  coding assistants; every page is also served as Markdown
 
 ## The VRPC family
 
@@ -141,8 +147,9 @@ when the last one leaves. See [Events](docs/concepts/events.md) and
 
 ## Contributing and security
 
-Bug reports and small fixes are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
-Report security issues privately, as described in [SECURITY.md](SECURITY.md).
+Bug reports and small fixes are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [code of conduct](CODE_OF_CONDUCT.md). Report security issues
+privately, as described in [SECURITY.md](SECURITY.md).
 
 ## License
 

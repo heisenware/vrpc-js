@@ -6,7 +6,7 @@
   "directories": {
     "example": "examples",
     "doc": "docs",
-    "test": "test"
+    "test": "tests"
   },
   "scripts": {
     "build:addon": "ln -sf binding.gyp.no-auto binding.gyp && node-gyp rebuild && rm binding.gyp",

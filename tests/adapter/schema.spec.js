@@ -51,11 +51,15 @@ describe('constructor schemas', () => {
     let warn
 
     before(() => {
-      // the UMD wrapper reads `self`, which a page has
+      // the UMD wrapper reads `self` and the bundle `crypto`, which a page
+      // has - and Node.js before 19 not globally
       const hadSelf = 'self' in globalThis
+      const hadCrypto = 'crypto' in globalThis
       if (!hadSelf) globalThis.self = globalThis
+      if (!hadCrypto) globalThis.crypto = require('crypto').webcrypto
       BundledAdapter = require(path.join(__dirname, '../../browser/vrpc.js')).VrpcAdapter
       if (!hadSelf) delete globalThis.self
+      if (!hadCrypto) delete globalThis.crypto
       warn = console.warn
       console.warn = message => warnings.push(message)
       BundledAdapter.registerClass(Press, { schema })

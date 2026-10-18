@@ -8,13 +8,14 @@ something bigger, big enough for me to dedicate my entire working time to it
 and drive it professionally as [Heisenware GmbH](https://heisenware.com).
 
 Here is how to contribute without unnecessary work or disappointment.
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Reporting
 
 - **Bugs, API inconsistencies, weak documentation:** open an
   [issue](https://github.com/heisenware/vrpc-js/issues/new/choose) with the
-  [bug template](.github/ISSUE_TEMPLATE/bug.md). Say how to reproduce it -
-  ideally with a complete example - and what you expected instead.
+  bug form. Say how to reproduce it - ideally with a complete example - and
+  what you expected instead.
 - **Features:** open an issue describing what you need, with an example of
   how the improved code would look. Please do not open pull requests for
   features: we cannot review them in time yet, and want to spare you the
@@ -35,7 +36,9 @@ pull request:
 
 ## Development
 
-You need Node.js 18 or newer, and Docker for two of the test suites.
+You need Node.js 18 or newer, and Docker for three of the test suites. CI
+runs the in-process suites on Node.js 18, 22 and 24, and everything else
+on 24.
 
 ```bash
 npm install
@@ -45,6 +48,7 @@ npm run test:examples        # the examples, as a reader runs them
 npm run test:reconnect       # reconnect pacing against a fake broker
 npm run test:agent           # Docker: agent against Mosquitto
 npm run test:client          # Docker: client against agents and Mosquitto
+npm run test:legacy-runtime  # Docker: the agent on Node.js 16, which native agents still ship on
 npm test                     # everything
 ```
 
@@ -63,6 +67,10 @@ Other scripts:
 
 To see the documentation as [vrpc.io](https://vrpc.io) shows it, run
 `npm install && npm start` in [website/](website/README.md).
+
+To try the browser bundle by hand, serve the repository root with any static
+server (`python3 -m http.server`) and open `/tests/browser/`: the page loads
+`browser/vrpc.js` and reports to the browser's console.
 
 ## Changing the protocol
 

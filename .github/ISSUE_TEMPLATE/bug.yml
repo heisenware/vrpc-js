@@ -1,0 +1,62 @@
+name: Bug
+description: Something does not work as documented - code, API or documentation
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Security issues do not belong here: please follow the [security policy](https://github.com/heisenware/vrpc-js/blob/master/SECURITY.md). Many symptoms are covered in [Troubleshooting](https://vrpc.io/docs/guides/troubleshooting/).
+  - type: input
+    id: version
+    attributes:
+      label: vrpc version
+      description: "`npm ls vrpc`"
+      placeholder: "3.16.1"
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime
+      description: Node.js version, or browser and version
+      placeholder: "Node.js 22.11, or Chrome 141"
+    validations:
+      required: true
+  - type: input
+    id: broker
+    attributes:
+      label: MQTT broker
+      placeholder: "Mosquitto 2.0.22, or the public test broker"
+  - type: input
+    id: peers
+    attributes:
+      label: Other VRPC implementations involved
+      description: When the other side is not vrpc-js
+      placeholder: "vrpc-py 3.0.3 agent"
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: Include the full error message, if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce it
+      description: Ideally a complete, minimal agent and client that show it.
+      render: javascript
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "Agent and client log every message they send and receive with a logger that prints debug: `log: { ...console, debug: console.log }`"
+      render: text

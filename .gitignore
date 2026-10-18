@@ -67,3 +67,6 @@ examples/embedded-cpp2/package-lock.json
 
 # copies the default-name test makes of the package
 tests/agent/.installation-*
+
+# editor settings stay with the editor
+.vscode/

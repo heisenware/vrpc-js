@@ -1,7 +1,41 @@
 name: CI
-on: [push, workflow_dispatch]
+
+# Every push, and pull requests from forks (a branch of this repository is
+# tested by its push already). The in-process suites run on the oldest
+# Node.js vrpc supports and on the current LTS lines; the suites that need
+# a broker or Docker run once.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
+  unit:
+    name: Node.js ${{ matrix.node }}
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run test:adapter
+      - run: npm run test:subscriptions
+      - run: npm run test:examples
+      - run: npm run test:reconnect
+
   integration-test:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     services:
       # Hermetic broker for the suites that accept one: the public HiveMQ
@@ -11,13 +45,13 @@ jobs:
         ports:
           - 1883:1883
     steps:
-      - uses: actions/checkout@master
-      - run: npm install
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: npm run check:links
-      - run: npm run test:adapter
-      - run: npm run test:subscriptions
-      - run: npm run test:examples
-      - run: npm run test:reconnect
       - run: npm run test:agent
       - run: npm run test:client
       - run: npm run test:persistor

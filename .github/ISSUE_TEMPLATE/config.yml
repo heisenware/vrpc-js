@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://vrpc.io/docs/
+    about: Concepts, guides, the API reference and the protocol specification
+  - name: Troubleshooting
+    url: https://vrpc.io/docs/guides/troubleshooting/
+    about: Symptoms, their usual causes, and what to do
+  - name: Security issue
+    url: https://github.com/heisenware/vrpc-js/blob/master/SECURITY.md
+    about: Please report security issues privately, as the security policy describes

@@ -1,0 +1,36 @@
+name: Feature
+description: Something VRPC should do that it does not do yet
+labels: [feature]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the need in an issue rather than a pull request: we cannot review feature pull requests in time yet, and want to spare you the work (see [CONTRIBUTING.md](https://github.com/heisenware/vrpc-js/blob/master/CONTRIBUTING.md)).
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and what stands in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: How the code would look
+      description: An example of agent or client code using the feature.
+      render: javascript
+    validations:
+      required: true
+  - type: dropdown
+    id: wire
+    attributes:
+      label: Does it change what travels on the wire?
+      description: A change to the [protocol](https://vrpc.io/docs/spec/protocol/) concerns every VRPC implementation.
+      options:
+        - "No"
+        - "Yes"
+        - I do not know
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
