@@ -24,8 +24,8 @@ The broker is the only thing to run.
   broker `mqtts://broker.hivemq.com:8883`. Anybody can read what travels
   there, and it is at times slow: a call that gets no answer within 12 s fails
   with `timed out (> 12000 ms)`. Raise the client's `timeout`, or run a broker
-  of your own - `docker run -p 1883:1883 eclipse-mosquitto:1.6.12`, then
-  `broker: 'mqtt://localhost:1883'` for agent and client. A browser connects
+  of your own - `docker run -p 1883:1883 eclipse-mosquitto:2 mosquitto -c /mosquitto-no-auth.conf`,
+  then `broker: 'mqtt://localhost:1883'` for agent and client. A browser connects
   over WebSocket (`wss://`).
 - Other languages speak the same protocol:
   [vrpc-hpp](https://github.com/heisenware/vrpc-hpp) (C++),

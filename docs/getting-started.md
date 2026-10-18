@@ -21,7 +21,12 @@ broker for anything real.
 The public broker is shared, and at times slow. If a step below fails with
 `timed out (> 12000 ms)`, give the client more time,
 `new VrpcClient({ domain: 'tutorial-<your-name>', timeout: 30000 })`, or run a
-broker of your own with `docker run -p 1883:1883 eclipse-mosquitto:1.6.12`
+broker of your own,
+
+```bash
+docker run -p 1883:1883 eclipse-mosquitto:2 mosquitto -c /mosquitto-no-auth.conf
+```
+
 and add `broker: 'mqtt://localhost:1883'` to the options of agent and client.
 
 ## 2. Write a class

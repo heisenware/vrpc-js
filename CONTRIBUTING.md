@@ -54,8 +54,9 @@ npm test                     # everything
 
 `test:persistor`, `test:lifecycle` and `test:production` use the public
 broker unless `VRPC_TEST_BROKER` names another. A local one is faster and
-more reliable: `docker run -p 1883:1883 eclipse-mosquitto:1.6.12`, then
-`VRPC_TEST_BROKER=mqtt://localhost:1883 npm test`.
+more reliable:
+`docker run -p 1883:1883 eclipse-mosquitto:2 mosquitto -c /mosquitto-no-auth.conf`,
+then `VRPC_TEST_BROKER=mqtt://localhost:1883 npm test`.
 
 Other scripts:
 

@@ -14,8 +14,10 @@ if ( [ -z "${MOSQUITTO_USERNAME}" ] || [ -z "${MOSQUITTO_PASSWORD}" ] ); then
   exit 1
 fi
 
-# create mosquitto passwordfile
-touch passwordfile
-mosquitto_passwd -b passwordfile $MOSQUITTO_USERNAME $MOSQUITTO_PASSWORD
+# create mosquitto passwordfile, readable by the broker alone
+touch /mosquitto/config/passwordfile
+mosquitto_passwd -b /mosquitto/config/passwordfile $MOSQUITTO_USERNAME $MOSQUITTO_PASSWORD
+chown mosquitto:mosquitto /mosquitto/config/passwordfile
+chmod 0600 /mosquitto/config/passwordfile
 
 exec "$@"

@@ -1,4 +1,4 @@
-FROM eclipse-mosquitto:1.6.9
+FROM eclipse-mosquitto:2
 
 COPY mosquitto.conf /mosquitto/config/mosquitto.conf
 COPY docker-entrypoint.sh /
