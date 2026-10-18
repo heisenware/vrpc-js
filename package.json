@@ -31,6 +31,8 @@
     "vrpc-agent-js": "./vrpc/vrpc-agent-js"
   },
   "keywords": [
+    "nodejs",
+    "javascript",
     "rpc",
     "mqtt",
     "remote objects",
