@@ -1,6 +1,6 @@
 {
   "name": "vrpc",
-  "version": "3.16.1",
+  "version": "3.17.0",
   "description": "Remote objects over MQTT: call classes in other programs as if they were local - Node.js, browser, C++, Python, Arduino",
   "main": "index.js",
   "directories": {
