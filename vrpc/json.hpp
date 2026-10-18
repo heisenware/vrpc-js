@@ -33,7 +33,7 @@ NOTE:  The original code below is slightly changed. All occurrences of nlohmann
        (especially the namespaces) are changed to "vrpc" for a more convenient
        usage within VRPC.
 
-Dr. Burkhard C. Heisen
+Dr. Burkhard Heisen
 
 *******************************************************************************/
 

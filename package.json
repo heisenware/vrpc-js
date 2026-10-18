@@ -51,7 +51,7 @@
     "type": "git",
     "url": "git+https://github.com/heisenware/vrpc-js.git"
   },
-  "author": "Burkhard C. Heisen <burkhard.heisen@heisenware.com>",
+  "author": "Dr. Burkhard Heisen <burkhard.heisen@heisenware.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/heisenware/vrpc-js/issues"

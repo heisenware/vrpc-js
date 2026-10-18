@@ -64,7 +64,7 @@ module.exports = {
           feedOptions: {
             type: ['rss', 'atom'],
             title: 'VRPC blog',
-            copyright: 'Copyright © 2018 Heisenware GmbH'
+            copyright: 'Copyright © 2018 Dr. Burkhard Heisen'
           },
           onUntruncatedBlogPosts: 'throw'
         },
@@ -178,7 +178,7 @@ module.exports = {
             ]
           }
         ],
-        copyright: 'Copyright © 2018 Heisenware GmbH. VRPC is MIT licensed.'
+        copyright: 'Copyright © 2018 Dr. Burkhard Heisen. VRPC is MIT licensed.'
       },
       prism: {
         theme: themes.github,

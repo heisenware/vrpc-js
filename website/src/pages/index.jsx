@@ -301,6 +301,8 @@ const structuredData = {
   url: 'https://vrpc.io/',
   codeRepository: 'https://github.com/heisenware/vrpc-js',
   license: 'https://opensource.org/licenses/MIT',
+  copyrightHolder: { '@type': 'Person', name: 'Dr. Burkhard Heisen' },
+  copyrightYear: 2018,
   isAccessibleForFree: true,
   programmingLanguage: ['JavaScript', 'C++', 'Python'],
   runtimePlatform: ['Node.js', 'Browser', 'Arduino']
