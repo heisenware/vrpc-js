@@ -42,11 +42,15 @@ const EventEmitter = require('events')
 const SubscribeRetrier = require('./SubscribeRetrier')
 const ReconnectBackoff = require('./ReconnectBackoff')
 const NamePattern = require('./namePattern')
+const nosideeffects = require('./nosideeffects')
 
 const VRPC_PROTOCOL_VERSION = 4
 
 // a function declared `@returns {Registration}` (or a promise of one)
 const DECLARED_REGISTRATION = /^(Promise\.?<\s*)?Registration\s*>?$/
+
+// a continuous remover (legacy): withdraws its callback's subscription
+const REMOVER = /^(off|remove|unmonitor|unsignal)/
 
 // mqtt clients this client ended on purpose: the 'client disconnecting'
 // workaround must never revive one of them
@@ -79,6 +83,7 @@ class VrpcClient extends EventEmitter {
    * @param {String} [options.identity] Explicitly sets a vrpc client identity
    * @param {String} [options.keepalive] Sets the MQTT keepalive interval (in seconds). In browsers the ping runs on a Web Worker timer, so a hidden tab keeps its session
    * @param {Boolean} [options.requiresSchema=false] If true, any available schema information is shipped
+   * @param {Boolean} [options.nosideeffects=false] If true, the client only observes: it sends no request for a function the class info does not declare free of side effects (protocol, section 16.3) - such a call, a `callAll` and an `unregisterAgent` reject at once, before anything reaches the broker. Implies `requiresSchema`
    * @example
    * const client = new VrpcClient({
    *   domain: 'vrpc',
@@ -100,6 +105,7 @@ class VrpcClient extends EventEmitter {
     identity = null,
     keepalive = 30,
     requiresSchema = false,
+    nosideeffects: observes = false,
     tls = null
   } = {}) {
     super()
@@ -144,7 +150,9 @@ class VrpcClient extends EventEmitter {
     this._identity = identity
     this._keepalive = keepalive
     this._qos = this._qos = bestEffort ? 0 : 1
-    this._requiresSchema = requiresSchema
+    // a client that only observes needs the declarations of the meta data
+    this._observes = observes === true
+    this._requiresSchema = requiresSchema || this._observes
 
     this._instance = nanoid(8)
     this._mqttClientId = mqttClientId || this._createMqttClientId()
@@ -736,6 +744,10 @@ class VrpcClient extends EventEmitter {
     if (!this._isConnected()) {
       throw new Error('Client is not connected')
     }
+    if (this._observes) {
+      await this._waitUntilClassIsOnline(agent, className)
+      this._assertObservesCall(agent, className, functionName)
+    }
     const wrapped = await this._wrapArguments({
       agent,
       className,
@@ -842,6 +854,7 @@ class VrpcClient extends EventEmitter {
       special = '__callMatching__'
     }
     const topic = `${this._domain}/${agent}/${className}/__static__/${special}`
+    if (this._observes) this._assertObserves(agent, className, special)
     const wrapped = await this._wrapArguments({
       agent,
       className,
@@ -1383,12 +1396,18 @@ class VrpcClient extends EventEmitter {
   }
 
   /**
-   * Unregisters (= removal of persisted information) an offline agent
+   * Unregisters (= removal of persisted information) an offline agent. A
+   * client that only observes (`nosideeffects`) may not.
    *
    * @param agent The agent to be unregistered
    * @returns {Promise<Boolean>} Resolves to true in case of success, false otherwise
    */
   async unregisterAgent (agent) {
+    if (this._observes) {
+      throw new Error(
+        `Unregistering agent "${agent}" removes what the broker retains: this client only observes`
+      )
+    }
     if (this._agents[agent] && this._agents[agent].status === 'offline') {
       const agentTopic = `${this._domain}/${agent}/__agentInfo__`
       this._mqttPublish(agentTopic, null, { retain: true })
@@ -1502,6 +1521,7 @@ class VrpcClient extends EventEmitter {
   }
 
   _mqttPublish (topic, message, options) {
+    if (this._observes) this._assertObservesTopic(topic)
     const client = this._client
     client.publish(
       topic,
@@ -1714,6 +1734,9 @@ class VrpcClient extends EventEmitter {
           if (!eventName) {
             throw new Error('VRPC does not support removing all listeners')
           }
+          if (this._observes) {
+            this._assertObserves(agent, className, functionName)
+          }
 
           // this client's subscriptions of that event on this instance end;
           // a protocol-4 agent withdraws exactly those, never touching the
@@ -1752,6 +1775,7 @@ class VrpcClient extends EventEmitter {
         return
       }
       proxy[functionName] = async (...args) => {
+        this._assertObservesCall(agent, className, functionName)
         const wrapped = await this._wrapArguments({
           agent,
           className,
@@ -1788,6 +1812,7 @@ class VrpcClient extends EventEmitter {
     if (!uniqueFuncs.has('vrpcOn') && !uniqueFuncs.has('vrpcOff')) {
       proxy.vrpcOn = async (functionName, ...args) => {
         if (!uniqueFuncs.has(functionName)) throw new Error('Bad magic')
+        this._assertObservesCall(agent, className, functionName)
         const wrapped = await this._wrapArguments({
           agent,
           className,
@@ -1993,9 +2018,7 @@ class VrpcClient extends EventEmitter {
       functionName
     )
     // continuous removers (legacy): withdraw the callback's subscription
-    const isContinuousRemover = /^(off|remove|unmonitor|unsignal)/.test(
-      functionName
-    )
+    const isContinuousRemover = REMOVER.test(functionName)
     const isEmitterRemover =
       (functionName === 'off' || functionName === 'removeListener') &&
       typeof args[0] === 'string'
@@ -2374,6 +2397,42 @@ class VrpcClient extends EventEmitter {
     }
   }
 
+  /**
+   * A client that only observes sends a request only for a function the
+   * class info declares free of side effects; anything else throws before
+   * it leaves. A broker that confines the client (protocol, SEC-6) would
+   * drop it - the call times out - or close the connection.
+   */
+  _assertObserves (agent, className, functionName) {
+    const info =
+      this._agents[agent] &&
+      this._agents[agent].classes &&
+      this._agents[agent].classes[className]
+    if (!nosideeffects(info, functionName)) {
+      throw new Error(
+        `${className}.${functionName} on agent "${agent}" is not declared free of side effects: this client only observes`
+      )
+    }
+  }
+
+  /**
+   * Judges a call before its arguments make anything here: a subscription,
+   * a callback waiting for its answer. A remover may withdraw here alone
+   * (protocol 4) and is judged when it is sent.
+   */
+  _assertObservesCall (agent, className, functionName) {
+    if (!this._observes || REMOVER.test(functionName)) return
+    this._assertObserves(agent, className, functionName)
+  }
+
+  // every request a client that only observes sends is judged by its topic
+  _assertObservesTopic (topic) {
+    const tokens = topic.split('/')
+    if (tokens.length !== 5 || tokens[0] !== this._domain) return
+    const [, agent, className, , functionName] = tokens
+    this._assertObserves(agent, className, functionName)
+  }
+
   // declares every subscription held towards an agent again (protocol 4)
   _redeclareTo (agent) {
     if (!this._inboxReady || !this._redeclare.has(agent)) return
@@ -2402,8 +2461,15 @@ class VrpcClient extends EventEmitter {
         v: VRPC_PROTOCOL_VERSION
       }
       if (l) json.l = l
-      this._mqttPublish(topic, JSON.stringify(json))
-      this._handleAgentAnswer(json, agent).then(
+      let answered
+      try {
+        this._mqttPublish(topic, JSON.stringify(json))
+        answered = this._handleAgentAnswer(json, agent)
+      } catch (err) {
+        // the declaration may no longer be sent (see _assertObserves)
+        answered = Promise.reject(err)
+      }
+      answered.then(
         () => {
           const entries = []
           for (const sub of subs) {

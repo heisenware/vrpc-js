@@ -16,6 +16,12 @@ classes are for and how they work together, start with
 const { VrpcClient, VrpcAgent, VrpcAdapter, VrpcPersistor, VrpcNative } = require('vrpc')
 ```
 
+Beside the classes, `vrpc` exports one function:
+
+| Function | Answers |
+| --- | --- |
+| `nosideeffects(classInfo, functionName)` | whether the class info (with meta data, as on `__classInfo__`) declares the function free of side effects: the protocol's own functions by the protocol, with or without a class info, every other function by `"nosideeffects": true` in its meta data, an undeclared or unlisted function `false` (see [Declare what changes nothing](../guides/expose-classes.md#declare-what-changes-nothing)) |
+
 ## In the browser
 
 The browser build of `vrpc` exports `VrpcClient`, and a `VrpcAgent` and
@@ -23,5 +29,6 @@ The browser build of `vrpc` exports `VrpcClient`, and a `VrpcAgent` and
 `VrpcClient` is the same class. The browser `VrpcAgent` takes the same
 options, but has no `create()` and no `fromCommandline()`; the browser
 `VrpcAdapter` registers classes with `registerClass(Klass, options)` and
-plain functions with `registerFunction(fn, name)`, and publishes no JSDoc
-meta data. `VrpcPersistor` and `VrpcNative` are Node.js only.
+plain functions with `registerFunction(fn, name, options)`, and publishes
+no JSDoc meta data - only what `options.meta` declares. `nosideeffects` is exported
+as well. `VrpcPersistor` and `VrpcNative` are Node.js only.

@@ -72,10 +72,12 @@ class VrpcAdapter {
    * parameters (only works if registered code reflects a single class). The
    * browser bundle (`browser/vrpc.js`) does not validate: it warns once and
    * constructs with the arguments as given
+   * @param {Object.<String, Object>} [options.meta] meta data per function,
+   * e.g. `{ read: { nosideeffects: true } }`
    */
   static registerClass (
     Klass,
-    { onlyPublic = true, withNew = true, schema = null } = {}
+    { onlyPublic = true, withNew = true, schema = null, meta = null } = {}
   ) {
     // Get all static static functions
     let staticFunctions = VrpcAdapter._extractStaticFunctions(Klass)
@@ -100,8 +102,40 @@ class VrpcAdapter {
       staticFunctions,
       memberFunctions,
       schema,
-      meta: {}
+      meta: VrpcAdapter._composeMeta(Klass, meta, [
+        ...staticFunctions,
+        ...memberFunctions
+      ])
     })
+  }
+
+  /**
+   * The meta data a class publishes: `nosideeffects` on the EventEmitter
+   * functions the class publishes as Node made them - they act on the
+   * caller's own subscriptions only -, and the meta data declared at
+   * registration over it, function by function: `{ on: { nosideeffects:
+   * false } }` withdraws a declaration. Of `nosideeffects` only `true` is
+   * published.
+   */
+  static _composeMeta (code, declared, published) {
+    const merged = {}
+    // a registered class, or a registered instance
+    const proto = code instanceof EventEmitter ? code : code && code.prototype
+    if (proto instanceof EventEmitter) {
+      for (const name of VrpcAdapter._emitterPublic) {
+        if (proto[name] === EventEmitter.prototype[name]) {
+          merged[name] = { nosideeffects: true }
+        }
+      }
+    }
+    for (const [name, fields] of Object.entries(declared || {})) {
+      merged[name] = { ...merged[name], ...fields }
+      if (merged[name].nosideeffects !== true) delete merged[name].nosideeffects
+      if (Object.keys(merged[name]).length === 0) delete merged[name]
+    }
+    return Object.fromEntries(
+      Object.entries(merged).filter(([name]) => published.includes(name))
+    )
   }
 
   /**
@@ -109,8 +143,11 @@ class VrpcAdapter {
    *
    * @param {Function} functionObject Existing function to be registered
    * @param {String} functionName Name of the function to be registered
+   * @param {Object} [options]
+   * @param {Object} [options.meta] the function's meta data, e.g.
+   * `{ nosideeffects: true }`
    */
-  static registerFunction (functionObject, functionName) {
+  static registerFunction (functionObject, functionName, { meta = null } = {}) {
     if (typeof functionObject !== 'function') {
       throw new Error('Provided argument must be a function object')
     }
@@ -124,10 +161,18 @@ class VrpcAdapter {
     const staticFunctions = registry
       ? [...registry.staticFunctions, functionName]
       : [functionName]
+    // the functions registered before keep theirs
+    const kept = { ...(registry ? registry.meta : {}) }
+    delete kept[functionName]
     VrpcAdapter._functionRegistry.set(VRPC_GLOBAL, {
       staticFunctions,
       memberFunctions: [],
-      meta: {},
+      meta: {
+        ...kept,
+        ...VrpcAdapter._composeMeta(null, meta && { [functionName]: meta }, [
+          functionName
+        ])
+      },
       Klass: {},
       withNew: false,
       schema: null
@@ -143,10 +188,11 @@ class VrpcAdapter {
    * @param {String} options.instance Name of the instance
    * @param {Boolean} [options.onlyPublic=true] If true, only registers
    * functions that do not begin with an underscore
+   * @param {Object.<String, Object>} [options.meta] meta data per function
    */
   static registerInstance (
     obj,
-    { className, instance, onlyPublic = true } = {}
+    { className, instance, onlyPublic = true, meta = null } = {}
   ) {
     let memberFunctions = VrpcAdapter._extractMemberFunctions(obj)
     if (onlyPublic) {
@@ -157,7 +203,7 @@ class VrpcAdapter {
     if (!VrpcAdapter._functionRegistry.has(className)) {
       VrpcAdapter._functionRegistry.set(className, {
         memberFunctions,
-        meta: {},
+        meta: VrpcAdapter._composeMeta(obj, meta, memberFunctions),
         Klass: {},
         withNew: false,
         staticFunctions: [],

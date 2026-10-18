@@ -189,8 +189,25 @@ function parse_block (source, opts) {
 /**
  * Produces `extract` function with internal state initialized
  */
-// A class declaration: `class Name`, also exported or assigned to module.exports
-const CLASS_DECLARATION = /^(\s*)(?:export\s+(?:default\s+)?)?(?:module\.exports\s*=\s*)?class\s+([\w$]+)/
+// A class declaration: `class Name`, also exported or assigned to
+// module.exports, and TypeScript's `abstract class` and `declare class`
+const CLASS_DECLARATION = /^(\s*)(?:export\s+(?:default\s+)?)?(?:module\.exports\s*=\s*)?(?:declare\s+)?(?:abstract\s+)?class\s+([\w$]+)/
+
+// The keywords TypeScript may write before a member's name: its access
+// (always first), static, and the rest
+const MODIFIERS = /^\s*((?:(?:public|private|protected|static|async|readonly|override|abstract|declare)\s+)*)/
+
+// A member function TypeScript declares private or protected:
+// `private static async foo<T> (`. Compiling erases the access, so only the
+// source still tells
+const HIDDEN_MEMBER = /^\s*(private|protected)\s+((?:(?:static|async|readonly|override|abstract)\s+)*)\*?\s*([A-Za-z_$][\w$]*)\s*(?:<.*>)?\s*\(/
+
+/** What the modifiers before a member's name say: static, and its access */
+function modifiersOf (line) {
+  const words = line.match(MODIFIERS)[1].split(/\s+/)
+  const access = words.find(w => w === 'private' || w === 'protected')
+  return { isStatic: words.includes('static'), access }
+}
 
 function mkextract (opts) {
   let chunk = null
@@ -258,15 +275,47 @@ function mkextract (opts) {
     }
 
     if (findMethod) {
+      // a TypeScript type parameter list may stand between name and
+      // parenthesis: `foo<T> (`
       const ret = line.match(/\s*function\s+(\w+)\s*\(/) ||
-        line.match(/\s*(\w+)\s*=?\s*\(/)
+        line.match(/\s*(\w+)\s*(?:<.*>)?\s*=?\s*\(/)
       if (ret) {
         result = parse_block(chunk, opts)
         result.functionName = ret[1]
-        result.isStatic = /^\s*static\s/.test(line)
+        const { isStatic, access } = modifiersOf(line)
+        result.isStatic = isStatic
+        if (access) result.access = access
         const depth = line.match(/^\s*/)[0].length
         result.className = scope && depth > scope.indent ? scope.name : null
         findMethod = false
+      }
+    }
+
+    // a member TypeScript declares private or protected stays inside its
+    // class with or without a doc comment: one without is told as a block
+    // of its own, without description and tags
+    if (
+      !result &&
+      !findMethod &&
+      opts.assocFunctions &&
+      scope &&
+      !commentOpen &&
+      startPos === -1
+    ) {
+      const hidden = line.match(HIDDEN_MEMBER)
+      const depth = line.match(/^\s*/)[0].length
+      if (hidden && depth > scope.indent) {
+        result = {
+          tags: [],
+          line: number,
+          description: '',
+          source: '',
+          functionName: hidden[3],
+          isStatic: /\bstatic\b/.test(hidden[2]),
+          access: hidden[1],
+          className: scope.name,
+          declaration: true
+        }
       }
     }
 

@@ -64,6 +64,18 @@ Two of these matter more than the rest:
   `<domain>/line-1/Press/+/readPressure` can read pressures and nothing
   else. Wildcards in permissions follow the topic levels: agent, class,
   instance, function.
+- **Let observers observe.** Functions declared `@nosideeffects` say so in
+  the class info (see [Offering classes](expose-classes.md#declare-what-changes-nothing)).
+  A broker whose authorization reads the class infos can let a connection
+  call exactly those - a dashboard, a reporting tool, an assistant that
+  should look but not touch - and refuse the rest, fan-outs included
+  ([protocol, SEC-6](../spec/protocol.md#14-security-considerations)).
+  Declarations are the agent's: a broker trusts the class infos of the
+  agents it lets into the domain. A client that is meant to observe can
+  say so itself: `new VrpcClient({ nosideeffects: true })` refuses such
+  calls locally with a clear error instead of having the broker refuse
+  them - which, depending on the broker, drops the request (the call
+  times out) or closes the connection.
 
 ## 4. Offer only what may be called
 

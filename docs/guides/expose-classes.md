@@ -60,6 +60,7 @@ Three ways keep a function off the network, the strongest first:
 | `#calibrate () {}` | a private method of JavaScript itself | always: the language hides it from everything outside the class, the agent included |
 | `_calibrate () {}` | a name beginning with `_` | unless you register with `{ onlyPublic: false }` |
 | `@private` in its JSDoc (or `@access private`) | a documentation tag | when the agent reads the class's JSDoc: registered by path, or with `jsdocPath` |
+| `private calibrate () {}` (or `protected`) in TypeScript | TypeScript's access | when the agent reads the TypeScript source: `jsdocPath` names the `.ts` file |
 
 `@private` hides nothing when the agent does not read the JSDoc - after a
 plain `VrpcAdapter.register(Press)`, and always in the browser, where there
@@ -67,6 +68,29 @@ is no source to read. For a function that must never be reached, use `#`.
 A tag counts for the class it is written in, static or member as it is
 declared, and a hidden function's documentation stays inside the agent, too.
 `{ onlyPublic: false }` publishes the `_` and `@private` functions as well.
+
+TypeScript erases `private` and `protected` when it compiles: a compiled
+class publishes them like any other function. Point `jsdocPath` at the
+TypeScript source, with or without doc comments on the private members,
+and the agent keeps them inside:
+
+```javascript
+VrpcAdapter.register(Press, { jsdocPath: '/app/src/Press.ts' })
+```
+
+A class that extends another declared in a source of its own names both
+sources; the agent reads them along the class chain, so what the base class
+keeps `private` or `protected` stays inside the subclass, too:
+
+```javascript
+VrpcAdapter.register(Press, {
+  jsdocPath: ['/app/src/Press.ts', '/app/src/Machine.ts']
+})
+```
+
+A function follows the nearest class that defines it: a subclass that
+defines a `protected` function of its base again as public publishes it,
+as TypeScript allows.
 
 ## Document it
 
@@ -94,6 +118,55 @@ defaults, return types, and `@callback` signatures of function parameters
 are published. The constructor's documentation describes `create`. A
 function declared `@returns {Registration}` is an event function to every
 client that reads meta data (see [Writing event functions](event-functions.md)).
+
+### Declare what changes nothing
+
+Tag a function `@nosideeffects` when calling it changes nothing another
+caller, a device or storage could observe afterwards: no instance state, no
+stored record, no output of a device, no message or event to others.
+Computing the answer, filling a cache, reading a device in a way that
+leaves it as it was and the caller's own subscriptions do not count; a
+read that clears a counter, takes from a queue or acknowledges an alarm
+does.
+
+```javascript
+/**
+ * The pressure now
+ * @nosideeffects
+ * @returns {number} Pressure in bar
+ */
+readPressure () { /* ... */ }
+```
+
+The class info then carries `"nosideeffects": true` for the function. A
+broker that reads it can let a connection call such functions and nothing
+else (see [Securing a deployment](security.md#3-authorize-by-topic)); a
+function without the tag counts as having side effects. Declare only what
+holds: a function that calibrates while it reads has side effects.
+
+Tag event functions, too, when subscribing changes nothing but the
+caller's own subscriptions: a client confined to such functions can
+subscribe only to declared event functions. A subclass that overrides a
+function without documenting it keeps the documentation of its base, but
+not the tag - the promise was made for the base's code.
+
+For code whose source you cannot tag, declare at registration; it is merged
+over the documentation, function by function, and `false` withdraws a
+declaration:
+
+```javascript
+VrpcAdapter.register(VendorPress, {
+  meta: { readPressure: { nosideeffects: true } }
+})
+```
+
+The EventEmitter functions an EventEmitter class publishes are declared
+for you, unless the class replaces them: they act on the caller's own
+subscriptions only. A class whose `on` does more - it starts a device
+stream on `'newListener'`, say - withdraws that with
+`meta: { on: { nosideeffects: false } }`. `nosideeffects(classInfo,
+functionName)`, exported by `vrpc`, answers the question for any function
+of a class info.
 
 ## Validate constructor arguments
 

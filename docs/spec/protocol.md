@@ -1006,6 +1006,16 @@ topics. The protocol is built so that topic permissions mean something.
   ids (EV-3).
 - **SEC-5.** Peers SHOULD connect with TLS and SHOULD verify the broker's
   certificate.
+- **SEC-6.** A broker that reads the class infos with meta data can confine
+  a client to the functions declared without side effects (section 16.3):
+  a client that may observe but not act. It judges a request by the
+  function its topic names: one of the protocol's own by META-3 alone,
+  which refuses the fan-outs; any other by the class info of the agent and
+  class the topic addresses, refusing what it cannot judge - a class it
+  holds no class info for, a function the class does not declare. A
+  subscription is declared by a call of its event function (section 12.3),
+  so such a client subscribes only where the event function is declared;
+  it withdraws with `__unsubscribe__` anywhere.
 
 A broker policy that follows these rules:
 
@@ -1094,7 +1104,61 @@ parameter is called with). The constructor's documentation appears as
 `__createShared__`, its parameters preceded by `instanceName`. A `ret.type`
 of `Registration` (or a promise of one) declares an event function (CL-8).
 
-*In vrpc-js:* meta data comes from the JSDoc of the registered class.
+Every field of an entry is optional, and an entry need not document the
+function: it MAY carry `nosideeffects` alone. A peer MUST NOT take an entry
+for documentation, nor assume `description`, `params` or `ret`.
+
+A function's meta data MAY carry `"nosideeffects": true`: calling the
+function changes nothing another caller, a device or storage could observe
+afterwards - no instance state, no persisted record, no output of a device,
+no message or event to others, no instance created or deleted. Computing
+the answer, filling a cache that changes no later answer, reading a device
+in a way that leaves it as it was and the caller's own subscriptions are no
+side effects; a read that clears a counter, takes from a queue or
+acknowledges an alarm is one. Only `true` is ever written. The name is
+JSDoc's tag for the same promise, `@nosideeffects`.
+
+```json
+{
+  "meta": {
+    "read": { "description": "The latest reading", "params": [], "ret": { "description": "", "type": "number" }, "nosideeffects": true }
+  }
+}
+```
+
+- **META-1.** An agent MUST NOT declare `nosideeffects` for a function
+  whose call can change anything another caller could observe.
+- **META-2.** A peer that relies on the declaration - a broker that
+  confines a client to functions without side effects (SEC-6), a client
+  that repeats a call whose answer was lost - MUST treat a function as
+  having side effects unless the class info on `__classInfo__` declares it
+  free of them. A concise class info carries no meta data and declares
+  nothing. An agent that lists overloads (section 16.2) declares each; a
+  request names the function, not the overload, so a function counts as
+  free of side effects only when every overload of it is declared.
+- **META-3.** The protocol's own functions answer by the protocol, not by
+  meta data:
+
+  | Function | Side effects |
+  | --- | --- |
+  | `__registrations__`, `__unsubscribe__` | none: a listing, the caller's own subscriptions |
+  | `__createShared__`, `__createIsolated__`, `__delete__` | yes: an instance's life |
+  | `__end__` | yes: it ends a registration for every subscriber (EV-20) |
+  | `__callAll__`, `__callMatching__` | yes: the function they call travels in the payload (ALL-1), out of sight of a broker that reads topics |
+
+*In vrpc-js:* meta data comes from the JSDoc of the registered class, in a
+JavaScript or a TypeScript source, and from the `meta` option of `register`
+and `registerInstance` (in the browser `registerClass`, `registerInstance`
+and `registerFunction`) for code whose source cannot carry it. A function
+tagged `@nosideeffects` is declared, and so are the EventEmitter functions
+an EventEmitter class publishes as Node made them (`on`, `addListener`,
+`once`, `off`, `removeListener`, `removeAllListeners`): they act on the
+caller's own subscriptions only (CALL-8, CALL-9). `meta` can withdraw any
+declaration (`{ on: { nosideeffects: false } }`). An inherited function
+the class overrides without documentation takes the documentation of its
+base, but not its `nosideeffects`. `nosideeffects(classInfo, functionName)`
+answers as META-2 and META-3 ask, and a client created with
+`nosideeffects: true` sends no request it would answer `false` for.
 
 ### 16.4 Validated construction
 

@@ -2,5 +2,6 @@
 module.exports = {
   VrpcClient: require('./vrpc/VrpcClient'),
   VrpcAgent: require('./vrpc/VrpcBrowserAgent'),
-  VrpcAdapter: require('./vrpc/VrpcBrowserAdapter')
+  VrpcAdapter: require('./vrpc/VrpcBrowserAdapter'),
+  nosideeffects: require('./vrpc/nosideeffects')
 }

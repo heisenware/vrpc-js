@@ -106,9 +106,16 @@ class VrpcAdapter {
    * using the `new` operator
    * @param {Object} [options.schema=null] If provided is used to validate ctor
    * parameters (only works if registered code reflects a single class)
-   * @param {String} [options.jsdocPath] if provided, parses documentation and
-   * provides it as meta information; a code given by path has its JSDoc read
-   * without
+   * @param {String|String[]} [options.jsdocPath] if provided, parses
+   * documentation and provides it as meta information; a code given by path
+   * has its JSDoc read without. A TypeScript source (`.ts`) is read as well.
+   * Several sources - the class's own and those of the classes it extends -
+   * are read along its prototype chain: a member any class of the chain
+   * keeps private stays inside, the nearest class's documentation counts
+   * @param {Object.<String, Object>} [options.meta] meta data per function,
+   * for code whose source cannot carry it: merged over what the
+   * documentation gives, function by function, e.g.
+   * `{ read: { nosideeffects: true } }`
    *
    * NOTE: This function currently only supports registration of classes (either
    * when provided as object or when exported on the provided module path)
@@ -124,7 +131,11 @@ class VrpcAdapter {
     } else {
       const { jsdocPath } = options
       if (jsdocPath) {
-        const absJsdocPath = path.resolve(caller(), '../', jsdocPath)
+        // the file that registers: taken here, a callback is a frame deeper
+        const from = caller()
+        const absJsdocPath = []
+          .concat(jsdocPath)
+          .map(p => path.resolve(from, '../', p))
         this._registerClass(code, absJsdocPath, { ...options, jsdoc: true })
       } else {
         this._registerClass(code, null, options)
@@ -142,24 +153,28 @@ class VrpcAdapter {
    * @param {Boolean} [options.onlyPublic=true] If true, only registers public
    * functions: none whose name begins with an underscore, and - when the
    * JSDoc is read - none tagged `@private` or `@access private`
-   * @param {String} [options.jsdocPath] if provided, parses documentation and
-   * provides it as meta information
+   * @param {String|String[]} [options.jsdocPath] if provided, parses
+   * documentation and provides it as meta information (see `register`)
+   * @param {Object.<String, Object>} [options.meta] meta data per function,
+   * merged over what the documentation gives (see `register`)
    */
   static registerInstance (
     obj,
-    { className, instance, jsdocPath, onlyPublic = true } = {}
+    { className, instance, jsdocPath, onlyPublic = true, meta: declared = null } = {}
   ) {
     let docs = null
     if (jsdocPath) {
-      const absJsdocPath = path.resolve(caller(), '../', jsdocPath)
-      const content = fs.readFileSync(absJsdocPath).toString('utf8')
-      docs = VrpcAdapter._readDocs(content, obj.constructor && obj.constructor.name)
+      const from = caller()
+      const absJsdocPath = []
+        .concat(jsdocPath)
+        .map(p => path.resolve(from, '../', p))
+      docs = VrpcAdapter._readDocsOf(obj.constructor, absJsdocPath)
     }
     let memberFunctions = VrpcAdapter._extractMemberFunctions(obj)
     if (onlyPublic) {
       memberFunctions = VrpcAdapter._onlyPublic(memberFunctions, docs, 'member')
     }
-    const meta = docs ? VrpcAdapter._metaOf(docs.meta, memberFunctions) : null
+    const meta = VrpcAdapter._composeMeta(obj, docs, declared, memberFunctions)
     if (!VrpcAdapter._functionRegistry.has(className)) {
       VrpcAdapter._functionRegistry.set(className, {
         memberFunctions,
@@ -336,15 +351,18 @@ class VrpcAdapter {
   static _registerClass (
     Klass,
     absJsdocPath = null,
-    { onlyPublic = true, withNew = true, schema = null, jsdoc = true } = {}
+    {
+      onlyPublic = true,
+      withNew = true,
+      schema = null,
+      jsdoc = true,
+      meta: declared = null
+    } = {}
   ) {
     // Get all static static functions
     const docs =
       jsdoc && absJsdocPath
-        ? VrpcAdapter._readDocs(
-          fs.readFileSync(absJsdocPath).toString('utf8'),
-          Klass.name
-        )
+        ? VrpcAdapter._readDocsOf(Klass, [].concat(absJsdocPath))
         : null
     let staticFunctions = VrpcAdapter._extractStaticFunctions(Klass)
     if (onlyPublic) {
@@ -360,9 +378,10 @@ class VrpcAdapter {
     if (onlyPublic) {
       memberFunctions = VrpcAdapter._onlyPublic(memberFunctions, docs, 'member')
     }
-    const meta = docs
-      ? VrpcAdapter._metaOf(docs.meta, [...staticFunctions, ...memberFunctions])
-      : null
+    const meta = VrpcAdapter._composeMeta(Klass, docs, declared, [
+      ...staticFunctions,
+      ...memberFunctions
+    ])
     VrpcAdapter._functionRegistry.set(Klass.name, {
       Klass,
       withNew,
@@ -384,6 +403,39 @@ class VrpcAdapter {
   }
 
   /**
+   * The meta data a class publishes: `nosideeffects` on the EventEmitter
+   * functions the class publishes as Node made them - they act on the
+   * caller's own subscriptions only (the agent never runs the emitter's
+   * own `removeAllListeners`) -, what its documentation gives over it, and
+   * the meta data declared at registration over both, function by
+   * function: `{ on: { nosideeffects: false } }` withdraws a declaration.
+   * Of `nosideeffects` only `true` is published. Null when there is none.
+   */
+  static _composeMeta (code, docs, declared, published) {
+    const merged = {}
+    // a registered class, or a registered instance
+    const proto = code instanceof EventEmitter ? code : code && code.prototype
+    if (proto instanceof EventEmitter) {
+      for (const name of VrpcAdapter._emitterPublic) {
+        if (proto[name] === EventEmitter.prototype[name]) {
+          merged[name] = { nosideeffects: true }
+        }
+      }
+    }
+    for (const layer of [docs ? docs.meta : {}, declared || {}]) {
+      for (const [name, fields] of Object.entries(layer)) {
+        merged[name] = { ...merged[name], ...fields }
+        if (merged[name].nosideeffects !== true) {
+          delete merged[name].nosideeffects
+        }
+        if (Object.keys(merged[name]).length === 0) delete merged[name]
+      }
+    }
+    const meta = VrpcAdapter._metaOf(merged, published)
+    return docs || Object.keys(meta).length > 0 ? meta : null
+  }
+
+  /**
    * The meta data of the published functions only: a hidden function's
    * documentation stays inside the agent as well
    */
@@ -396,41 +448,143 @@ class VrpcAdapter {
   }
 
   /**
+   * The documentation of a class read from its sources, along its
+   * prototype chain: the class's own comments and those of every class it
+   * extends. A function follows the nearest class that defines it: that
+   * class's source tells whether it stays inside - TypeScript lets a
+   * subclass publish what its base keeps protected -, and when that class
+   * does not document it, the documentation of the function it overrides
+   * counts, without `nosideeffects`: that promise was made for other code.
+   * A function no class of the chain defines, or whose class no source
+   * declares, stays inside when any class keeps it private. The
+   * constructor's documentation is the class's own.
+   *
+   * @param {Function} Klass the class
+   * @param {String[]} files absolute paths of the sources to read
+   * @returns {{ meta: Object, privates: { member: Set, static: Set } }}
+   */
+  static _readDocsOf (Klass, files) {
+    const sources = files.map(file =>
+      VrpcAdapter._parseSource(fs.readFileSync(file).toString('utf8'))
+    )
+    const chain = []
+    for (
+      let k = Klass;
+      typeof k === 'function' && k !== Function.prototype && k !== EventEmitter;
+      k = Object.getPrototypeOf(k)
+    ) {
+      if (k.name) chain.push(k)
+    }
+    // an anonymous class: every comment counts
+    if (chain.length === 0) {
+      return VrpcAdapter._mergeDocs(sources.map(s => VrpcAdapter._docsOf(s)))
+    }
+    // the nearest class first: what its sources document and keep private
+    const own = chain.map(k => ({
+      ...VrpcAdapter._mergeDocs(sources.map(s => VrpcAdapter._docsOf(s, k.name))),
+      declared: sources.some(({ classes }) => classes.has(k.name))
+    }))
+    // the nearest class defining a function, -1 for none
+    const definer = (name, isStatic) =>
+      chain.findIndex(k =>
+        Object.prototype.hasOwnProperty.call(isStatic ? k : k.prototype, name)
+      )
+    const privates = { member: new Set(), static: new Set() }
+    for (const kind of ['member', 'static']) {
+      for (const { privates: hidden } of own) {
+        for (const name of hidden[kind]) {
+          const at = definer(name, kind === 'static')
+          // what a class overrides it no longer decides
+          const deciding = at === -1 || !own[at].declared ? own : own.slice(0, at + 1)
+          if (deciding.some(o => o.privates[kind].has(name))) {
+            privates[kind].add(name)
+          }
+        }
+      }
+    }
+    const meta = {}
+    for (const name of new Set(own.flatMap(o => Object.keys(o.meta)))) {
+      if (name === '__createShared__') {
+        if (own[0].meta[name]) meta[name] = own[0].meta[name]
+        continue
+      }
+      const documented = own.findIndex(o => o.meta[name])
+      const defined = [definer(name, false), definer(name, true)].filter(i => i !== -1)
+      const at = defined.length > 0 ? Math.min(...defined) : -1
+      const { nosideeffects, ...entry } = own[documented].meta[name]
+      meta[name] = at === -1 || at === documented ? own[documented].meta[name] : entry
+    }
+    return { meta, privates }
+  }
+
+  /** The documentation of several sources of one class, the later counting */
+  static _mergeDocs (list) {
+    const docs = { meta: {}, privates: { member: new Set(), static: new Set() } }
+    for (const { meta, privates } of list) {
+      Object.assign(docs.meta, meta)
+      privates.member.forEach(name => docs.privates.member.add(name))
+      privates.static.forEach(name => docs.privates.static.add(name))
+    }
+    return docs
+  }
+
+  /**
    * The meta data of the functions a source documents (see `_readDocs`)
    */
   static _parseComments (content, className) {
     return VrpcAdapter._readDocs(content, className).meta
   }
 
+  /** A source parsed once: its comments, and the classes it declares */
+  static _parseSource (content) {
+    const classes = new Set()
+    for (const line of content.split('\n')) {
+      const declared = line.match(commentParser.CLASS_DECLARATION)
+      if (declared) classes.add(declared[2])
+    }
+    return {
+      comments: commentParser(content, { assocFunctions: true }),
+      classes
+    }
+  }
+
   /**
    * Reads the JSDoc of a class's source: the meta data of its functions, and
-   * the functions tagged `@private` (or `@access private`), which stay off
-   * its class info and so cannot be called. A comment counts for the class
-   * whose body it is in; in a source that declares no class, and when no
-   * class name is given, every comment counts.
+   * the functions tagged `@private` (or `@access private`) or, in a
+   * TypeScript source, declared `private` or `protected` - documented or
+   * not -, which stay off its class info and so cannot be called. A
+   * function tagged `@nosideeffects` carries `nosideeffects: true` in its
+   * meta data. A comment counts for the class whose body it is in; in a
+   * source that declares no class, and when no class name is given, every
+   * comment counts.
    *
    * @param {String} content the source
    * @param {String} [className] the class to read the documentation of
    * @returns {{ meta: Object, privates: { member: Set, static: Set } }}
    */
   static _readDocs (content, className) {
-    const declaresClasses = content
-      .split('\n')
-      .some(line => commentParser.CLASS_DECLARATION.test(line))
-    const comments = commentParser(content, { assocFunctions: true }).filter(
+    return VrpcAdapter._docsOf(VrpcAdapter._parseSource(content), className)
+  }
+
+  /** The documentation of a class in a parsed source (see `_readDocs`) */
+  static _docsOf ({ comments: parsed, classes }, className) {
+    const comments = parsed.filter(
       ({ functionName, className: owner }) =>
         !functionName ||
         className === undefined ||
         owner === className ||
-        (!owner && !declaresClasses)
+        (!owner && classes.size === 0)
     )
     const privates = { member: new Set(), static: new Set() }
-    comments.forEach(({ tags, functionName, isStatic, className: owner }) => {
+    comments.forEach(({ tags, functionName, isStatic, className: owner, access }) => {
       if (!functionName || functionName === 'constructor' || !tags) return
-      const hidden = tags.some(
-        ({ tag, name }) =>
-          tag === 'private' || (tag === 'access' && name === 'private')
-      )
+      const hidden =
+        access === 'private' ||
+        access === 'protected' ||
+        tags.some(
+          ({ tag, name }) =>
+            tag === 'private' || (tag === 'access' && name === 'private')
+        )
       if (!hidden) return
       if (owner) {
         privates[isStatic ? 'static' : 'member'].add(functionName)
@@ -460,7 +614,10 @@ class VrpcAdapter {
         params: paramsOf(tags)
       }
     })
-    comments.forEach(({ tags, description, functionName }) => {
+    comments.forEach(({ tags, description, functionName, declaration }) => {
+      // a member TypeScript declares private without a doc comment
+      // documents nothing
+      if (declaration) return
       if (tags && tags.some(({ tag }) => tag === 'callback')) return
       if (functionName) {
         if (tags) {
@@ -493,6 +650,11 @@ class VrpcAdapter {
             meta.__createShared__ = { description, params: modified, ret }
           } else {
             meta[functionName] = { description, params, ret }
+            // JSDoc's own tag for a function whose call changes nothing
+            // another caller, a device or storage could observe
+            if (tags.some(({ tag }) => tag === 'nosideeffects')) {
+              meta[functionName].nosideeffects = true
+            }
           }
         }
       }

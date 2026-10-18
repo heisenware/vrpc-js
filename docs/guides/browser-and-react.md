@@ -84,7 +84,11 @@ await agent.serve()
 
 A browser agent without a name takes eight random characters on every page
 load; name it if clients need to find it again. Plain functions registered
-with `registerFunction` are called on the class `__global__`. Persistence
+with `registerFunction` are called on the class `__global__`. A page has no
+source to read JSDoc from: declare a function that changes nothing at
+registration, `registerClass(Gauge, { meta: { read: { nosideeffects: true } } })`
+or `registerFunction(fn, 'version', { meta: { nosideeffects: true } })`
+(see [Declare what changes nothing](expose-classes.md#declare-what-changes-nothing)). Persistence
 and the command line are not available in the browser, and neither is
 schema validation of constructor arguments
 ([Validate constructor arguments](expose-classes.md#validate-constructor-arguments)):

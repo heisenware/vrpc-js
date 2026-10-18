@@ -79,6 +79,7 @@ NOTE: Each instance creates its own physical connection to the broker.
     - [.identity] <code>String</code> - Explicitly sets a vrpc client identity
     - [.keepalive] <code>String</code> - Sets the MQTT keepalive interval (in seconds). In browsers the ping runs on a Web Worker timer, so a hidden tab keeps its session
     - [.requiresSchema] <code>Boolean</code> <code> = false</code> - If true, any available schema information is shipped
+    - [.nosideeffects] <code>Boolean</code> <code> = false</code> - If true, the client only observes: it sends no request for a function the class info does not declare free of side effects (protocol, section 16.3) - such a call, a `callAll` and an `unregisterAgent` reject at once, before anything reaches the broker. Implies `requiresSchema`
     - [.tls] <code>Object</code> - TLS settings for a secure broker: `{ ca, rejectUnauthorized }`. Without it the broker's certificate is not verified (the historical behaviour); with `ca` the broker must present a chain the given certificates anchor.
 
 **Example**  
@@ -579,7 +580,8 @@ Reconnects to the broker by using a different token
 <a id="VrpcClient+unregisterAgent"></a>
 
 ### vrpcClient.unregisterAgent(agent) ⇒ <code>Promise.&lt;Boolean&gt;</code>
-Unregisters (= removal of persisted information) an offline agent
+Unregisters (= removal of persisted information) an offline agent. A
+client that only observes (`nosideeffects`) may not.
 
 **Kind**: instance method of [<code>VrpcClient</code>](#VrpcClient)  
 **Returns**: <code>Promise.&lt;Boolean&gt;</code> - Resolves to true in case of success, false otherwise  
