@@ -1,6 +1,7 @@
 // vrpc.io: the VRPC website. The documentation is the repository's docs/
 // folder, rendered as it is; nothing of it is copied here.
 
+const path = require('path')
 const { themes } = require('prism-react-renderer')
 const { isDoc, descriptionOf } = require('./plugins/doc-text')
 
@@ -98,12 +99,14 @@ module.exports = {
     require.resolve('./plugins/spec-facts.js'),
     // llms.txt, and every page of the documentation as Markdown
     require.resolve('./plugins/llms.js'),
-    // The live demo uses the browser bundle of vrpc, also in the server
-    // build; the Node entry would pull the native addon sources in
+    // The live demo (and vrpc-react in it) uses this repository's browser
+    // bundle, also in the server build: the vrpc the site documents, never
+    // an older one from npm - and the Node entry would pull the native
+    // addon sources in
     () => ({
       name: 'vrpc-browser-bundle',
       configureWebpack: () => ({
-        resolve: { alias: { vrpc$: require.resolve('vrpc/browser/vrpc.js') } }
+        resolve: { alias: { vrpc$: path.resolve(__dirname, '../browser/vrpc.js') } }
       })
     }),
     // the pages of the previous site, for links out there

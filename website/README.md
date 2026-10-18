@@ -26,7 +26,7 @@ npm run serve      # serves build/
 | `src/pages/index.jsx`, `src/css/home.css` | the home page |
 | `src/components/LogoJourney.jsx`, `logo3d.js` | the 3D V: it floats in the hero and settles in the call story as you scroll (three.js, loaded after the page) |
 | `src/components/CallStory.jsx` | the animated call between a client and an agent, with its messages on the wire |
-| `src/components/LiveDemo.jsx`, `LiveRadar.jsx` | the home page's live demo, a VRPC client in the browser |
+| `src/components/LiveDemo.jsx`, `LiveRadar.jsx`, `vrpc.js` | the home page's live demo, a VRPC client in the browser through vrpc-react; it runs this repository's own browser bundle (`../browser/vrpc.js`), so it demonstrates the vrpc the site documents |
 | `src/components/GitHubStar.jsx`, `src/theme/NavbarItem/ComponentTypes.js` | the navbar's star button (`custom-githubStar`): live star count, and a thank-you when the visitor comes back from GitHub |
 | `src/css/custom.css` | Heisenware's palette and fonts for the whole site |
 | `src/clientModules/fonts.js` | Inter and JetBrains Mono, served from vrpc.io itself |

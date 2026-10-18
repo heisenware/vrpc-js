@@ -1,15 +1,16 @@
 // src/LiveRadar.jsx
 import React, { useEffect, useState } from 'react'
-import { useClient } from 'vrpc-react'
+import { useClient } from './vrpc'
 import { Terminal, Send, Activity, Radio } from 'lucide-react'
 
 export default function LiveRadar () {
-  const [client] = useClient('vrpc-live-demo')
+  const { client, status } = useClient()
+  const connected = !!client && status === 'connected'
   const [onlineAgents, setOnlineAgents] = useState([])
   const [message, setMessage] = useState('Hello from the website!')
 
   useEffect(() => {
-    if (!client) return
+    if (!connected) return
 
     // 1. Seed the initial state with already connected agents
     const currentlyOnline = client.getAvailableAgents({ mustBeOnline: true })
@@ -39,7 +40,7 @@ export default function LiveRadar () {
       // VrpcClient inherits from EventEmitter, so .off() is a valid alias for .removeListener()
       client.off('agent', handleAgent)
     }
-  }, [client])
+  }, [client, connected])
 
   const sendGreeting = async targetAgent => {
     if (!client) return
@@ -58,12 +59,13 @@ export default function LiveRadar () {
     }
   }
 
-  if (!client)
+  if (!connected) {
     return (
       <div className='radar-box loading'>
         <Activity className='spin' size={24} /> Connecting to global radar...
       </div>
     )
+  }
 
   return (
     <div className='radar-box'>
