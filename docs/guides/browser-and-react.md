@@ -17,7 +17,7 @@ import { VrpcClient } from 'vrpc'
 Without a bundler, load the build itself; it defines the global `vrpc`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/vrpc@3.17.0/browser/vrpc.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vrpc@3.18.0/browser/vrpc.js"></script>
 <script>
   const client = new vrpc.VrpcClient({ domain: 'factory', broker: 'wss://broker.example.com:8884/mqtt' })
 </script>
