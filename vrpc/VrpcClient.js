@@ -370,8 +370,14 @@ class VrpcClient extends EventEmitter {
             `${this._domain}/${agent}/+/__classInfoConcise__`
           )
         }
-        // Single wildcard catches BOTH RPC responses (length 3) AND events (length 4)
-        await this._mqttSubscribe(`${this._vrpcConnectionId}/#`)
+        // The connection's own topics: answers (the connection id) and
+        // events (one level below). Never `#`: the mqtt client id is the
+        // client's choice and may be an agent's name, and a filter reaching
+        // a fifth level would reach that agent's requests (CL-2)
+        await this._mqttSubscribe([
+          this._vrpcConnectionId,
+          `${this._vrpcConnectionId}/+`
+        ])
         this._inboxReady = true
         for (const agent of Array.from(this._redeclare)) {
           this._redeclareTo(agent)

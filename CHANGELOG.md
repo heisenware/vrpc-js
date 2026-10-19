@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.18.0] - Unreleased
+
+### Security
+
+- **A broker can keep clients away from the requests to agents**: the broker policy (protocol, section 14) confined every client to `<domain>/<own mqttClientId>/#`. But a client picks its MQTT client id, and one that names itself after an agent was granted `<domain>/<agent>/#` - every request to that agent with its arguments, passwords and queries included. The policy now grants `<domain>/<own mqttClientId>/+` and `<domain>/<own mqttClientId>/+/+`: three and four levels, never the fifth where requests travel. A broker that judges subscriptions by their filter refuses every client filter with `#` or five levels, and refuses client ids with `/`, `+` or `#`, which would stretch the grant again (SEC-4). vrpc-js refuses such ids for its own clients, as it always did.
+- **A client no longer subscribes its connection with `#`**: it subscribes `<connectionId>` (answers and callbacks) and `<connectionId>/+` (events and notices of its subscriptions) instead of `<connectionId>/#`, which the new policy refuses (protocol CL-2). A client before 3.18 receives no answer from a broker that follows it.
+
+### Changed
+
+- **A subscription id is one level below its connection id** (protocol EV-1), the level a client subscribes: an agent refuses a deeper one. vrpc-js clients derive theirs so since 3.7; a 3.6 client's subscriptions are refused. A new client keeps working with agents of every earlier version: they publish where the client's ids say.
+
 ## [3.17.0] - Oct 19 2026
 
 ### Added

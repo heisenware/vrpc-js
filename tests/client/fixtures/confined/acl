@@ -1,0 +1,16 @@
+# agents serve requests and answer to any connection
+user agent
+topic readwrite #
+
+# a client publishes requests and reads the agent and class infos
+user client
+topic write +/+/+/+/+
+topic read +/+/__agentInfo__
+topic read +/+/+/__classInfo__
+topic read +/+/+/__classInfoConcise__
+
+# ... and its own connection: answers (3 levels), events and presence (4
+# levels), never a fifth level, where requests travel
+pattern read +/%c/+
+pattern read +/%c/+/+
+pattern write +/%c/+/__clientInfo__

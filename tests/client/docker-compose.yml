@@ -10,6 +10,7 @@ services:
     working_dir: /app
     depends_on:
       - broker
+      - confined-broker
     command: [
       "tests/client/wait-for.sh",
       "broker:1883",
@@ -77,4 +78,30 @@ services:
       "--",
       "node",
       "tests/client/fixtures/agentOnlineOffline.js"
+    ]
+
+  # a broker that confines its clients by the protocol's broker policy
+  confined-broker:
+    container_name: confined-broker
+    image: eclipse-mosquitto:2
+    command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
+    hostname: confined-broker
+    volumes:
+      - ./fixtures/confined/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./fixtures/confined/acl:/mosquitto/config/acl:ro
+
+  confined-agent:
+    image: node:24-alpine
+    hostname: confined-agent
+    volumes:
+      - ../../:/app
+    working_dir: /app
+    depends_on:
+      - confined-broker
+    command: [
+      "tests/client/wait-for.sh",
+      "confined-broker:1883",
+      "--",
+      "node",
+      "tests/client/fixtures/confined/agent.js"
     ]

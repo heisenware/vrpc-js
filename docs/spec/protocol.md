@@ -179,7 +179,7 @@ characters on every start. Name agents explicitly in production.
 | `<domain>/<agent>/<class>/__static__/<function>` | 5 | client | no | a request to a class |
 | `<domain>/<agent>/<class>/<instance>/<function>` | 5 | client | no | a request to an instance |
 | `<connectionId>` | 3 | agent | no | answers, promise answers, one-shot callbacks |
-| `<connectionId>/<topicId>` | 4 or more | agent | no | events and ended notices of a subscription |
+| `<connectionId>/<topicId>` | 4 | agent | no | events and ended notices of a subscription |
 | `<connectionId>/__clientInfo__` | 4 | client; the broker for its will | no | presence |
 
 A topic's last level tells messages of the same depth apart: a class info
@@ -349,17 +349,23 @@ A client needs `__classInfo__` only when it reads `meta`; otherwise
 
 - **CL-1.** A client's connection id MUST be `<domain>/<mqttClientId>/<secret>`:
   its domain, the MQTT client id of its connection, and a secret of at least
-  16 characters drawn at random from at least 64 symbols. A client object
-  SHOULD keep its connection id for its lifetime, across reconnects.
-- **CL-2.** A client MUST subscribe `<connectionId>` and its topics below
-  (`<connectionId>/#` covers both) before it sends a request.
+  16 characters drawn at random from at least 64 symbols. The MQTT client id
+  MUST be one topic level: not empty, without `/`, `+` and `#`. A client
+  object SHOULD keep its connection id for its lifetime, across reconnects.
+- **CL-2.** A client MUST subscribe `<connectionId>` and `<connectionId>/+`
+  before it sends a request: answers and callbacks arrive on the first, a
+  subscription's events and notices one level below. It MUST NOT subscribe
+  below its connection id with `#`, nor any filter of five levels: its MQTT
+  client id is its own choice and may be an agent's name, and such a filter
+  reaches that agent's requests (SEC-4).
 - **CL-3.** A client SHOULD subscribe the agent info and the class info of
   the agents it uses, retained messages included, to learn which agents
   serve, what they offer, and which protocol version they speak.
 
-A broker that confines each client to topics under its own MQTT client id
-keeps every answer, event and presence message of a connection private to it
-(SEC-4). The secret keeps a connection id from being guessed.
+A broker that confines each client to topics under its own MQTT client id,
+three and four levels deep, keeps every answer, event and presence message of
+a connection private to it and every request away from it (SEC-4). The
+secret keeps a connection id from being guessed.
 
 *In vrpc-js:* a client subscribes `<domain>/+/__agentInfo__` and
 `<domain>/+/+/__classInfoConcise__` (`__classInfo__` with
@@ -639,9 +645,10 @@ clients repeat, flap or restart:
 ### 12.2 Subscription ids
 
 - **EV-1.** A subscription id MUST be `__e__<connectionId>/<topicId>`: the
-  sender's connection id, and one or more topic levels, none of them empty
-  or containing `+` or `#`. An agent MUST refuse with an error a request
-  carrying a subscription id that does not begin with `__e__<s>/` (SEC-2).
+  sender's connection id, and one topic level, not empty and without `+` or
+  `#` - the level the client subscribes below its connection id (CL-2). An
+  agent MUST refuse with an error a request carrying a subscription id that
+  is not `__e__<s>/` followed by such a level (SEC-2).
 - **EV-2.** A client MUST give two subscriptions different ids when they
   differ in target (an instance, a class, or every instance of a class),
   function, arguments compared by value, handler position, or callback; and
@@ -970,7 +977,16 @@ an agent's version from its agent info (AG-6).
 
 Clients older than vrpc-js 3.6 derived subscription ids that do not lie under
 their connection id; an agent of version 4 refuses their subscriptions
-(EV-1).
+(EV-1). Clients of vrpc-js 3.6 derived ids several levels below it; an agent
+of vrpc-js 3.18 or later refuses them as well.
+
+Agents of any version publish answers to a request's `s` and events to the
+topic a subscription id names, so a client of version 4 reaches all of them
+with the subscriptions of CL-2.
+
+Clients before vrpc-js 3.18 subscribe `<connectionId>/#` (CL-2). A broker
+that judges subscriptions by their filter refuses it (SEC-4), and such a
+client receives no answer there.
 
 ### 13.1 Deprecated, to be removed in version 5
 
@@ -1003,7 +1019,17 @@ topics. The protocol is built so that topic permissions mean something.
   subscriptions. A broker SHOULD confine every client to subscribing topics
   under its own MQTT client id, so that nobody else receives what carries a
   connection id or a subscription id. Agents MUST NOT disclose subscription
-  ids (EV-3).
+  ids (EV-3). The confinement MUST stop above the fifth level: a client picks
+  its MQTT client id, so `<domain>/<own mqttClientId>/#` is
+  `<domain>/<agent>/#` for a client that names itself after an agent - every
+  request to that agent, arguments included. A broker that judges a
+  subscription by its filter (not each message it delivers) refuses a
+  client's `#` and every filter of five levels. The client id fills exactly
+  one level: a broker MUST refuse a client id that contains `/`, `+` or `#`,
+  or never let it match - substituted into `<domain>/<own mqttClientId>/+/+`,
+  the id `agent/Class` makes five levels again, and `+` or `#` match every
+  client's topics. A client of this protocol never uses one (CL-1); a broker
+  cannot rely on that, any MQTT client may connect.
 - **SEC-5.** Peers SHOULD connect with TLS and SHOULD verify the broker's
   certificate.
 - **SEC-6.** A broker that reads the class infos with meta data can confine
@@ -1021,13 +1047,18 @@ A broker policy that follows these rules:
 
 | Peer | May publish | May subscribe |
 | --- | --- | --- |
-| client | `<domain>/+/+/+/+` (requests), `<domain>/<own mqttClientId>/+/__clientInfo__` | `<domain>/<own mqttClientId>/#`, `<domain>/+/__agentInfo__`, `<domain>/+/+/__classInfo__`, `<domain>/+/+/__classInfoConcise__` |
+| client | `<domain>/+/+/+/+` (requests), `<domain>/<own mqttClientId>/+/__clientInfo__` | `<domain>/<own mqttClientId>/+`, `<domain>/<own mqttClientId>/+/+`, `<domain>/+/__agentInfo__`, `<domain>/+/+/__classInfo__`, `<domain>/+/+/__classInfoConcise__` |
 | agent | `<domain>/<own name>/#`, `<domain>/+/+` and `<domain>/+/+/#` (answers and events to connections) | `<domain>/<own name>/#`, `<domain>/+/+/__clientInfo__` |
 
 The agent's rights to publish are broad because a topic filter cannot tell a
 connection id from other topics of the same depth; SEC-2 keeps an agent from
 being used to publish elsewhere. A broker that can match client ids by
 pattern can narrow them to connection ids.
+
+The policy trusts agents. An agent subscribes `<domain>/<own name>/#`, so an
+agent named after a client's MQTT client id receives that client's answers
+and events. A broker that lets peers it does not trust serve as agents
+grants each of them only the agent names that are theirs.
 
 *In vrpc-js:* an agent without a token or password connects with the
 username `<domain>/<agent>` and a password derived from its host. That is no
@@ -1180,7 +1211,7 @@ sequenceDiagram
   A->>B: SUBSCRIBE request topics (AG-2), wait for SUBACK
   A->>B: PUBLISH retained factory/press-1/__agentInfo__ {status: online, v: 4}
   A->>B: PUBLISH retained .../Press/__classInfoConcise__ {instances: [main], ...}
-  C->>B: SUBSCRIBE factory/vc3x/s3cr3t/#, factory/+/__agentInfo__, factory/+/+/__classInfoConcise__
+  C->>B: SUBSCRIBE factory/vc3x/s3cr3t, factory/vc3x/s3cr3t/+, factory/+/__agentInfo__, factory/+/+/__classInfoConcise__
   B-->>C: retained agent info and class info
   C->>B: PUBLISH factory/press-1/Press/main/pressure {c, f, a: [], i: q-1, s: factory/vc3x/s3cr3t, v: 4}
   B->>A: request

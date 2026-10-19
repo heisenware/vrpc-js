@@ -165,17 +165,15 @@ function isEventId (arg) {
 
 /**
  * Whether a subscription id names a topic of its sender: `__e__<sender>/`
- * followed by one or more levels, none of them empty or a wildcard. Clients
- * since 3.6 derive their ids this way.
+ * followed by exactly one level, not empty and no wildcard - the level a
+ * client subscribes below its connection id. Clients since 3.7 derive their
+ * ids this way.
  */
 function ownsTopic (sender, id) {
   if (typeof sender !== 'string') return false
   const prefix = `__e__${sender}/`
   if (!id.startsWith(prefix)) return false
-  return id
-    .slice(prefix.length)
-    .split('/')
-    .every(level => level.length > 0 && !/[+#]/.test(level))
+  return /^[^/+#]+$/.test(id.slice(prefix.length))
 }
 
 class Registrations {

@@ -328,6 +328,22 @@ for (const [name, Agent, Adapter, register] of AGENTS) {
         expect(broker.publishedOn(`${DOMAIN}/victim/#`)).to.deep.equal([])
       })
 
+      it('refuses a subscription id more than one level below its sender (EV-1)', async () => {
+        // a client picks its secret: `<domain>/<agent>/<class>` as connection
+        // id and two more levels would make events land on request topics
+        const id = unique('t')
+        const real = await createShared('Thing', id)
+        for (const deep of [`${S}/a/b`, `${S}/a/`, `${S}//a`]) {
+          const answer = await request(`Thing/${id}/onTick`, { a: [`__e__${deep}`] })
+          expect(answer.e.message, deep).to.match(/under its sender's connection id/)
+        }
+        real.tick(1)
+        await sleep(50)
+        expect(broker.publishedOn(`${S}/a/b`)).to.deep.equal([])
+        expect(broker.publishedOn(`${S}/a/`)).to.deep.equal([])
+        expect(broker.publishedOn(`${S}//a`)).to.deep.equal([])
+      })
+
       it('ignores a message that is no JSON and serves on (TR-5)', async () => {
         const id = unique('t')
         await createShared('Thing', id)
